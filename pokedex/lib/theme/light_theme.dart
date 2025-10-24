@@ -9,6 +9,7 @@ ThemeData lightTheme = ThemeData(
     onSecondary: Colors.white,
     onSurface: Colors.black,
   ),
+  scaffoldBackgroundColor: Colors.white,
   appBarTheme: const AppBarTheme(
     backgroundColor: Color(0xFFCC0000),
     foregroundColor: Colors.white,
@@ -22,15 +23,16 @@ ThemeData lightTheme = ThemeData(
       fontWeight: FontWeight.normal,
     ),
   ),
-  scaffoldBackgroundColor: Colors.white,
   textTheme: const TextTheme(
     bodyLarge: TextStyle(
       color: Colors.black,
       fontFamily: 'Poppins',
+      fontSize: 16,
     ),
     bodyMedium: TextStyle(
       color: Colors.black,
       fontFamily: 'Poppins',
+      fontSize: 14,
     ),
     headlineLarge: TextStyle(
       color: Colors.black,
@@ -39,4 +41,13 @@ ThemeData lightTheme = ThemeData(
       fontSize: 24,
     ),
   ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFFCC0000),
+      foregroundColor: Colors.white,
+      textStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    ),
+  ),
+  iconTheme: const IconThemeData(color: Colors.black)
 );

@@ -9,6 +9,7 @@ ThemeData darkTheme = ThemeData(
     onSecondary: Colors.white,
     onSurface: Colors.white,
   ),
+  scaffoldBackgroundColor: const Color(0xFF121212),
   appBarTheme: const AppBarTheme(
     backgroundColor: Color(0xFFCC0000),
     foregroundColor: Colors.white,
@@ -22,15 +23,16 @@ ThemeData darkTheme = ThemeData(
       fontWeight: FontWeight.normal,
     ),
   ),
-  scaffoldBackgroundColor: Color(0xFF121212),
   textTheme: const TextTheme(
     bodyLarge: TextStyle(
       color: Colors.white,
       fontFamily: 'Poppins',
+      fontSize: 16,
     ),
     bodyMedium: TextStyle(
       color: Colors.white,
       fontFamily: 'Poppins',
+      fontSize: 14,
     ),
     headlineLarge: TextStyle(
       color: Colors.white,
@@ -39,4 +41,13 @@ ThemeData darkTheme = ThemeData(
       fontSize: 24,
     ),
   ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFFCC0000),
+      foregroundColor: Colors.white,
+      textStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    ),
+  ),
+  iconTheme: const IconThemeData(color: Colors.white)
 );
