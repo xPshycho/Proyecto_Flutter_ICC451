@@ -18,7 +18,10 @@ class HomePage extends StatelessWidget {
           source: source,
           onItemSelected: (item) {
             debugPrint('Selected "$item" from $source');
-            // handle selection later or send to a handler
+          },
+          onRegionSelected: (region) {
+            debugPrint('Selected region: ${region.name} (Generation ${region.generation})');
+            // TODO: Navegar a la página de la región seleccionada
           },
         );
       },
