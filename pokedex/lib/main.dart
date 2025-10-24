@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pokedex/presentation/pages/homePage.dart';
+import 'package:pokedex/presentation/pages/home_page.dart';
+import 'package:pokedex/theme/light_theme.dart';
+import 'package:pokedex/theme/dark_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,8 +15,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(fontFamily: 'Poppins'),
-        home: HomePage()
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.system, // Responde automáticamente al tema del sistema
+        home: const HomePage()
     );
   }
 }
