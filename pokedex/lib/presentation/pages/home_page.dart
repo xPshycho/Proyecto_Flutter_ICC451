@@ -1,8 +1,29 @@
-// dart
 import 'package:flutter/material.dart';
+
+import '../models/menu_source.dart';
+import '../widgets/bottom_menu.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  void _showBottomMenu(BuildContext context, MenuSource source) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return BottomMenu(
+          source: source,
+          onItemSelected: (item) {
+            debugPrint('Selected "$item" from $source');
+            // handle selection later or send to a handler
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +51,7 @@ class HomePage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      debugPrint('Click!' );
-                    },
+                    onPressed: () => debugPrint('Nacional Pokedex pressed'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -44,9 +63,7 @@ class HomePage extends StatelessWidget {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          debugPrint('Click!');
-                        },
+                        onPressed: () => _showBottomMenu(context, MenuSource.regional),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
@@ -56,9 +73,7 @@ class HomePage extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          debugPrint('Click!');
-                        },
+                        onPressed: () => _showBottomMenu(context, MenuSource.tipos),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
