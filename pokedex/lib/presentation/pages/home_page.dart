@@ -51,6 +51,32 @@ class HomePage extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 12),
+                // Search field
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Buscar Pokemon...',
+                    hintStyle: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.all(0.0),
+                      child: Image.asset(
+                        'assets/icons/pikachu_search.png',
+                        width: 36,
+                        height: 36,
+                      ),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surface,
+                  ),
+                  onChanged: (value) {
+                    debugPrint('Searching for: $value');
+                  },
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
