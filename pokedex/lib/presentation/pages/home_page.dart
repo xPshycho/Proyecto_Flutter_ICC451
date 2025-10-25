@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/menu_source.dart';
 import '../widgets/bottom_menu.dart';
+import '../widgets/search_box.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -52,25 +53,15 @@ class HomePage extends StatelessWidget {
               children: [
                 const SizedBox(height: 12),
                 // Search field
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar Pokemon...',
-                    hintStyle: TextStyle(
-                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+                SearchBox(
+                  hintText: 'Buscar Pokemon...',
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(0.0),
+                    child: Image.asset(
+                      'assets/icons/pikachu_search.png',
+                      width: 36,
+                      height: 36,
                     ),
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.all(0.0),
-                      child: Image.asset(
-                        'assets/icons/pikachu_search.png',
-                        width: 36,
-                        height: 36,
-                      ),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: colorScheme.surface,
                   ),
                   onChanged: (value) {
                     debugPrint('Searching for: $value');
