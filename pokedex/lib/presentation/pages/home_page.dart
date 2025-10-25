@@ -36,13 +36,20 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Pokedex',
-          style: Theme.of(context).appBarTheme.titleTextStyle,
-        ),
+        title: const Text('Pokedex'),
         centerTitle: true,
         backgroundColor: colorScheme.primary,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Image.asset(
+              'assets/icons/rotomdex.png',
+              width: 50,
+              height: 50,
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
