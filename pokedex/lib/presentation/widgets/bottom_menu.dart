@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/menu_source.dart';
 import '../models/region.dart';
+import '../models/pokemon_type.dart';
 import 'regional_grid_view.dart';
 
 typedef OnItemSelected = void Function(String item);
@@ -85,6 +87,72 @@ class BottomMenu extends StatelessWidget {
   Widget _buildDefaultContent(BuildContext context, ScrollController scrollController) {
     final items = itemsForSource(source);
 
+    // Si es el menú de tipos, usar el diseño con iconos
+    if (source == MenuSource.tipos) {
+      return GridView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 2.5,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final typeName = items[index];
+          final pokemonType = pokemonTypes[typeName];
+
+          if (pokemonType == null) {
+            return const SizedBox.shrink();
+          }
+
+          return InkWell(
+            onTap: () {
+              Navigator.of(context).pop();
+              if (onItemSelected != null) onItemSelected!(typeName);
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color(pokemonType.color),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(pokemonType.color).withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    pokemonType.iconPath,
+                    width: 32,
+                    height: 32,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    pokemonType.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // Para otros menús, usar el diseño de lista predeterminado
     return ListView(
       controller: scrollController,
       children: [
