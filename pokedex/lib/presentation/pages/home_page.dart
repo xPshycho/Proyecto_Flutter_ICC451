@@ -9,6 +9,8 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   static const double _bottomSpacerHeight = 300.0;
+  static const double _pokedexButtonIconSize = 32.0;
+  static const double _pokedexButtonFontSize = 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -22,34 +24,7 @@ class HomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Pokedex button
-              Align(
-                alignment: Alignment.center,
-                child: TextButton.icon(
-                  onPressed: () {
-                    showBottomMenu(
-                      context,
-                      onPokedexPressed: () {
-                        debugPrint('Pokedex Nacional presionado');
-                        Navigator.pop(context);
-                      },
-                      onMapaPressed: () {
-                        debugPrint('Mapa presionado');
-                        Navigator.pop(context);
-                      },
-                      onHelpPressed: () {
-                        debugPrint('Ayuda presionado');
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.menu_book_outlined, size: 32),
-                  label: const Text('Pokedex', style: TextStyle(fontSize: 20)),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  ),
-                ),
-              ),
+              _buildPokedexButton(context),
 
               // Search box and filter icons row
               Row(
@@ -62,7 +37,6 @@ class HomePage extends StatelessWidget {
                       onChanged: (value) {
                         debugPrint('Searching for: $value');
                       },
-
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -83,7 +57,6 @@ class HomePage extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-
 
                   // Filter icon button
                   IconButton(
@@ -111,5 +84,57 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Construye el botón principal de Pokedex que abre el menú inferior
+  Widget _buildPokedexButton(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: TextButton.icon(
+        onPressed: () => _showPokedexMenu(context),
+        icon: const Icon(
+          Icons.menu_book_outlined,
+          size: _pokedexButtonIconSize,
+        ),
+        label: const Text(
+          'Pokedex',
+          style: TextStyle(fontSize: _pokedexButtonFontSize),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8.0,
+            vertical: 4.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Muestra el menú inferior con las opciones de Pokedex, Mapa y Ayuda
+  void _showPokedexMenu(BuildContext context) {
+    showBottomMenu(
+      context,
+      onPokedexPressed: () => _onPokedexPressed(context),
+      onMapaPressed: () => _onMapaPressed(context),
+      onHelpPressed: () => _onHelpPressed(context),
+    );
+  }
+
+  /// Callback cuando se presiona "Pokedex Nacional"
+  void _onPokedexPressed(BuildContext context) {
+    debugPrint('Pokedex Nacional presionado');
+    Navigator.pop(context);
+  }
+
+  /// Callback cuando se presiona "Mapa"
+  void _onMapaPressed(BuildContext context) {
+    debugPrint('Mapa presionado');
+    Navigator.pop(context);
+  }
+
+  /// Callback cuando se presiona "Ayuda"
+  void _onHelpPressed(BuildContext context) {
+    debugPrint('Ayuda presionado');
+    Navigator.pop(context);
   }
 }
