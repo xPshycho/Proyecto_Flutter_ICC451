@@ -8,6 +8,7 @@ class SearchBox extends StatefulWidget {
   final Widget? prefixIcon;
   final EdgeInsetsGeometry padding;
   final bool autofocus;
+  final double height;
 
   const SearchBox({
     super.key,
@@ -18,6 +19,7 @@ class SearchBox extends StatefulWidget {
     this.prefixIcon,
     this.padding = const EdgeInsets.all(0),
     this.autofocus = false,
+    this.height = 32.0,
   });
 
   @override
@@ -66,32 +68,45 @@ class _SearchBoxState extends State<SearchBox> {
 
     return Padding(
       padding: widget.padding,
-      child: TextField(
-        controller: _controller,
-        autofocus: widget.autofocus,
-        onChanged: widget.onChanged,
-        onSubmitted: widget.onSubmitted,
-        decoration: InputDecoration(
-          hintText: widget.hintText,
-          hintStyle: TextStyle(
-            color: colorScheme.onSurface.withValues(alpha: 0.3),
+      child: SizedBox(
+        height: widget.height,
+        child: TextField(
+          controller: _controller,
+          autofocus: widget.autofocus,
+          onChanged: widget.onChanged,
+          onSubmitted: widget.onSubmitted,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            hintStyle: TextStyle(
+              color: colorScheme.onSurface.withAlpha(89),
+              fontSize: 12,
+            ),
+            prefixIcon: widget.prefixIcon ?? const Icon(Icons.search, size: 18),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 32,
+            ),
+            suffixIcon: _controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: _clearSearch,
+                    tooltip: 'Limpiar búsqueda',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            filled: true,
+            fillColor: colorScheme.surface,
+            isDense: true,
           ),
-          prefixIcon: widget.prefixIcon,
-          suffixIcon: _controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _clearSearch,
-                  tooltip: 'Limpiar búsqueda',
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          filled: true,
-          fillColor: colorScheme.surface,
         ),
       ),
     );
   }
 }
-
