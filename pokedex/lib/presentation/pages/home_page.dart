@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../widgets/search_box.dart';
 import '../widgets/bottom_filter_menu.dart';
+import '../widgets/floating_sort_menu.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -50,7 +51,14 @@ class HomePage extends StatelessWidget {
 
                   // Sort button
                   IconButton(
-                    onPressed: () => debugPrint('Sort pressed'),
+                    onPressed: () {
+                      showSortMenu(
+                        context,
+                        onApplySort: (option, order) {
+                          debugPrint('Ordenar por: $option, orden: $order');
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.sort),
                     tooltip: 'Sort',
                     color: colorScheme.onSurface,
