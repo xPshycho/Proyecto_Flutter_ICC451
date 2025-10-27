@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/search_box.dart';
 import '../widgets/bottom_filter_menu.dart';
 import '../widgets/floating_sort_menu.dart';
+import '../widgets/bottom_menu.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -25,9 +26,25 @@ class HomePage extends StatelessWidget {
               Align(
                 alignment: Alignment.center,
                 child: TextButton.icon(
-                  onPressed: () => debugPrint('Pokedex button pressed'),
-                  icon: const Icon(Icons.menu_book_outlined, size: 24),
-                  label: const Text('Pokedex', style: TextStyle(fontSize: 18)),
+                  onPressed: () {
+                    showBottomMenu(
+                      context,
+                      onPokedexPressed: () {
+                        debugPrint('Pokedex Nacional presionado');
+                        Navigator.pop(context);
+                      },
+                      onMapaPressed: () {
+                        debugPrint('Mapa presionado');
+                        Navigator.pop(context);
+                      },
+                      onHelpPressed: () {
+                        debugPrint('Ayuda presionado');
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.menu_book_outlined, size: 32),
+                  label: const Text('Pokedex', style: TextStyle(fontSize: 20)),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   ),
@@ -40,14 +57,15 @@ class HomePage extends StatelessWidget {
                   // Search box
                   Expanded(
                     child: SearchBox(
-                      hintText: 'Buscar Pokemon...',
+                      hintText: 'Buscar Pokemon',
                       height: 32.0,
                       onChanged: (value) {
                         debugPrint('Searching for: $value');
                       },
+
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
 
                   // Sort button
                   IconButton(
@@ -59,14 +77,13 @@ class HomePage extends StatelessWidget {
                         },
                       );
                     },
-                    icon: const Icon(Icons.sort),
+                    icon: const Icon(Icons.sort, size: 32),
                     tooltip: 'Sort',
                     color: colorScheme.onSurface,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
 
-                  const SizedBox(width: 8),
 
                   // Filter icon button
                   IconButton(
@@ -78,7 +95,7 @@ class HomePage extends StatelessWidget {
                         },
                       );
                     },
-                    icon: const Icon(Icons.filter_alt),
+                    icon: const Icon(Icons.filter_alt, size: 32),
                     tooltip: 'Filter',
                     color: colorScheme.onSurface,
                     padding: EdgeInsets.zero,

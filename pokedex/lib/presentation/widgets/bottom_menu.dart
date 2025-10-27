@@ -1,170 +1,173 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../models/menu_source.dart';
-import '../models/region.dart';
-import '../models/pokemon_type.dart';
-import 'regional_grid_view.dart';
 
-typedef OnItemSelected = void Function(String item);
-typedef OnRegionSelected = void Function(Region region);
+// Colores personalizables para los botones del menú
+class BottomMenuColors {
+  final Color pokedexButtonColor;
+  final Color mapaButtonColor;
+  final Color helpButtonColor;
+  final Color buttonTextColor;
+
+  const BottomMenuColors({
+    this.pokedexButtonColor = const Color(0xFFBBBBBB),
+    this.mapaButtonColor = const Color(0xFFBBBBBB),
+    this.helpButtonColor = const Color(0xFFBBBBBB),
+    this.buttonTextColor = Colors.black,
+  });
+}
 
 class BottomMenu extends StatelessWidget {
-  final MenuSource source;
-  final OnItemSelected? onItemSelected;
-  final OnRegionSelected? onRegionSelected;
+  final VoidCallback? onPokedexPressed;
+  final VoidCallback? onMapaPressed;
+  final VoidCallback? onHelpPressed;
+  final BottomMenuColors colors;
 
   const BottomMenu({
     super.key,
-    required this.source,
-    this.onItemSelected,
-    this.onRegionSelected,
+    this.onPokedexPressed,
+    this.onMapaPressed,
+    this.onHelpPressed,
+    this.colors = const BottomMenuColors(),
   });
 
   @override
   Widget build(BuildContext context) {
-    final title = titleForSource(source);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      minChildSize: 0.3,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            width: 60,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.onSurface.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          child: Column(
+
+          // Título "Menú" con línea roja
+          Column(
             children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+              Text(
+                'Menú',
+                style: textTheme.headlineLarge?.copyWith(fontSize: 20),
               ),
-
-              Text(title, style: Theme.of(context).textTheme.headlineLarge),
               const SizedBox(height: 8),
-              const Divider(),
-
-              Expanded(
-                child: source == MenuSource.regional
-                    ? _buildRegionalContent(context, scrollController)
-                    : _buildDefaultContent(context, scrollController),
+              Container(
+                width: 180,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
 
-  Widget _buildRegionalContent(BuildContext context, ScrollController scrollController) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      child: RegionalGridView(
-        onRegionSelected: (region) {
-          Navigator.of(context).pop();
-          if (onRegionSelected != null) {
-            onRegionSelected!(region);
-          }
-          if (onItemSelected != null) {
-            onItemSelected!(region.name);
-          }
-        },
+          const SizedBox(height: 24),
+
+          // Botón Pokedex Nacional (ancho completo)
+          _buildMenuButton(
+            label: 'Pokedex Nacional',
+            color: colors.pokedexButtonColor,
+            textColor: colors.buttonTextColor,
+            onPressed: onPokedexPressed,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Fila con botones Mapa y ?
+          Row(
+            children: [
+              // Botón Mapa
+              Expanded(
+                child: _buildMenuButton(
+                  label: 'Mapa',
+                  color: colors.mapaButtonColor,
+                  textColor: colors.buttonTextColor,
+                  onPressed: onMapaPressed,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Botón ?
+              Expanded(
+                child: _buildMenuButton(
+                  label: '?',
+                  color: colors.helpButtonColor,
+                  textColor: colors.buttonTextColor,
+                  onPressed: onHelpPressed,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
 
-  Widget _buildDefaultContent(BuildContext context, ScrollController scrollController) {
-    final items = itemsForSource(source);
-
-    // Si es el menú de tipos, usar el diseño con iconos
-    if (source == MenuSource.tipos) {
-      return GridView.builder(
-        controller: scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 2.5,
-        ),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final typeName = items[index];
-          final pokemonType = pokemonTypes[typeName];
-
-          if (pokemonType == null) {
-            return const SizedBox.shrink();
-          }
-
-          return InkWell(
-            onTap: () {
-              Navigator.of(context).pop();
-              if (onItemSelected != null) onItemSelected!(typeName);
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Color(pokemonType.color),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(pokemonType.color).withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SvgPicture.asset(
-                    pokemonType.iconPath,
-                    width: 32,
-                    height: 32,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    pokemonType.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Poppins',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+  Widget _buildMenuButton({
+    required String label,
+    required Color color,
+    required Color textColor,
+    VoidCallback? onPressed,
+  }) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        onTap: onPressed ?? () => debugPrint('$label pressed'),
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          );
-        },
-      );
-    }
-
-    // Para otros menús, usar el diseño de lista predeterminado
-    return ListView(
-      controller: scrollController,
-      children: [
-        ...items.map((t) => ListTile(
-              title: Text(t),
-              onTap: () {
-                Navigator.of(context).pop();
-                if (onItemSelected != null) onItemSelected!(t);
-              },
-            )),
-        const SizedBox(height: 12),
-      ],
+          ),
+        ),
+      ),
     );
   }
 }
+
+// Función helper para mostrar el menú desde cualquier parte
+void showBottomMenu(
+  BuildContext context, {
+  VoidCallback? onPokedexPressed,
+  VoidCallback? onMapaPressed,
+  VoidCallback? onHelpPressed,
+  BottomMenuColors? colors,
+}) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => BottomMenu(
+      onPokedexPressed: onPokedexPressed,
+      onMapaPressed: onMapaPressed,
+      onHelpPressed: onHelpPressed,
+      colors: colors ?? const BottomMenuColors(),
+    ),
+  );
+}
+

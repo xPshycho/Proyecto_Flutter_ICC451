@@ -75,6 +75,8 @@ class _SearchBoxState extends State<SearchBox> {
           autofocus: widget.autofocus,
           onChanged: widget.onChanged,
           onSubmitted: widget.onSubmitted,
+          textAlign: TextAlign.left,
+          textAlignVertical: TextAlignVertical.center,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: widget.hintText,
@@ -98,9 +100,26 @@ class _SearchBoxState extends State<SearchBox> {
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(
+                color: colorScheme.onSurface.withOpacity(0.3),
+                width: 1.5,
+              ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: colorScheme.onSurface.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: colorScheme.primary,
+                width: 2.0,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
             filled: true,
             fillColor: colorScheme.surface,
             isDense: true,
