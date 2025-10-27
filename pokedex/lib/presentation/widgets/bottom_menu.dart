@@ -152,14 +152,14 @@ class BottomMenu extends StatelessWidget {
 }
 
 // Función helper para mostrar el menú desde cualquier parte
-void showBottomMenu(
+Future<void> showBottomMenu(
   BuildContext context, {
   VoidCallback? onPokedexPressed,
   VoidCallback? onMapaPressed,
   VoidCallback? onHelpPressed,
   BottomMenuColors? colors,
 }) {
-  showModalBottomSheet(
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (context) => BottomMenu(
@@ -170,4 +170,3 @@ void showBottomMenu(
     ),
   );
 }
-
