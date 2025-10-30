@@ -9,11 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pokedex/main.dart';
+import 'package:pokedex/data/graphql/graphql_client.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+    final clientNotifier = GraphQLService.initClient();
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(clientNotifier: clientNotifier));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

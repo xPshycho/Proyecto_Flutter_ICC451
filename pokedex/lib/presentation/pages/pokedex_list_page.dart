@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
+import '../../data/favorites_service.dart';
 import '../widgets/pokemon_card.dart';
 import 'pokemon_detail_page.dart';
 import '../widgets/bottom_filter_menu.dart';
@@ -45,14 +47,53 @@ class _PokedexListPageState extends State<PokedexListPage> {
   }
 
   Future<void> _applyFilterMap(Map<String, dynamic> filters) async {
+    final favoritos = filters['favoritos'] as bool? ?? false;
     final tiposSpanish = (filters['tipos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final tiposApi = PokemonTypeColors.toApiTypes(tiposSpanish);
+    final generaciones = (filters['generaciones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+
     setState(() {
       _typeFilters = tiposApi; // ahora _typeFilters guarda nombres en esquema API
       _pokemons = [];
       _offset = 0;
     });
+
+    // Si filter favoritos está activo, recarga y filtra usando FavoritesService
     await _loadMore();
+
+    if (favoritos) {
+      // No usar BuildContext después de await; obtener servicio antes
+      final favService = Provider.of<FavoritesService>(context, listen: false);
+      final filteredFavs = _pokemons.where((p) => favService.isFavorite(p.id)).toList();
+      setState(() {
+        _pokemons = filteredFavs;
+      });
+    }
+
+    // Filtrar por generaciones si hay
+    if (generaciones.isNotEmpty) {
+      // Mapear generación -> id range (simplificado)
+      final ranges = generaciones.map((g) {
+        switch (g) {
+          case '1': return [1,151];
+          case '2': return [152,251];
+          case '3': return [252,386];
+          case '4': return [387,493];
+          case '5': return [494,649];
+          case '6': return [650,721];
+          case '7': return [722,809];
+          case '8': return [810,905];
+          case '9': return [906,1000];
+        }
+        return [0,9999];
+      }).toList();
+
+      setState(() {
+        _pokemons = _pokemons.where((p) {
+          return ranges.any((r) => p.id >= r[0] && p.id <= r[1]);
+        }).toList();
+      });
+    }
   }
 
   Future<void> _loadMore() async {
@@ -63,12 +104,12 @@ class _PokedexListPageState extends State<PokedexListPage> {
     });
     try {
       final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters);
+      final favService = Provider.of<FavoritesService>(context, listen: false);
       final filtered = list.where((p) {
         final matchesQuery = _query.isEmpty || p.name.toLowerCase().contains(_query.toLowerCase());
-        // Aquí p.types pueden venir en inglés (from REST) o en español según origen;
-        // Normalizamos a lowercase inglés para comparar con _typeFilters (que están en api names)
         final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();
         final matchesTypes = _typeFilters.isEmpty || pTypesApi.any((t) => _typeFilters.contains(t));
+        // No aplicar favoritos aquí; se aplica cuando user solicita filtros
         return matchesQuery && matchesTypes;
       }).toList();
 

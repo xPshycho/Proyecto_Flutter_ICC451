@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
+import '../../data/favorites_service.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -22,6 +24,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final favService = Provider.of<FavoritesService>(context, listen: true);
     return Scaffold(
       appBar: AppBar(title: const Text('Detalle')),
       body: FutureBuilder<Pokemon>(
@@ -35,7 +38,16 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (p.spriteUrl != null) Center(child: Image.network(p.spriteUrl!, width: 200, height: 200)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (p.spriteUrl != null) Image.network(p.spriteUrl!, width: 160, height: 160),
+                    IconButton(
+                      icon: Icon(favService.isFavorite(p.id) ? Icons.favorite : Icons.favorite_border, color: favService.isFavorite(p.id) ? Colors.red : null),
+                      onPressed: () => favService.toggleFavorite(p),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Text('#${p.id.toString().padLeft(3, '0')}', style: const TextStyle(color: Colors.grey)),
                 const SizedBox(height: 8),
@@ -48,6 +60,37 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                   const SizedBox(width: 16),
                   if (p.weight != null) Text('Peso: ${p.weight}'),
                 ]),
+                const SizedBox(height: 12),
+                if (p.abilities.isNotEmpty) ...[
+                  const Text('Habilidades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 6, children: p.abilities.map((a) => Chip(label: Text(a))).toList()),
+                  const SizedBox(height: 12),
+                ],
+                if (p.stats.isNotEmpty) ...[
+                  const Text('Stats', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Column(
+                    children: p.stats.entries.map((e) => Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [Text(e.key), Text(e.value.toString())],
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (p.evolutions != null && p.evolutions!.isNotEmpty) ...[
+                  const Text('Evoluciones', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Column(
+                    children: p.evolutions!.map((ev) => ListTile(
+                      leading: ev.spriteUrl != null ? Image.network(ev.spriteUrl!, width: 56, height: 56) : null,
+                      title: Text(ev.name),
+                      onTap: () {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => PokemonDetailPage(id: ev.id, repository: widget.repository)));
+                      },
+                    )).toList(),
+                  ),
+                ],
               ],
             ),
           );
@@ -56,4 +99,3 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 }
-

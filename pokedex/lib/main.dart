@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'presentation/pages/home_page.dart';
 import 'splash_screen.dart';
 import 'theme/light_theme.dart';
 import 'theme/dark_theme.dart';
 import 'data/graphql/graphql_client.dart';
 import 'data/repositories/pokemon_repository.dart';
+import 'data/favorites_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +27,10 @@ class MyApp extends StatelessWidget {
       client: clientNotifier,
       child: CacheProvider(
         child: MultiProvider(
-          providers: [Provider<PokemonRepository>.value(value: repository)],
+          providers: [
+            Provider<PokemonRepository>.value(value: repository),
+            ChangeNotifierProvider(create: (_) => FavoritesService()),
+          ],
           child: MaterialApp(
               debugShowCheckedModeBanner: false,
               theme: lightTheme,

@@ -67,6 +67,10 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     'Paldea'
   ];
 
+  // Opciones de generaciones (1..9)
+  final List<String> _generacionOptions = ['1','2','3','4','5','6','7','8','9'];
+  List<String> _generacionSeleccionadas = [];
+
   final List<String> _filtro4Options = [
     'Opción 1',
     'Opción 2',
@@ -100,6 +104,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       'categorias': _categoriasSeleccionadas,
       'tipos': _tiposSeleccionados,
       'regiones': _regionesSeleccionadas,
+      'generaciones': _generacionSeleccionadas,
       'filtro4': _filtro4Seleccionados,
       'filtro5': _filtro5Seleccionados,
     };
@@ -227,6 +232,18 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
                     selectedOptions: _regionesSeleccionadas,
                     onSelectionChanged: (selected) {
                       setState(() => _regionesSeleccionadas = selected);
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Generación
+                  ExpandableFilterBox(
+                    title: 'Generación',
+                    options: _generacionOptions,
+                    selectedOptions: _generacionSeleccionadas,
+                    onSelectionChanged: (selected) {
+                      setState(() => _generacionSeleccionadas = selected);
                     },
                   ),
 

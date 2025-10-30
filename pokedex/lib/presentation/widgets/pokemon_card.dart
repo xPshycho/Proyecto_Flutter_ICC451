@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
+import '../../data/favorites_service.dart';
 import 'FilterBoxes/pokemon_type_colors.dart';
 
 class PokemonCard extends StatelessWidget {
@@ -11,7 +13,8 @@ class PokemonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final primaryType = pokemon.types.isNotEmpty ? pokemon.types.first : null;
-    final bgColor = primaryType != null ? PokemonTypeColors.getTypeColor(primaryType) : colorScheme.surface;
+
+    final favService = Provider.of<FavoritesService>(context, listen: true);
 
     return InkWell(
       onTap: onTap,
@@ -36,12 +39,48 @@ class PokemonCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('#${pokemon.id.toString().padLeft(3, '0')}', style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6), fontSize: 12)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // ID: usar Expanded para evitar overflow
+                        Expanded(
+                          child: Text(
+                            '#${pokemon.id.toString().padLeft(3, '0')}',
+                            style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6), fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+
+                        // Botón favorito con ancho fijo y sin padding excesivo
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            iconSize: 20,
+                            icon: Icon(
+                              favService.isFavorite(pokemon.id) ? Icons.favorite : Icons.favorite_border,
+                              color: favService.isFavorite(pokemon.id) ? Colors.red : colorScheme.onSurface,
+                            ),
+                            onPressed: () => favService.toggleFavorite(pokemon),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
-                    Text(pokemon.name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    // Nombre con una sola línea y ellipsis para evitar overflow
+                    Text(
+                      pokemon.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 6,
+                      runSpacing: 4,
                       children: pokemon.types.map((t) {
                         final typeColor = PokemonTypeColors.getTypeColor(t);
                         final icon = PokemonTypeColors.getTypeIcon(t);
@@ -74,4 +113,3 @@ class PokemonCard extends StatelessWidget {
     );
   }
 }
-
