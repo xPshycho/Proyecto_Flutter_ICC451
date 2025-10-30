@@ -4,10 +4,12 @@ import 'FilterBoxes/type_filter_box.dart';
 
 class BottomFilterMenu extends StatefulWidget {
   final Function(Map<String, dynamic>)? onApplyFilters;
+  final Map<String, dynamic>? initialFilters;
 
   const BottomFilterMenu({
     super.key,
     this.onApplyFilters,
+    this.initialFilters,
   });
 
   @override
@@ -23,6 +25,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
   List<String> _regionesSeleccionadas = [];
   List<String> _filtro4Seleccionados = [];
   List<String> _filtro5Seleccionados = [];
+  List<String> _generacionSeleccionadas = [];
 
   // Opciones disponibles para cada categoría
   final List<String> _categoriaOptions = [
@@ -67,9 +70,8 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     'Paldea'
   ];
 
-  // Opciones de generaciones (1..9)
+  // Generaciones (1..9) - ahora se muestran por separado además de Región
   final List<String> _generacionOptions = ['1','2','3','4','5','6','7','8','9'];
-  List<String> _generacionSeleccionadas = [];
 
   final List<String> _filtro4Options = [
     'Opción 1',
@@ -85,6 +87,27 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     'Opción D',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+
+    // Inicializar filtros con los valores proporcionados
+    if (widget.initialFilters != null) {
+      final initialFilters = widget.initialFilters!;
+
+      setState(() {
+        _favoritos = initialFilters['favoritos'] ?? false;
+        _noFavoritos = initialFilters['noFavoritos'] ?? false;
+        _categoriasSeleccionadas = List<String>.from(initialFilters['categorias'] ?? []);
+        _tiposSeleccionados = List<String>.from(initialFilters['tipos'] ?? []);
+        _regionesSeleccionadas = List<String>.from(initialFilters['regiones'] ?? []);
+        _generacionSeleccionadas = List<String>.from(initialFilters['generaciones'] ?? []);
+        _filtro4Seleccionados = List<String>.from(initialFilters['filtro4'] ?? []);
+        _filtro5Seleccionados = List<String>.from(initialFilters['filtro5'] ?? []);
+      });
+    }
+  }
+
   void _resetFilters() {
     setState(() {
       _favoritos = false;
@@ -92,6 +115,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       _categoriasSeleccionadas = [];
       _tiposSeleccionados = [];
       _regionesSeleccionadas = [];
+      _generacionSeleccionadas = [];
       _filtro4Seleccionados = [];
       _filtro5Seleccionados = [];
     });
@@ -135,7 +159,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.3),
+              color: colorScheme.onSurface.withAlpha(76),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -237,7 +261,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
 
                   const SizedBox(height: 8),
 
-                  // Generación
+                  // Generación (separada de Region)
                   ExpandableFilterBox(
                     title: 'Generación',
                     options: _generacionOptions,
@@ -349,7 +373,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
         decoration: BoxDecoration(
           color: isSelected
               ? colorScheme.primary
-              : colorScheme.onSurface.withOpacity(0.08),
+              : colorScheme.onSurface.withAlpha(20),
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
             color: isSelected
@@ -383,11 +407,11 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
 }
 
 // Función helper para mostrar el menú desde cualquier parte
-void showFilterMenu(BuildContext context, {Function(Map<String, dynamic>)? onApplyFilters}) {
+void showFilterMenu(BuildContext context, {Function(Map<String, dynamic>)? onApplyFilters, Map<String, dynamic>? initialFilters}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => BottomFilterMenu(onApplyFilters: onApplyFilters),
+    builder: (context) => BottomFilterMenu(onApplyFilters: onApplyFilters, initialFilters: initialFilters),
   );
 }

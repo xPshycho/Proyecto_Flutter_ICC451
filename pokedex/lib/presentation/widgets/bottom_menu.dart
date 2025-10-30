@@ -49,7 +49,7 @@ class BottomMenu extends StatelessWidget {
             width: 60,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.onSurface.withOpacity(0.3),
+              color: colorScheme.onSurface.withAlpha(76),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

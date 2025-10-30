@@ -26,6 +26,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
   final int _limit = 24;
   String _query = '';
   List<String> _typeFilters = [];
+  List<String> _categoryFilters = [];
 
   @override
   void initState() {
@@ -51,19 +52,20 @@ class _PokedexListPageState extends State<PokedexListPage> {
     final tiposSpanish = (filters['tipos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final tiposApi = PokemonTypeColors.toApiTypes(tiposSpanish);
     final generaciones = (filters['generaciones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final categorias = (filters['categorias'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
     setState(() {
       _typeFilters = tiposApi; // ahora _typeFilters guarda nombres en esquema API
+      _categoryFilters = categorias;
       _pokemons = [];
       _offset = 0;
     });
 
     // Si filter favoritos está activo, recarga y filtra usando FavoritesService
+    final favService = Provider.of<FavoritesService>(context, listen: false);
     await _loadMore();
 
     if (favoritos) {
-      // No usar BuildContext después de await; obtener servicio antes
-      final favService = Provider.of<FavoritesService>(context, listen: false);
       final filteredFavs = _pokemons.where((p) => favService.isFavorite(p.id)).toList();
       setState(() {
         _pokemons = filteredFavs;
@@ -103,8 +105,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
       _errorMessage = '';
     });
     try {
-      final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters);
-      final favService = Provider.of<FavoritesService>(context, listen: false);
+      final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters, categories: _categoryFilters);
       final filtered = list.where((p) {
         final matchesQuery = _query.isEmpty || p.name.toLowerCase().contains(_query.toLowerCase());
         final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();
@@ -193,27 +194,53 @@ class _PokedexListPageState extends State<PokedexListPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 3 / 1.2,
-      ),
-      itemCount: _pokemons.length + (_loading ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= _pokemons.length) return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24.0),
-          child: Center(child: CircularProgressIndicator()),
-        );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        int crossAxisCount = 2;
+        double childAspectRatio = 3 / 2.2;
+        if (width >= 1200) {
+          crossAxisCount = 5;
+          childAspectRatio = 3 / 1.8;
+        } else if (width >= 1000) {
+          crossAxisCount = 4;
+          childAspectRatio = 3 / 1.9;
+        } else if (width >= 700) {
+          crossAxisCount = 3;
+          childAspectRatio = 3 / 2.0;
+        } else if (width >= 480) {
+          crossAxisCount = 2;
+          childAspectRatio = 3 / 2.2;
+        } else {
+          crossAxisCount = 1;
+          childAspectRatio = 3 / 1.2;
+        }
 
-        final p = _pokemons[index];
-        return PokemonCard(
-          pokemon: p,
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => PokemonDetailPage(id: p.id, repository: widget.repository)));
+        return GridView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(12),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemCount: _pokemons.length + (_loading ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= _pokemons.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final p = _pokemons[index];
+            return PokemonCard(
+              pokemon: p,
+              onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => PokemonDetailPage(id: p.id, repository: widget.repository)));
+              },
+            );
           },
         );
       },

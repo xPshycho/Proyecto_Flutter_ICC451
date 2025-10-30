@@ -42,9 +42,7 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
   }
 
   void _applySort() {
-    if (_selectedOption != null && widget.onApplySort != null) {
-      widget.onApplySort!(_selectedOption!, _sortOrder);
-    }
+    widget.onApplySort?.call(_selectedOption, _sortOrder);
     Navigator.pop(context);
   }
 
@@ -162,7 +160,7 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withAlpha(51),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -189,7 +187,7 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withAlpha(51),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -231,7 +229,7 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF5A5A72)
-              : colorScheme.onSurface.withOpacity(0.15),
+              : colorScheme.onSurface.withAlpha(38),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Center(
@@ -265,7 +263,7 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF5A5A72)
-              : colorScheme.onSurface.withOpacity(0.15),
+              : colorScheme.onSurface.withAlpha(38),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Column(

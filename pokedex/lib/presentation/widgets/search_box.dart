@@ -101,14 +101,14 @@ class _SearchBoxState extends State<SearchBox> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: colorScheme.onSurface.withOpacity(0.3),
+                color: colorScheme.onSurface.withAlpha(76),
                 width: 1.5,
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: colorScheme.onSurface.withOpacity(0.3),
+                color: colorScheme.onSurface.withAlpha(76),
                 width: 1.5,
               ),
             ),

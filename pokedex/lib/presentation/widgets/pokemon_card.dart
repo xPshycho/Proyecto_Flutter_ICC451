@@ -12,7 +12,6 @@ class PokemonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final primaryType = pokemon.types.isNotEmpty ? pokemon.types.first : null;
 
     final favService = Provider.of<FavoritesService>(context, listen: true);
 
@@ -23,43 +22,50 @@ class PokemonCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              // Imagen
-              if (pokemon.spriteUrl != null)
-                Image.network(pokemon.spriteUrl!, width: 72, height: 72, fit: BoxFit.contain)
-              else
-                Container(width: 72, height: 72, color: Colors.grey[200]),
+              // Imagen (reduced size)
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: pokemon.spriteUrl != null
+                    ? Image.network(pokemon.spriteUrl!, width: 56, height: 56, fit: BoxFit.contain)
+                    : Container(width: 56, height: 56, color: Colors.grey[200]),
+              ),
 
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Texto y tipos
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // ID: usar Expanded para evitar overflow
                         Expanded(
                           child: Text(
                             '#${pokemon.id.toString().padLeft(3, '0')}',
-                            style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6), fontSize: 12),
+                            style: TextStyle(color: colorScheme.onSurface.withAlpha(140), fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
                         ),
 
-                        // Botón favorito con ancho fijo y sin padding excesivo
+                        const SizedBox(width: 6),
+
+                        // Botón favorito con ancho fijo y sin padding excesivo (reduced)
                         SizedBox(
-                          width: 36,
-                          height: 36,
+                          width: 30,
+                          height: 30,
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            iconSize: 20,
+                            iconSize: 18,
                             icon: Icon(
                               favService.isFavorite(pokemon.id) ? Icons.favorite : Icons.favorite_border,
                               color: favService.isFavorite(pokemon.id) ? Colors.red : colorScheme.onSurface,
@@ -69,39 +75,50 @@ class PokemonCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Nombre con una sola línea y ellipsis para evitar overflow
+                    const SizedBox(height: 2),
+                    // Nombre con tamaño ligeramente menor
                     Text(
                       pokemon.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: pokemon.types.map((t) {
-                        final typeColor = PokemonTypeColors.getTypeColor(t);
-                        final icon = PokemonTypeColors.getTypeIcon(t);
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: typeColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (icon != null) ...[
-                                Image.asset(icon, width: 14, height: 14),
-                                const SizedBox(width: 6),
-                              ],
-                              Text(t, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                    const SizedBox(height: 6),
+                    // Mostrar tipos en una fila desplazable horizontalmente para evitar overflow vertical
+                    SizedBox(
+                      height: 22,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: pokemon.types.map((t) {
+                            final typeColor = PokemonTypeColors.getTypeColor(t);
+                            final icon = PokemonTypeColors.getTypeIcon(t);
+                            return Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: typeColor,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (icon != null) ...[
+                                    Image.asset(icon, width: 12, height: 12),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Text(
+                                    t,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
                   ],
                 ),

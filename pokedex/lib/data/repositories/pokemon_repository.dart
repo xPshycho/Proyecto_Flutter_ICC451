@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -8,10 +9,16 @@ class PokemonRepository {
   final GraphQLClient client;
   PokemonRepository(this.client);
 
+  // Small page cache to avoid refetching the same pages
+  final Map<int, List<Pokemon>> _pageCache = {};
+
+  // Global cache used for expensive operations (category filtering)
+  static List<Pokemon>? _allCache;
+
   // Query para lista de pokémon con tipos y sprites
   static const String _listQuery = r'''
-    query getPokemons($limit: Int!, $offset: Int!) {
-      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: {id: asc}) {
+    query getPokemons($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!) {
+      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy) {
         id
         name
         pokemon_v2_pokemonsprites {
@@ -49,27 +56,158 @@ class PokemonRepository {
     }
   ''';
 
-  Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0, List<String>? types, int? generation}) async {
-    // Intento GraphQL primero
+  // Helper: ensure '_allCache' is populated (fetch in chunks to avoid single huge request)
+  Future<void> _ensureAllCached() async {
+    if (_allCache != null) return;
+    final chunk = 250; // reasonable chunk size
+    int offset = 0;
+    final List<Pokemon> accumulated = [];
     try {
+      while (true) {
+        final options = QueryOptions(
+          document: gql(_listQuery),
+          variables: {'limit': chunk, 'offset': offset, 'orderBy': [{'id': 'asc'}]},
+          fetchPolicy: FetchPolicy.networkOnly,
+        );
+        QueryResult result;
+        try {
+          result = await client.query(options).timeout(const Duration(seconds: 8));
+        } on TimeoutException catch (te) {
+          debugPrint('PokemonRepository: GraphQL chunk timeout at offset $offset: $te');
+          break;
+        }
+        if (result.hasException || result.data == null) {
+          debugPrint('PokemonRepository: Error fetching chunk at offset $offset: ${result.exception}');
+          break;
+        }
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data == null || data.isEmpty) break;
+        final page = _mapFromGraphQL(data);
+        accumulated.addAll(page);
+        if (page.length < chunk) break; // last page
+        offset += chunk;
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: _ensureAllCached error: $e');
+      debugPrint('$st');
+    }
+    _allCache = accumulated;
+    debugPrint('PokemonRepository: cached total ${_allCache?.length ?? 0} pokemons');
+  }
+
+  Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0, List<String>? types, List<String>? generations, List<String>? categories, String? sortBy, bool? ascending}) async {
+    final bool hasCategories = categories != null && categories.isNotEmpty;
+
+    // If categories requested, ensure we have the full cache so we can filter reliably
+    if (hasCategories) {
+      await _ensureAllCached();
+      var list = List<Pokemon>.from(_allCache ?? []);
+
+      // Apply types filter if present
+      if (types != null && types.isNotEmpty) {
+        final lower = types.map((t) => t.toLowerCase()).toList();
+        list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
+      }
+
+      // Apply generations filter if present
+      if (generations != null && generations.isNotEmpty) {
+        final ranges = generations.map((g) {
+          switch (g) {
+            case '1': return [1,151];
+            case '2': return [152,251];
+            case '3': return [252,386];
+            case '4': return [387,493];
+            case '5': return [494,649];
+            case '6': return [650,721];
+            case '7': return [722,809];
+            case '8': return [810,905];
+            case '9': return [906,1000];
+          }
+          return [0,9999];
+        }).toList();
+        list = list.where((p) => ranges.any((r) => p.id >= r[0] && p.id <= r[1])).toList();
+      }
+
+      // Apply category filtering using existing helper
+      list = await _filterByCategories(list, categories);
+
+      // Sort if requested
+      if (sortBy != null) {
+        if (sortBy == 'name') {
+          list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+        } else if (sortBy == 'id') {
+          list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+        }
+      }
+
+      // Paginate after filtering
+      final start = offset;
+      final end = (offset + limit) < list.length ? (offset + limit) : list.length;
+      if (start >= list.length) return [];
+      return list.sublist(start, end);
+    }
+
+    // No categories: try to serve from page cache
+    final cacheKey = offset;
+    if (_pageCache.containsKey(cacheKey)) {
+      return _pageCache[cacheKey]!;
+    }
+
+    // Normal behaviour: query GraphQL for the requested page
+    try {
+      final orderBy = sortBy != null ? [{sortBy: ascending == true ? 'asc' : 'desc'}] : [{'id': 'asc'}];
       final options = QueryOptions(
         document: gql(_listQuery),
-        variables: {'limit': limit, 'offset': offset},
+        variables: {'limit': limit, 'offset': offset, 'orderBy': orderBy},
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
-      final result = await client.query(options);
+      QueryResult result;
+      try {
+        result = await client.query(options).timeout(const Duration(seconds: 8));
+      } on TimeoutException catch (te) {
+        debugPrint('PokemonRepository: GraphQL page timeout at offset $offset: $te');
+        // fallback to REST
+        final restList = await _fetchFromRest(limit: limit, offset: offset, types: types);
+        _pageCache[cacheKey] = restList;
+        return restList;
+      }
+
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
           var list = _mapFromGraphQL(data);
-          debugPrint('PokemonRepository: GraphQL returned ${list.length} items');
-          // Aplicar filtros locales si GraphQL no los soporta directamente
+
+          // Types filter
           if (types != null && types.isNotEmpty) {
-            list = list.where((p) => p.types.any((t) => types.contains(t.toLowerCase()))).toList();
-            debugPrint('PokemonRepository: after type filter ${list.length} items');
+            final lower = types.map((t) => t.toLowerCase()).toList();
+            list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
           }
-          // Nota: generación no está implementada en el GraphQL público; fallback a REST si necesario
+
+          // Generations filter
+          if (generations != null && generations.isNotEmpty) {
+            final ranges = generations.map((g) {
+              switch (g) {
+                case '1': return [1,151];
+                case '2': return [152,251];
+                case '3': return [252,386];
+                case '4': return [387,493];
+                case '5': return [494,649];
+                case '6': return [650,721];
+                case '7': return [722,809];
+                case '8': return [810,905];
+                case '9': return [906,1000];
+              }
+              return [0,9999];
+            }).toList();
+
+            list = list.where((p) => ranges.any((r) => p.id >= r[0] && p.id <= r[1])).toList();
+          }
+
+          // Cache this page
+          _pageCache[cacheKey] = list;
+
+          debugPrint('PokemonRepository: GraphQL returned ${list.length} items');
           return list;
         }
       } else {
@@ -80,7 +218,7 @@ class PokemonRepository {
       debugPrint('$st');
     }
 
-    // Fallback a REST
+    // Fallback a REST (same as before)
     try {
       final restList = await _fetchFromRest(limit: limit, offset: offset, types: types);
       debugPrint('PokemonRepository: REST returned ${restList.length} items');
@@ -176,7 +314,7 @@ class PokemonRepository {
         final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
         if (res.statusCode == 200) {
           final db = jsonDecode(res.body) as Map<String, dynamic>;
-          final sprite = (db['sprites']?['other']?['official-artwork']?['front_default']) as String?;
+          final sprite = db['sprites']?['front_default'] as String?;
           final types = (db['types'] as List<dynamic>?)?.map((e) => e['type']['name'] as String).toList() ?? [];
           return Pokemon(id: id, name: db['name'] as String, spriteUrl: sprite, types: types);
         }
@@ -244,7 +382,7 @@ class PokemonRepository {
     final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
     if (res.statusCode != 200) throw Exception('REST status ${res.statusCode}');
     final db = jsonDecode(res.body) as Map<String, dynamic>;
-    final spriteUrl = (db['sprites']?['other']?['official-artwork']?['front_default']) as String?;
+    final spriteUrl = db['sprites']?['front_default'] as String?;
     final types = (db['types'] as List<dynamic>?)?.map((e) => e['type']['name'] as String).toList() ?? [];
     final abilities = (db['abilities'] as List<dynamic>?)?.map((e) => e['ability']?['name'] as String? ?? '').where((s) => s.isNotEmpty).toList() ?? [];
     final stats = <String, int>{};
@@ -315,5 +453,164 @@ class PokemonRepository {
     } catch (_) {}
 
     return Pokemon(id: item['id'] as int, name: item['name'] as String, spriteUrl: spriteUrl, types: types, abilities: abilities, stats: stats);
+  }
+
+  // Cache para reducir consultas REST repetidas
+  final Map<int, Map<String, dynamic>> _speciesCache = {};
+  final Map<int, Map<String, dynamic>> _pokemonDetailCache = {};
+
+  Future<List<Pokemon>> _filterByCategories(List<Pokemon> list, List<String> categories) async {
+    final result = <Pokemon>[];
+
+    // Prefetch species and details for all pokemons that are not cached yet
+    final idsToFetch = <int>[];
+    for (final p in list) {
+      if (!_speciesCache.containsKey(p.id) || !_pokemonDetailCache.containsKey(p.id)) {
+        idsToFetch.add(p.id);
+      }
+    }
+    if (idsToFetch.isNotEmpty) {
+      await _prefetchCaches(idsToFetch);
+    }
+
+    for (final p in list) {
+      final matches = await _matchesAnyCategory(p, categories);
+      if (matches) result.add(p);
+    }
+    return result;
+  }
+
+  // Prefetch species and pokemon details in batches with limited concurrency
+  Future<void> _prefetchCaches(List<int> ids) async {
+    if (ids.isEmpty) return;
+    const int batchSize = 20; // adjust for concurrency
+    for (var i = 0; i < ids.length; i += batchSize) {
+      final batch = ids.sublist(i, (i + batchSize) > ids.length ? ids.length : (i + batchSize));
+      await Future.wait(batch.map((id) async {
+        // species
+        if (!_speciesCache.containsKey(id)) {
+          try {
+            final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/$id')).timeout(const Duration(seconds: 6));
+            if (res.statusCode == 200) {
+              final species = jsonDecode(res.body) as Map<String, dynamic>;
+              _speciesCache[id] = species;
+            }
+          } catch (_) {}
+        }
+        // detail
+        if (!_pokemonDetailCache.containsKey(id)) {
+          try {
+            final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id')).timeout(const Duration(seconds: 6));
+            if (res.statusCode == 200) {
+              final detail = jsonDecode(res.body) as Map<String, dynamic>;
+              _pokemonDetailCache[id] = detail;
+            }
+          } catch (_) {}
+        }
+      }));
+    }
+  }
+
+  Future<bool> _matchesAnyCategory(Pokemon p, List<String> categories) async {
+    // If categories list empty -> true
+    if (categories.isEmpty) return true;
+
+    // Fetch species once
+    Map<String, dynamic>? species;
+    if (_speciesCache.containsKey(p.id)) {
+      species = _speciesCache[p.id];
+    } else {
+      try {
+        final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/${p.id}'));
+        if (res.statusCode == 200) {
+          species = jsonDecode(res.body) as Map<String, dynamic>;
+          _speciesCache[p.id] = species;
+        }
+      } catch (_) {}
+    }
+
+    // Fetch pokemon detail if needed (for forms/names)
+    Map<String, dynamic>? detail;
+    if (_pokemonDetailCache.containsKey(p.id)) {
+      detail = _pokemonDetailCache[p.id];
+    } else {
+      try {
+        final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/${p.id}'));
+        if (res.statusCode == 200) {
+          detail = jsonDecode(res.body) as Map<String, dynamic>;
+          _pokemonDetailCache[p.id] = detail;
+        }
+      } catch (_) {}
+    }
+
+    for (final catRaw in categories) {
+      final cat = catRaw.trim();
+      switch (cat) {
+        case 'Legendario':
+          if (species != null && species['is_legendary'] == true) return true;
+          break;
+        case 'Mítico':
+        case 'Mitico':
+          if (species != null && species['is_mythical'] == true) return true;
+          break;
+        case 'Mega':
+          if (detail != null) {
+            final name = (detail['name'] as String?) ?? '';
+            if (name.contains('mega')) return true;
+            final forms = detail['forms'] as List<dynamic>?;
+            if (forms != null && forms.any((f) => (f['name'] as String).contains('mega'))) return true;
+          }
+          break;
+        case 'Gigantamax':
+          if (detail != null) {
+            final name = (detail['name'] as String?) ?? '';
+            if (name.contains('gmax') || name.contains('gigantamax') || name.contains('g-max')) {
+              return true;
+            }
+            final forms = detail['forms'] as List<dynamic>?;
+            if (forms != null && forms.any((f) {
+              final n = (f['name'] as String?) ?? '';
+              return n.contains('gmax') || n.contains('gigantamax') || n.contains('g-max');
+            })) {
+              return true;
+            }
+          }
+          break;
+        case 'Starter':
+          if (_isStarter(p.id)) {
+            return true;
+          }
+          break;
+        case 'Ultra Bestia':
+          if (p.id >= 793 && p.id <= 807) {
+            return true;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    return false;
+  }
+
+  bool _isStarter(int id) {
+    // Lista compacta de starters clásicos por generación (ids)
+    const Map<int, List<int>> startersByGen = {
+      1: [1,4,7],
+      2: [152,155,158],
+      3: [252,255,258],
+      4: [387,390,393],
+      5: [494,497,500],
+      6: [650,653,656],
+      7: [722,725,728],
+      8: [810,813,816],
+      9: [906,909,912]
+    };
+
+    for (final v in startersByGen.values) {
+      if (v.contains(id)) return true;
+    }
+    return false;
   }
 }

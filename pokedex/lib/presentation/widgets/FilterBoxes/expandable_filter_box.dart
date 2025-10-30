@@ -51,7 +51,7 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
       curve: Curves.easeInOut,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.onSurface.withOpacity(0.08),
+        color: colorScheme.onSurface.withAlpha(20),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -80,10 +80,10 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withAlpha(25),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.red.withOpacity(0.3),
+                              color: Colors.red.withAlpha(76),
                               width: 1,
                             ),
                           ),
@@ -123,7 +123,7 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
                     child: Icon(
                       Icons.keyboard_arrow_down,
                       size: 20,
-                      color: colorScheme.onSurface.withOpacity(0.6),
+                      color: colorScheme.onSurface.withAlpha(153),
                     ),
                   ),
                 ),
@@ -211,7 +211,7 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF4CAF50)
-              : colorScheme.onSurface.withOpacity(0.15),
+              : colorScheme.onSurface.withAlpha(38),
           borderRadius: BorderRadius.circular(20),
           border: isSelected
               ? Border.all(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../../data/favorites_service.dart';
+import '../widgets/FilterBoxes/pokemon_type_colors.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -53,7 +54,27 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 const SizedBox(height: 8),
                 Text(p.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                Wrap(spacing: 8, children: p.types.map((t) => Chip(label: Text(t))).toList()),
+                Wrap(spacing: 8, children: p.types.map((t) {
+                  final typeColor = PokemonTypeColors.getTypeColor(t);
+                  final icon = PokemonTypeColors.getTypeIcon(t);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: typeColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) ...[
+                          Image.asset(icon, width: 14, height: 14),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(t, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                  );
+                }).toList()),
                 const SizedBox(height: 12),
                 if (p.height != null || p.weight != null) Row(children: [
                   if (p.height != null) Text('Altura: ${p.height}'),
