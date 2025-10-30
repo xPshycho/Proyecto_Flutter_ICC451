@@ -1,25 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:pokedex/presentation/pages/home_page.dart';
-import 'package:pokedex/splash_screen.dart';
-import 'package:pokedex/theme/light_theme.dart';
-import 'package:pokedex/theme/dark_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'presentation/pages/home_page.dart';
+import 'splash_screen.dart';
+import 'theme/light_theme.dart';
+import 'theme/dark_theme.dart';
+import 'data/graphql/graphql_client.dart';
+import 'data/repositories/pokemon_repository.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initHiveForFlutter();
+  final clientNotifier = GraphQLService.initClient();
+  runApp(MyApp(clientNotifier: clientNotifier));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final ValueNotifier<GraphQLClient> clientNotifier;
+  const MyApp({super.key, required this.clientNotifier});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: lightTheme,
-        darkTheme: darkTheme,
-        themeMode: ThemeMode.system, // Responde automáticamente al tema del sistema
-        home: const SplashScreen(),
+    final repository = PokemonRepository(clientNotifier.value);
+
+    return GraphQLProvider(
+      client: clientNotifier,
+      child: CacheProvider(
+        child: MultiProvider(
+          providers: [Provider<PokemonRepository>.value(value: repository)],
+          child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: lightTheme,
+              darkTheme: darkTheme,
+              themeMode: ThemeMode.system,
+              home: const SplashScreen(),
+          ),
+        ),
+      ),
     );
   }
 }

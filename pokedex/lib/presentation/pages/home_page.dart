@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 
 import '../widgets/search_box.dart';
 import '../widgets/bottom_filter_menu.dart';
 import '../widgets/floating_sort_menu.dart';
 import '../widgets/bottom_menu.dart';
+import '../../data/repositories/pokemon_repository.dart';
+import 'pokedex_list_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -224,8 +227,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   /// Callback cuando se presiona "Pokedex Nacional"
   void _onPokedexPressed(BuildContext context) {
-    debugPrint('Pokedex Nacional presionado');
-    Navigator.pop(context);
+    // Navega a la lista usando el repositorio provisto por Provider
+    final repo = Provider.of<PokemonRepository>(context, listen: false);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => PokedexListPage(repository: repo)));
   }
 
   /// Callback cuando se presiona "Mapa"

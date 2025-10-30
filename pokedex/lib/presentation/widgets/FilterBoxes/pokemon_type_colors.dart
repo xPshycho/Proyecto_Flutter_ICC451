@@ -43,6 +43,28 @@ class PokemonTypeColors {
     'Agua': 'assets/icons/types/icons/water.svg',
   };
 
+  // Mapeo de nombres en español (UI) a nombres de tipo usados por la API (inglés, lowercase)
+  static const Map<String, String> _spanishToApi = {
+    'Bicho': 'bug',
+    'Siniestro': 'dark',
+    'Dragón': 'dragon',
+    'Eléctrico': 'electric',
+    'Fuego': 'fire',
+    'Hada': 'fairy',
+    'Lucha': 'fighting',
+    'Volador': 'flying',
+    'Fantasma': 'ghost',
+    'Planta': 'grass',
+    'Tierra': 'ground',
+    'Hielo': 'ice',
+    'Normal': 'normal',
+    'Veneno': 'poison',
+    'Psíquico': 'psychic',
+    'Roca': 'rock',
+    'Acero': 'steel',
+    'Agua': 'water',
+  };
+
   static Color getTypeColor(String type) {
     return typeColors[type] ?? const Color(0xFFA0A29F); // Default Normal color
   }
@@ -50,5 +72,9 @@ class PokemonTypeColors {
   static String? getTypeIcon(String type) {
     return typeIcons[type];
   }
-}
 
+  // Traduce una lista de nombres en español a la forma que usa la API
+  static List<String> toApiTypes(List<String> spanishTypes) {
+    return spanishTypes.map((s) => _spanishToApi[s] ?? s.toLowerCase()).toList();
+  }
+}
