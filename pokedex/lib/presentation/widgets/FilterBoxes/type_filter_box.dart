@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'pokemon_type_colors.dart';
+import '../../../core/constants/pokemon_constants.dart';
 
 class TypeFilterBox extends StatefulWidget {
   final String title;
@@ -200,8 +200,8 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
     VoidCallback? onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final typeColor = PokemonTypeColors.getTypeColor(label);
-    final typeIcon = PokemonTypeColors.getTypeIcon(label);
+    final typeColor = PokemonConstants.getTypeColor(label);
+    final typeIcon = PokemonConstants.getTypeIcon(label);
 
     return InkWell(
       onTap: onTap,

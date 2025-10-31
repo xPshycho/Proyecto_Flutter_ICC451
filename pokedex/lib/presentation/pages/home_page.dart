@@ -11,7 +11,6 @@ import '../widgets/pokemon_card.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/favorites_service.dart';
 import 'pokemon_detail_page.dart';
-import '../widgets/FilterBoxes/pokemon_type_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/pokemon_constants.dart';
 import '../../core/utils/filter_utils.dart';
@@ -197,7 +196,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final favoritos = FilterUtils.getBoolFilter(filterMap, 'favoritos');
     final noFavoritos = FilterUtils.getBoolFilter(filterMap, 'noFavoritos');
     final tiposSpanish = FilterUtils.getListFilter(filterMap, 'tipos');
-    final tiposApi = PokemonTypeColors.toApiTypes(tiposSpanish);
+    final tiposApi = PokemonConstants.toApiTypes(tiposSpanish);
     final regiones = FilterUtils.getListFilter(filterMap, 'regiones');
     final categorias = FilterUtils.getListFilter(filterMap, 'categorias');
 
@@ -568,8 +567,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildActiveTypeChip(String type) {
-    final typeColor = PokemonTypeColors.getTypeColor(type);
-    final icon = PokemonTypeColors.getTypeIcon(type);
+    final typeColor = PokemonConstants.getTypeColor(type);
+    final icon = PokemonConstants.getTypeIcon(type);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
