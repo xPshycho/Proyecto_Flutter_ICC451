@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../../data/favorites_service.dart';
-import '../widgets/FilterBoxes/pokemon_type_colors.dart';
+import '../../core/constants/pokemon_constants.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -55,8 +55,8 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 Text(p.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Wrap(spacing: 8, children: p.types.map((t) {
-                  final typeColor = PokemonTypeColors.getTypeColor(t);
-                  final icon = PokemonTypeColors.getTypeIcon(t);
+                  final typeColor = PokemonConstants.getTypeColor(t);
+                  final icon = PokemonConstants.getTypeIcon(t);
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(

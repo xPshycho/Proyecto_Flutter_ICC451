@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/favorites_service.dart';
-import 'FilterBoxes/pokemon_type_colors.dart';
+import '../../core/constants/pokemon_constants.dart';
 
 class PokemonCard extends StatelessWidget {
   final Pokemon pokemon;
@@ -91,8 +91,8 @@ class PokemonCard extends StatelessWidget {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: pokemon.types.map((t) {
-                            final typeColor = PokemonTypeColors.getTypeColor(t);
-                            final icon = PokemonTypeColors.getTypeIcon(t);
+                            final typeColor = PokemonConstants.getTypeColor(t);
+                            final icon = PokemonConstants.getTypeIcon(t);
                             return Container(
                               margin: const EdgeInsets.only(right: 6),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

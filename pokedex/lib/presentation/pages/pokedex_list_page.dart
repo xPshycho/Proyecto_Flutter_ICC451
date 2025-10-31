@@ -6,7 +6,7 @@ import '../../data/favorites_service.dart';
 import '../widgets/pokemon_card.dart';
 import 'pokemon_detail_page.dart';
 import '../widgets/bottom_filter_menu.dart';
-import '../widgets/FilterBoxes/pokemon_type_colors.dart';
+import '../../core/constants/pokemon_constants.dart';
 
 class PokedexListPage extends StatefulWidget {
   final PokemonRepository repository;
@@ -50,7 +50,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
   Future<void> _applyFilterMap(Map<String, dynamic> filters) async {
     final favoritos = filters['favoritos'] as bool? ?? false;
     final tiposSpanish = (filters['tipos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-    final tiposApi = PokemonTypeColors.toApiTypes(tiposSpanish);
+    final tiposApi = PokemonConstants.toApiTypes(tiposSpanish);
     final generaciones = (filters['generaciones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final categorias = (filters['categorias'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
