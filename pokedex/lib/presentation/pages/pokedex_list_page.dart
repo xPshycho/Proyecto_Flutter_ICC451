@@ -27,6 +27,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
   String _query = '';
   List<String> _typeFilters = [];
   List<String> _categoryFilters = [];
+  List<String> _regionFilters = [];
 
   @override
   void initState() {
@@ -51,12 +52,14 @@ class _PokedexListPageState extends State<PokedexListPage> {
     final favoritos = filters['favoritos'] as bool? ?? false;
     final tiposSpanish = (filters['tipos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final tiposApi = PokemonConstants.toApiTypes(tiposSpanish);
-    final generaciones = (filters['generaciones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    // Usar únicamente 'regiones' (enviadas por BottomFilterMenu)
+    final regiones = (filters['regiones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final categorias = (filters['categorias'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
     setState(() {
       _typeFilters = tiposApi; // ahora _typeFilters guarda nombres en esquema API
       _categoryFilters = categorias;
+      _regionFilters = regiones; // Guardar regiones seleccionadas
       _pokemons = [];
       _offset = 0;
     });
@@ -72,23 +75,9 @@ class _PokedexListPageState extends State<PokedexListPage> {
       });
     }
 
-    // Filtrar por generaciones si hay
-    if (generaciones.isNotEmpty) {
-      // Mapear generación -> id range (simplificado)
-      final ranges = generaciones.map((g) {
-        switch (g) {
-          case '1': return [1,151];
-          case '2': return [152,251];
-          case '3': return [252,386];
-          case '4': return [387,493];
-          case '5': return [494,649];
-          case '6': return [650,721];
-          case '7': return [722,809];
-          case '8': return [810,905];
-          case '9': return [906,1000];
-        }
-        return [0,9999];
-      }).toList();
+    // Filtrar por regiones si hay
+    if (regiones.isNotEmpty) {
+      final ranges = regiones.map((r) => PokemonConstants.getRegionRange(r)).toList();
 
       setState(() {
         _pokemons = _pokemons.where((p) {
@@ -105,7 +94,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
       _errorMessage = '';
     });
     try {
-      final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters, categories: _categoryFilters);
+      final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters, regions: _regionFilters, categories: _categoryFilters);
       final filtered = list.where((p) {
         final matchesQuery = _query.isEmpty || p.name.toLowerCase().contains(_query.toLowerCase());
         final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();

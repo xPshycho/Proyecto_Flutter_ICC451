@@ -9,6 +9,10 @@ class Pokemon {
   bool isFavorite;
   final List<String> abilities;
   final Map<String, int> stats;
+  // Categorías derivadas (p.ej. 'legendario', 'mitico', 'mega', etc.)
+  final List<String>? categories;
+  final bool? isLegendary;
+  final bool? isMythical;
 
   Pokemon({
     required this.id,
@@ -21,6 +25,9 @@ class Pokemon {
     this.isFavorite = false,
     this.abilities = const [],
     this.stats = const {},
+    this.categories,
+    this.isLegendary,
+    this.isMythical,
   });
 
   // Fábrica desde JSON genérico
@@ -34,6 +41,9 @@ class Pokemon {
       weight: json['weight'] as int?,
       abilities: (json['abilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       stats: (json['stats'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as int)) ?? {},
+      categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      isLegendary: json['isLegendary'] as bool?,
+      isMythical: json['isMythical'] as bool?,
     );
   }
 }

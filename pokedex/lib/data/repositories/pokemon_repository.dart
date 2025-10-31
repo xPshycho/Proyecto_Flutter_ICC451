@@ -2,18 +2,91 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:http/http.dart' as http;
 import '../models/pokemon.dart';
+import '../../core/constants/pokemon_constants.dart';
+import '../../core/constants/app_constants.dart';
 
 class PokemonRepository {
   final GraphQLClient client;
   PokemonRepository(this.client);
 
-  // Small page cache to avoid refetching the same pages
+  // Consultas GraphQL (reemplazan endpoints REST)
+  static const String _byIdsQuery = r'''
+    query getByIds($ids: [Int!]) {
+      pokemon_v2_pokemon(where: {id: {_in: $ids}}) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { id is_legendary is_mythical evolution_chain_id }
+      }
+    }
+  ''';
+
+  static const String _evolutionChainQuery = r'''
+    query getEvolutionChain($id: Int!) {
+      pokemon_v2_evolutionchain_by_pk(id: $id) {
+        id
+        baby_trigger_item_id
+        pokemonspecies(order_by: {id: asc}) {
+          id
+          name
+          evolves_from_species_id
+          evolution_chain_id
+          pokemon_v2_pokemons(order_by: {id: asc}) {
+            id
+            name
+            pokemon_v2_pokemonsprites { sprites }
+            pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+          }
+        }
+      }
+    }
+  ''';
+
+  static const String _speciesByIdQuery = r'''
+    query getSpecies($id: Int!) {
+      pokemon_v2_pokemonspecies_by_pk(id: $id) {
+        id
+        name
+        is_legendary
+        is_mythical
+        evolution_chain_id
+      }
+    }
+  ''';
+
+  // Query para obtener detalles completos (abilities, stats, sprites, types) por lista de ids
+  static const String _detailsByIdsQuery = r'''
+    query getDetailsByIds($ids: [Int!]) {
+      pokemon_v2_pokemon(where: {id: {_in: $ids}}) {
+        id
+        name
+        height
+        weight
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonabilities { pokemon_v2_ability { name } }
+        pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
+        pokemon_v2_pokemonspecy { evolution_chain_id }
+      }
+    }
+  ''';
+
+  // Caché de páginas pequeña para evitar refetching de las mismas páginas
   final Map<int, List<Pokemon>> _pageCache = {};
 
-  // Global cache used for expensive operations (category filtering)
+  // Caché global usado para operaciones costosas (filtrado por categorías)
   static List<Pokemon>? _allCache;
+
+  // Caché de detalles por ID para evitar llamadas repetidas (abilities, stats, species)
+  final Map<int, Pokemon> _detailsCache = {};
+
+  // Mapa para guardar evolution_chain_id por pokemon id cuando está disponible
+  final Map<int, int?> _evolutionChainIdMap = {};
+
+  // Caché de cadenas evolutivas por chainId
+  final Map<int, List<Pokemon>> _evolutionChainCache = {};
 
   // Query para lista de pokémon con tipos y sprites
   static const String _listQuery = r'''
@@ -41,25 +114,19 @@ class PokemonRepository {
         name
         height
         weight
-        pokemon_v2_pokemonsprites {
-          sprites
-        }
-        pokemon_v2_pokemontypes {
-          pokemon_v2_type {
-            name
-          }
-        }
-        pokemon_v2_pokemonspecy {
-          evolution_chain_id
-        }
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonabilities { pokemon_v2_ability { name } }
+        pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
+        pokemon_v2_pokemonspecy { evolution_chain_id }
       }
     }
   ''';
 
-  // Helper: ensure '_allCache' is populated (fetch in chunks to avoid single huge request)
+  // Helper: asegura que '_allCache' esté poblada (obtener en bloques para evitar una sola petición enorme)
   Future<void> _ensureAllCached() async {
     if (_allCache != null) return;
-    final chunk = 250; // reasonable chunk size
+    final chunk = AppConstants.cacheChunkSize; // tamaño de bloque razonable
     int offset = 0;
     final List<Pokemon> accumulated = [];
     try {
@@ -71,13 +138,13 @@ class PokemonRepository {
         );
         QueryResult result;
         try {
-          result = await client.query(options).timeout(const Duration(seconds: 8));
+          result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
         } on TimeoutException catch (te) {
-          debugPrint('PokemonRepository: GraphQL chunk timeout at offset $offset: $te');
+          debugPrint('PokemonRepository: timeout GraphQL al cargar bloque en offset $offset: $te');
           break;
         }
         if (result.hasException || result.data == null) {
-          debugPrint('PokemonRepository: Error fetching chunk at offset $offset: ${result.exception}');
+          debugPrint('PokemonRepository: Error al obtener bloque en offset $offset: ${result.exception}');
           break;
         }
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
@@ -88,64 +155,135 @@ class PokemonRepository {
         offset += chunk;
       }
     } catch (e, st) {
-      debugPrint('PokemonRepository: _ensureAllCached error: $e');
+      debugPrint('PokemonRepository: error en _ensureAllCached: $e');
       debugPrint('$st');
     }
     _allCache = accumulated;
-    debugPrint('PokemonRepository: cached total ${_allCache?.length ?? 0} pokemons');
+    debugPrint('PokemonRepository: total cacheado ${_allCache?.length ?? 0} pokémons');
   }
 
   Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0, List<String>? types, List<String>? regions, List<String>? categories, String? sortBy, bool? ascending}) async {
-    final bool hasCategories = categories != null && categories.isNotEmpty;
+    // Normalizar categories (trim + eliminar vacíos)
+    final normalizedCategories = (categories ?? []).map((c) => c.toString().trim()).where((s) => s.isNotEmpty).toList();
+    final bool hasCategories = normalizedCategories.isNotEmpty;
 
-    // If categories requested, ensure we have the full cache so we can filter reliably
-    if (hasCategories) {
-      await _ensureAllCached();
-      var list = List<Pokemon>.from(_allCache ?? []);
-
-      // Apply types filter if present
-      if (types != null && types.isNotEmpty) {
-        final lower = types.map((t) => t.toLowerCase()).toList();
-        list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
-      }
-
-      // Apply regions filter if present
+    // Fast-path para categoría exclusiva 'Starter' (case-insensitive)
+    if (hasCategories && normalizedCategories.length == 1 && normalizedCategories[0].toLowerCase() == 'starter') {
+      // Construir lista de IDs de starters filtrada por regiones si aplica
+      final List<int> starterIds = [];
       if (regions != null && regions.isNotEmpty) {
-        final ranges = regions.map((region) {
-          // Convertir región a generación y obtener rango
-          switch (region) {
-            case 'Kanto': return [1,151];
-            case 'Johto': return [152,251];
-            case 'Hoenn': return [252,386];
-            case 'Sinnoh': return [387,493];
-            case 'Teselia': return [494,649];
-            case 'Kalos': return [650,721];
-            case 'Alola': return [722,809];
-            case 'Galar': return [810,905];
-            case 'Paldea': return [906,1000];
-          }
-          return [0,9999];
-        }).toList();
-        list = list.where((p) => ranges.any((r) => p.id >= r[0] && p.id <= r[1])).toList();
-      }
-
-      // Apply category filtering using existing helper
-      list = await _filterByCategories(list, categories);
-
-      // Sort if requested
-      if (sortBy != null) {
-        if (sortBy == 'name') {
-          list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
-        } else if (sortBy == 'id') {
-          list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+        for (final r in regions) {
+          final ids = PokemonConstants.startersByRegion[r];
+          if (ids != null) starterIds.addAll(ids);
+        }
+      } else {
+        // todas las regiones
+        for (final ids in PokemonConstants.startersByRegion.values) {
+          starterIds.addAll(ids);
         }
       }
 
-      // Paginate after filtering
-      final start = offset;
-      final end = (offset + limit) < list.length ? (offset + limit) : list.length;
-      if (start >= list.length) return [];
-      return list.sublist(start, end);
+      final uniqueIds = starterIds.toSet().toList()..sort();
+      if (uniqueIds.isEmpty) return [];
+
+      try {
+        final options = QueryOptions(document: gql(_byIdsQuery), variables: {'ids': uniqueIds}, fetchPolicy: FetchPolicy.networkOnly);
+        final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+        if (!result.hasException && result.data != null) {
+          final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+          if (data != null) {
+            var list = _mapFromGraphQL(data);
+            // aplicar filtro de tipos si corresponde
+            if (types != null && types.isNotEmpty) {
+              final lower = types.map((t) => t.toLowerCase()).toList();
+              list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
+            }
+            // ordenar
+            if (sortBy != null) {
+              if (sortBy == 'name') list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+              else if (sortBy == 'id') list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+            } else {
+              list.sort((a, b) => a.id - b.id);
+            }
+
+            // paginar
+            final start = offset;
+            final end = (offset + limit) < list.length ? (offset + limit) : list.length;
+            if (start >= list.length) return [];
+            return list.sublist(start, end);
+          }
+        } else {
+          debugPrint('PokemonRepository: GraphQL byIds error: ${result.exception}');
+        }
+      } catch (e, st) {
+        debugPrint('PokemonRepository: error fetching starters by ids (graphql): $e');
+        debugPrint('$st');
+      }
+      // Si la query GraphQL por IDs falla, intentar obtener por REST los detalles por id
+      try {
+        final restList = await _fetchByIdsGraphQL(uniqueIds);
+        var list = restList;
+        if (types != null && types.isNotEmpty) {
+          final lower = types.map((t) => t.toLowerCase()).toList();
+          list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
+        }
+        if (sortBy != null) {
+          if (sortBy == 'name') list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+          else if (sortBy == 'id') list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+        } else {
+          list.sort((a, b) => a.id - b.id);
+        }
+        final start = offset;
+        final end = (offset + limit) < list.length ? (offset + limit) : list.length;
+        if (start >= list.length) return [];
+        return list.sublist(start, end);
+      } catch (e, st) {
+        debugPrint('PokemonRepository: error fetching starters by ids (alt graphql): $e');
+        debugPrint('$st');
+      }
+      // En caso de fallo total, caemos al flujo normal más abajo
+    }
+
+    // If categories requested and not handled by fast-path, determine if we need the full cache.
+    if (hasCategories) {
+      // Categorías que requieren datos completos (species/detail)
+      final Set<String> heavyCats = {'legendario', 'mítico', 'mitico', 'mega', 'gigantamax'};
+      final bool needFullCache = normalizedCategories.any((c) => heavyCats.contains(c.toLowerCase()));
+      if (needFullCache) {
+        await _ensureAllCached();
+        var list = List<Pokemon>.from(_allCache ?? []);
+
+        // Apply types filter if present
+        if (types != null && types.isNotEmpty) {
+          final lower = types.map((t) => t.toLowerCase()).toList();
+          list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
+        }
+
+        // Apply regions filter if present
+        if (regions != null && regions.isNotEmpty) {
+          final ranges = regions.map((region) => PokemonConstants.getRegionRange(region)).toList();
+          list = list.where((p) => ranges.any((r) => p.id >= r[0] && p.id <= r[1])).toList();
+        }
+
+        // Apply category filtering using existing helper
+        list = await _filterByCategories(list, normalizedCategories);
+
+        // Sort if requested
+        if (sortBy != null) {
+          if (sortBy == 'name') {
+            list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+          } else if (sortBy == 'id') {
+            list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+          }
+        }
+
+        // Paginate after filtering
+        final start = offset;
+        final end = (offset + limit) < list.length ? (offset + limit) : list.length;
+        if (start >= list.length) return [];
+        return list.sublist(start, end);
+      }
+      // Si no requiere full cache, caerá al flujo paginado y aplicará filtros sobre la página
     }
 
     // No categories: try to serve from page cache
@@ -165,13 +303,13 @@ class PokemonRepository {
 
       QueryResult result;
       try {
-        result = await client.query(options).timeout(const Duration(seconds: 8));
+        result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
       } on TimeoutException catch (te) {
-        debugPrint('PokemonRepository: GraphQL page timeout at offset $offset: $te');
-        // fallback to REST
-        final restList = await _fetchFromRest(limit: limit, offset: offset, types: types);
-        _pageCache[cacheKey] = restList;
-        return restList;
+        debugPrint('PokemonRepository: timeout GraphQL al cargar página en offset $offset: $te');
+        // reintentar con consulta GraphQL alternativa
+        final altList = await _fetchPageGraphQL(limit: limit, offset: offset, types: types);
+        _pageCache[cacheKey] = altList;
+        return altList;
       }
 
       if (!result.hasException && result.data != null) {
@@ -187,20 +325,7 @@ class PokemonRepository {
 
           // Regions filter
           if (regions != null && regions.isNotEmpty) {
-            final ranges = regions.map((region) {
-              switch (region) {
-                case 'Kanto': return [1,151];
-                case 'Johto': return [152,251];
-                case 'Hoenn': return [252,386];
-                case 'Sinnoh': return [387,493];
-                case 'Teselia': return [494,649];
-                case 'Kalos': return [650,721];
-                case 'Alola': return [722,809];
-                case 'Galar': return [810,905];
-                case 'Paldea': return [906,1000];
-              }
-              return [0,9999];
-            }).toList();
+            final ranges = regions.map((region) => PokemonConstants.getRegionRange(region)).toList();
 
             list = list.where((p) => ranges.any((r) => p.id >= r[0] && p.id <= r[1])).toList();
           }
@@ -219,13 +344,13 @@ class PokemonRepository {
       debugPrint('$st');
     }
 
-    // Fallback a REST (same as before)
+    // Fallback: reintentar con alternativa GraphQL (no se usa REST)
     try {
-      final restList = await _fetchFromRest(limit: limit, offset: offset, types: types);
-      debugPrint('PokemonRepository: REST returned ${restList.length} items');
-      return restList;
+      final altList = await _fetchPageGraphQL(limit: limit, offset: offset, types: types);
+      debugPrint('PokemonRepository: GraphQL (alt) returned ${altList.length} items');
+      return altList;
     } catch (e, st) {
-      debugPrint('REST fallback error: $e');
+      debugPrint('PokemonRepository: error en fallback GraphQL: $e');
       debugPrint('$st');
       rethrow;
     }
@@ -234,7 +359,7 @@ class PokemonRepository {
   Future<Pokemon> fetchPokemonDetail(int id) async {
     try {
       final options = QueryOptions(document: gql(_detailQuery), variables: {'id': id});
-      final result = await client.query(options);
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon_by_pk'];
         if (data != null) {
@@ -244,7 +369,7 @@ class PokemonRepository {
             final species = data['pokemon_v2_pokemonspecy'];
             if (species != null && species['evolution_chain_id'] != null) {
               final chainId = species['evolution_chain_id'] as int;
-              // obtener cadena evolutiva por REST (GraphQL no expone chain details fácilmente)
+              // obtener cadena evolutiva por GraphQL
               final evols = await _fetchEvolutionChain(chainId);
               return Pokemon(id: pokemon.id, name: pokemon.name, spriteUrl: pokemon.spriteUrl, types: pokemon.types, height: pokemon.height, weight: pokemon.weight, evolutions: evols);
             }
@@ -259,359 +384,267 @@ class PokemonRepository {
       debugPrint('$st');
     }
 
-    // Fallback REST detail
-    final p = await _fetchDetailFromRest(id);
-    try {
-      // Attempt to fetch evolution chain via REST species endpoint
-      final speciesRes = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/$id'));
-      if (speciesRes.statusCode == 200) {
-        final sp = jsonDecode(speciesRes.body) as Map<String, dynamic>;
-        final chainUrl = sp['evolution_chain']?['url'] as String?;
-        if (chainUrl != null) {
-          final match = RegExp(r'/evolution-chain/(\d+)/').firstMatch(chainUrl);
-          if (match != null) {
-            final chainId = int.tryParse(match.group(1) ?? '0') ?? 0;
-            if (chainId > 0) {
-              final evols = await _fetchEvolutionChain(chainId);
-              return Pokemon(id: p.id, name: p.name, spriteUrl: p.spriteUrl, types: p.types, height: p.height, weight: p.weight, evolutions: evols);
-            }
-          }
-        }
-      }
-    } catch (_) {}
-
-    return p;
+    // Si GraphQL falla, intentar detalle por GraphQL directo (ya intentado) -> devolver error
+    throw Exception('No se pudo obtener detalle de Pokémon por GraphQL');
   }
 
-  // Obtiene la cadena evolutiva desde PokeAPI REST por id de cadena
+  // Obtiene la cadena evolutiva desde GraphQL por id de cadena
   Future<List<Pokemon>> _fetchEvolutionChain(int chainId) async {
-    final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/evolution-chain/$chainId'));
-    if (res.statusCode != 200) return [];
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final chain = body['chain'] as Map<String, dynamic>?;
-    if (chain == null) return [];
-
-    final List<int> ids = [];
-    void traverse(node) {
-      if (node == null) return;
-      final species = node['species'] as Map<String, dynamic>?;
-      if (species != null) {
-        final url = species['url'] as String?;
-        if (url != null) {
-          final m = RegExp(r'/pokemon-species/(\d+)/').firstMatch(url);
-          if (m != null) ids.add(int.tryParse(m.group(1) ?? '0') ?? 0);
-        }
-      }
-      final evolves = node['evolves_to'] as List<dynamic>?;
-      if (evolves != null && evolves.isNotEmpty) {
-        for (final e in evolves) { traverse(e); }
-      }
-    }
-
-    traverse(chain);
-    // Obtener detalles de cada id
-    final list = await Future.wait(ids.map((id) async {
-      try {
-        final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
-        if (res.statusCode == 200) {
-          final db = jsonDecode(res.body) as Map<String, dynamic>;
-          final sprite = db['sprites']?['front_default'] as String?;
-          final types = (db['types'] as List<dynamic>?)?.map((e) => e['type']['name'] as String).toList() ?? [];
-          return Pokemon(id: id, name: db['name'] as String, spriteUrl: sprite, types: types);
-        }
-      } catch (_) {}
-      return Pokemon(id: id, name: 'unknown', spriteUrl: null);
-    }));
-
-    return list;
-  }
-
-  Future<List<Pokemon>> _fetchFromRest({int limit = 20, int offset = 0, List<String>? types}) async {
-    final url = Uri.parse('https://pokeapi.co/api/v2/pokemon?limit=$limit&offset=$offset');
-    final res = await http.get(url);
-    if (res.statusCode != 200) throw Exception('REST status ${res.statusCode}');
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final results = body['results'] as List<dynamic>?;
-    if (results == null) return [];
-
-    final list = await Future.wait(results.map((item) async {
-      final name = item['name'] as String? ?? '';
-      final rawUrl = item['url'] as String? ?? '';
-      final match = RegExp(r'/pokemon/(\d+)/').firstMatch(rawUrl);
-      int id = 0;
-      if (match != null) id = int.tryParse(match.group(1) ?? '0') ?? 0;
-      String? spriteUrl;
-      List<String> pTypes = [];
-      List<String> abilities = [];
-      Map<String, int> stats = {};
-      int? height;
-      int? weight;
-
-      if (id > 0) {
-        try {
-          final detailRes = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
-          if (detailRes.statusCode == 200) {
-            final db = jsonDecode(detailRes.body) as Map<String, dynamic>;
-            spriteUrl = (db['sprites']?['other']?['official-artwork']?['front_default']) as String?;
-            pTypes = (db['types'] as List<dynamic>?)?.map((e) => (e['type']?['name'] as String?) ?? '').where((s) => s.isNotEmpty).toList() ?? [];
-            abilities = (db['abilities'] as List<dynamic>?)?.map((e) => (e['ability']?['name'] as String?) ?? '').where((s) => s.isNotEmpty).toList() ?? [];
-            if (db['stats'] is List) {
-              for (final s in db['stats']) {
-                final statName = s['stat']?['name'] as String?;
-                final base = s['base_stat'] as int?;
-                if (statName != null && base != null) stats[statName] = base;
+    // Usar caché si existe
+    if (_evolutionChainCache.containsKey(chainId)) return _evolutionChainCache[chainId]!;
+    try {
+      final options = QueryOptions(document: gql(_evolutionChainQuery), variables: {'id': chainId});
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+      if (!result.hasException && result.data != null) {
+        final chain = result.data!['pokemon_v2_evolutionchain_by_pk'] as Map<String, dynamic>?;
+        if (chain != null && chain['pokemonspecies'] is List) {
+          final speciesList = chain['pokemonspecies'] as List<dynamic>;
+          final List<Pokemon> out = [];
+          for (final sp in speciesList) {
+            final pokemons = sp['pokemon_v2_pokemons'] as List<dynamic>?;
+            if (pokemons != null) {
+              for (final p in pokemons) {
+                final spriteList = (p['pokemon_v2_pokemonsprites'] as List<dynamic>?);
+                String? spriteUrl;
+                if (spriteList != null && spriteList.isNotEmpty) {
+                  final spritesJson = spriteList[0]['sprites'];
+                  if (spritesJson is String) {
+                    try {
+                      final decoded = jsonDecode(spritesJson);
+                      spriteUrl = decoded['front_default'] as String?;
+                    } catch (_) {}
+                  } else if (spritesJson is Map) {
+                    spriteUrl = spritesJson['front_default'] as String?;
+                  }
+                }
+                final typesList = (p['pokemon_v2_pokemontypes'] as List<dynamic>?);
+                final List<String> types = typesList != null
+                    ? List<String>.from(typesList.map((t) => (t['pokemon_v2_type']['name'] as String)))
+                    : <String>[];
+                final pokemon = Pokemon(id: p['id'] as int, name: p['name'] as String, spriteUrl: spriteUrl, types: types);
+                out.add(pokemon);
+                // Guardar datos mínimos en caché
+                _detailsCache[pokemon.id] = _detailsCache[pokemon.id] ?? pokemon;
               }
             }
-            height = db['height'] as int?;
-            weight = db['weight'] as int?;
           }
-        } catch (_) {}
+          _evolutionChainCache[chainId] = out;
+          return out;
+        }
       }
-
-      return Pokemon(id: id, name: name, spriteUrl: spriteUrl, types: pTypes, abilities: abilities, stats: stats, height: height, weight: weight);
-    }));
-
-    if (types != null && types.isNotEmpty) {
-      final lowerTypes = types.map((t) => t.toLowerCase()).toList();
-      return list.where((p) => p.types.any((t) => lowerTypes.contains(t.toLowerCase()))).toList();
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error fetching evolution chain via GraphQL: $e');
+      debugPrint('$st');
     }
-
-    return list;
+    return [];
   }
 
-  Future<Pokemon> _fetchDetailFromRest(int id) async {
-    final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id'));
-    if (res.statusCode != 200) throw Exception('REST status ${res.statusCode}');
-    final db = jsonDecode(res.body) as Map<String, dynamic>;
-    final spriteUrl = db['sprites']?['front_default'] as String?;
-    final types = (db['types'] as List<dynamic>?)?.map((e) => e['type']['name'] as String).toList() ?? [];
-    final abilities = (db['abilities'] as List<dynamic>?)?.map((e) => e['ability']?['name'] as String? ?? '').where((s) => s.isNotEmpty).toList() ?? [];
-    final stats = <String, int>{};
-    if (db['stats'] is List) {
-      for (final s in db['stats']) {
-        final statName = s['stat']?['name'] as String?;
-        final base = s['base_stat'] as int?;
-        if (statName != null && base != null) stats[statName] = base;
+  Future<List<Pokemon>> _fetchPageGraphQL({int limit = 20, int offset = 0, List<String>? types}) async {
+    // Obtiene una página de pokémon usando GraphQL (reemplaza cualquier fallback REST previo)
+    try {
+      final options = QueryOptions(
+        document: gql(_listQuery),
+        variables: {'limit': limit, 'offset': offset, 'orderBy': [{'id': 'asc'}]},
+        fetchPolicy: FetchPolicy.networkOnly,
+      );
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          var list = _mapFromGraphQL(data);
+          if (types != null && types.isNotEmpty) {
+            final lowerTypes = types.map((t) => t.toLowerCase()).toList();
+            list = list.where((p) => p.types.any((t) => lowerTypes.contains(t.toLowerCase()))).toList();
+          }
+          return list;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error fetching page via GraphQL: $e');
+      debugPrint('$st');
+    }
+    return [];
+  }
+
+  // Helper GraphQL para obtener pokemons por lista de ids
+  Future<List<Pokemon>> _fetchByIdsGraphQL(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    // Intentar servir desde caché parcial
+    final missingIds = <int>[];
+    final fromCache = <Pokemon>[];
+    for (final id in ids) {
+      if (_detailsCache.containsKey(id)) {
+        fromCache.add(_detailsCache[id]!);
+      } else {
+        missingIds.add(id);
       }
     }
-    return Pokemon(id: db['id'] as int, name: db['name'] as String, spriteUrl: spriteUrl, types: types, abilities: abilities, stats: stats, height: db['height'] as int?, weight: db['weight'] as int?);
+    if (missingIds.isEmpty) return fromCache;
+    try {
+      final options = QueryOptions(document: gql(_byIdsQuery), variables: {'ids': ids}, fetchPolicy: FetchPolicy.networkOnly);
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          final fetched = _mapFromGraphQL(data);
+          // Guardar en _detailsCache solo los detalles mínimos si no existen
+          for (final p in fetched) {
+            _detailsCache[p.id] = _detailsCache[p.id] ?? p;
+          }
+          return [...fromCache, ...fetched];
+        }
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error fetching by ids via GraphQL: $e');
+      debugPrint('$st');
+    }
+    return [];
+  }
+
+  // Batch: obtener detalles (abilities, stats, categories) por lista de ids
+  Future<List<Pokemon>> _fetchDetailsByIdsGraphQL(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    // separar ids ya cacheados
+    final missingIds = <int>[];
+    final fromCache = <Pokemon>[];
+    for (final id in ids) {
+      final cached = _detailsCache[id];
+      if (cached != null) fromCache.add(cached);
+      else missingIds.add(id);
+    }
+    if (missingIds.isEmpty) return fromCache;
+    try {
+      final options = QueryOptions(document: gql(_detailsByIdsQuery), variables: {'ids': missingIds}, fetchPolicy: FetchPolicy.networkOnly);
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) return _mapDetailedFromGraphQL(data);
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error al obtener detalles por ids vía GraphQL: $e');
+      debugPrint('$st');
+    }
+    return [];
   }
 
   List<Pokemon> _mapFromGraphQL(List<dynamic> data) {
     return data.map((item) {
-      final spriteList = (item['pokemon_v2_pokemonsprites'] as List<dynamic>?);
-      String? spriteUrl;
-      if (spriteList != null && spriteList.isNotEmpty) {
-        final spritesJson = spriteList[0]['sprites'];
-        if (spritesJson is String) {
-          try {
-            final decoded = jsonDecode(spritesJson);
-            spriteUrl = decoded['front_default'] as String?;
-          } catch (_) {}
-        } else if (spritesJson is Map) {
-          spriteUrl = spritesJson['front_default'] as String?;
-        }
-      }
-
-      final typesList = (item['pokemon_v2_pokemontypes'] as List<dynamic>?);
-      // Asegurar que types sea List<String>
-      final List<String> types = typesList != null
-          ? List<String>.from(typesList.map((t) => (t['pokemon_v2_type']['name'] as String)))
-          : <String>[];
-
-      return Pokemon(id: item['id'] as int, name: item['name'] as String, spriteUrl: spriteUrl, types: types);
+      final id = item['id'] as int;
+      final name = item['name'] as String;
+      final spriteUrl = _getSpriteUrl(item['pokemon_v2_pokemonsprites']);
+      final types = _getTypes(item['pokemon_v2_pokemontypes']);
+      return Pokemon(id: id, name: name, spriteUrl: spriteUrl, types: types);
     }).toList();
   }
 
-  Pokemon _mapSingleFromGraphQL(dynamic item) {
-    final spriteList = (item['pokemon_v2_pokemonsprites'] as List<dynamic>?);
-    String? spriteUrl;
-    if (spriteList != null && spriteList.isNotEmpty) {
-      final spritesJson = spriteList[0]['sprites'];
-      if (spritesJson is String) {
-        try {
-          final decoded = jsonDecode(spritesJson);
-          spriteUrl = decoded['front_default'] as String?;
-        } catch (_) {}
-      } else if (spritesJson is Map) {
-        spriteUrl = spritesJson['front_default'] as String?;
+  List<Pokemon> _mapDetailedFromGraphQL(List<dynamic> data) {
+    return data.map((item) {
+      final id = item['id'] as int;
+      final name = item['name'] as String;
+      final spriteUrl = _getSpriteUrl(item['pokemon_v2_pokemonsprites']);
+      final types = _getTypes(item['pokemon_v2_pokemontypes']);
+      final height = (item['height'] as num?)?.toDouble();
+      final weight = (item['weight'] as num?)?.toDouble();
+
+      // Abilities
+      final abilitiesList = <String>[];
+      if (item['pokemon_v2_pokemonabilities'] is List) {
+        for (final a in item['pokemon_v2_pokemonabilities'] as List<dynamic>) {
+          final an = a['pokemon_v2_ability']?['name'];
+          if (an != null) abilitiesList.add(an as String);
+        }
       }
-    }
 
-    final typesList = (item['pokemon_v2_pokemontypes'] as List<dynamic>?);
-    final List<String> types = typesList != null
-        ? List<String>.from(typesList.map((t) => (t['pokemon_v2_type']['name'] as String)))
-        : <String>[];
-
-    // abilities and stats may not be present in GraphQL selection; try to read if available
-    List<String> abilities = [];
-    Map<String, int> stats = {};
-    try {
-      if (item['pokemon_v2_pokemonabilities'] != null) {
-        final ab = item['pokemon_v2_pokemonabilities'] as List<dynamic>;
-        abilities = ab.map((a) => a['pokemon_v2_ability']['name'] as String).toList();
+      // Stats
+      final statsMap = <String, int>{};
+      if (item['pokemon_v2_pokemonstats'] is List) {
+        for (final s in item['pokemon_v2_pokemonstats'] as List<dynamic>) {
+          final statName = s['pokemon_v2_stat']?['name'];
+          final base = s['base_stat'];
+          if (statName != null && base != null) statsMap[statName as String] = (base as int);
+        }
       }
-    } catch (_) {}
 
-    return Pokemon(id: item['id'] as int, name: item['name'] as String, spriteUrl: spriteUrl, types: types, abilities: abilities, stats: stats);
+      // Categories derived from species (is_legendary, is_mythical)
+      List<String>? categories;
+      bool? isLegendary;
+      bool? isMythical;
+      try {
+        final specy = item['pokemon_v2_pokemonspecy'];
+        if (specy != null) {
+          isLegendary = specy['is_legendary'] as bool?;
+          isMythical = specy['is_mythical'] as bool?;
+          final cats = <String>[];
+          if (isLegendary == true) cats.add('legendario');
+          if (isMythical == true) cats.add('mitico');
+          categories = cats;
+        }
+      } catch (_) {}
+
+      return Pokemon(
+        id: id,
+        name: name,
+        spriteUrl: spriteUrl,
+        types: types,
+        height: height,
+        weight: weight,
+        abilities: abilitiesList,
+        stats: statsMap,
+        categories: categories,
+        isLegendary: isLegendary,
+        isMythical: isMythical,
+      );
+    }).toList();
   }
 
-  // Cache para reducir consultas REST repetidas
-  final Map<int, Map<String, dynamic>> _speciesCache = {};
-  final Map<int, Map<String, dynamic>> _pokemonDetailCache = {};
+  String? _getSpriteUrl(dynamic spritesData) {
+    if (spritesData == null) return null;
+    final spritesList = spritesData is List ? spritesData : [spritesData];
+    for (var sprite in spritesList) {
+      final url = sprite['sprites']['front_default'];
+      if (url != null && url is String) return url;
+    }
+    return null;
+  }
+
+  List<String> _getTypes(dynamic typesData) {
+    if (typesData == null) return [];
+    final typesList = typesData is List ? typesData : [typesData];
+    return typesList.map<String>((t) => t['pokemon_v2_type']['name'] as String).toList();
+  }
 
   Future<List<Pokemon>> _filterByCategories(List<Pokemon> list, List<String> categories) async {
-    final result = <Pokemon>[];
-
-    // Prefetch species and details for all pokemons that are not cached yet
-    final idsToFetch = <int>[];
-    for (final p in list) {
-      if (!_speciesCache.containsKey(p.id) || !_pokemonDetailCache.containsKey(p.id)) {
-        idsToFetch.add(p.id);
+    // Filtrar por categorías usando lógica existente (si aplica)
+    final Set<String> catSet = categories.map((c) => c.toLowerCase()).toSet();
+    List<Pokemon> filtered = list.where((p) {
+      // Si tiene alguna categoría que coincida, incluir
+      if (p.categories != null && p.categories!.isNotEmpty) {
+        for (final c in p.categories!) {
+          if (catSet.contains(c.toLowerCase())) return true;
+        }
       }
-    }
-    if (idsToFetch.isNotEmpty) {
-      await _prefetchCaches(idsToFetch);
-    }
+      return false;
+    }).toList();
 
-    for (final p in list) {
-      final matches = await _matchesAnyCategory(p, categories);
-      if (matches) result.add(p);
-    }
-    return result;
-  }
-
-  // Prefetch species and pokemon details in batches with limited concurrency
-  Future<void> _prefetchCaches(List<int> ids) async {
-    if (ids.isEmpty) return;
-    const int batchSize = 20; // adjust for concurrency
-    for (var i = 0; i < ids.length; i += batchSize) {
-      final batch = ids.sublist(i, (i + batchSize) > ids.length ? ids.length : (i + batchSize));
-      await Future.wait(batch.map((id) async {
-        // species
-        if (!_speciesCache.containsKey(id)) {
-          try {
-            final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/$id')).timeout(const Duration(seconds: 6));
-            if (res.statusCode == 200) {
-              final species = jsonDecode(res.body) as Map<String, dynamic>;
-              _speciesCache[id] = species;
-            }
-          } catch (_) {}
-        }
-        // detail
-        if (!_pokemonDetailCache.containsKey(id)) {
-          try {
-            final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/$id')).timeout(const Duration(seconds: 6));
-            if (res.statusCode == 200) {
-              final detail = jsonDecode(res.body) as Map<String, dynamic>;
-              _pokemonDetailCache[id] = detail;
-            }
-          } catch (_) {}
-        }
-      }));
-    }
-  }
-
-  Future<bool> _matchesAnyCategory(Pokemon p, List<String> categories) async {
-    // If categories list empty -> true
-    if (categories.isEmpty) return true;
-
-    // Fetch species once
-    Map<String, dynamic>? species;
-    if (_speciesCache.containsKey(p.id)) {
-      species = _speciesCache[p.id];
-    } else {
-      try {
-        final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/${p.id}'));
-        if (res.statusCode == 200) {
-          species = jsonDecode(res.body) as Map<String, dynamic>;
-          _speciesCache[p.id] = species;
-        }
-      } catch (_) {}
-    }
-
-    // Fetch pokemon detail if needed (for forms/names)
-    Map<String, dynamic>? detail;
-    if (_pokemonDetailCache.containsKey(p.id)) {
-      detail = _pokemonDetailCache[p.id];
-    } else {
-      try {
-        final res = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon/${p.id}'));
-        if (res.statusCode == 200) {
-          detail = jsonDecode(res.body) as Map<String, dynamic>;
-          _pokemonDetailCache[p.id] = detail;
-        }
-      } catch (_) {}
-    }
-
-    for (final catRaw in categories) {
-      final cat = catRaw.trim();
-      switch (cat) {
-        case 'Legendario':
-          if (species != null && species['is_legendary'] == true) return true;
-          break;
-        case 'Mítico':
-        case 'Mitico':
-          if (species != null && species['is_mythical'] == true) return true;
-          break;
-        case 'Mega':
-          if (detail != null) {
-            final name = (detail['name'] as String?) ?? '';
-            if (name.contains('mega')) return true;
-            final forms = detail['forms'] as List<dynamic>?;
-            if (forms != null && forms.any((f) => (f['name'] as String).contains('mega'))) return true;
+    // Si hay categorías "pesadas", hacer un segundo filtrado más exhaustivo obteniendo detalles por GraphQL
+    final Set<String> heavyCats = {'legendario', 'mítico', 'mitico', 'mega', 'gigantamax'};
+    if (catSet.any((c) => heavyCats.contains(c))) {
+      // Mejor: hacer una única consulta batch para obtener detalles (abilities, stats, species) y filtrar en memoria
+      final ids = filtered.map((p) => p.id).toList();
+      final details = await _fetchDetailsByIdsGraphQL(ids);
+      final Map<int, Pokemon> byId = {for (var d in details) d.id: d};
+      filtered = filtered.where((p) {
+        final d = byId[p.id];
+        if (d == null) return false;
+        if (d.categories != null && d.categories!.isNotEmpty) {
+          for (final c in d.categories!) {
+            if (catSet.contains(c.toLowerCase())) return true;
           }
-          break;
-        case 'Gigantamax':
-          if (detail != null) {
-            final name = (detail['name'] as String?) ?? '';
-            if (name.contains('gmax') || name.contains('gigantamax') || name.contains('g-max')) {
-              return true;
-            }
-            final forms = detail['forms'] as List<dynamic>?;
-            if (forms != null && forms.any((f) {
-              final n = (f['name'] as String?) ?? '';
-              return n.contains('gmax') || n.contains('gigantamax') || n.contains('g-max');
-            })) {
-              return true;
-            }
-          }
-          break;
-        case 'Starter':
-          if (_isStarter(p.id)) {
-            return true;
-          }
-          break;
-        case 'Ultra Bestia':
-          if (p.id >= 793 && p.id <= 807) {
-            return true;
-          }
-          break;
-        default:
-          break;
-      }
+        }
+        return false;
+      }).toList();
     }
 
-    return false;
-  }
-
-  bool _isStarter(int id) {
-    // Lista compacta de starters clásicos por generación (ids)
-    const Map<int, List<int>> startersByGen = {
-      1: [1,4,7],
-      2: [152,155,158],
-      3: [252,255,258],
-      4: [387,390,393],
-      5: [494,497,500],
-      6: [650,653,656],
-      7: [722,725,728],
-      8: [810,813,816],
-      9: [906,909,912]
-    };
-
-    for (final v in startersByGen.values) {
-      if (v.contains(id)) return true;
-    }
-    return false;
+    return filtered;
   }
 }

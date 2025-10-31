@@ -8,33 +8,33 @@ class PokemonConstants {
   static const int ultraBeastRangeStart = 793;
   static const int ultraBeastRangeEnd = 807;
 
-  // Rangos de generaciones
-  static const Map<String, List<int>> generationRanges = {
-    '1': [1, 151],
-    '2': [152, 251],
-    '3': [252, 386],
-    '4': [387, 493],
-    '5': [494, 649],
-    '6': [650, 721],
-    '7': [722, 809],
-    '8': [810, 905],
-    '9': [906, 1000],
+  // Rangos por región (IDs)
+  static const Map<String, List<int>> regionRanges = {
+    'Kanto': [1, 151],
+    'Johto': [152, 251],
+    'Hoenn': [252, 386],
+    'Sinnoh': [387, 493],
+    'Teselia': [494, 649],
+    'Kalos': [650, 721],
+    'Alola': [722, 809],
+    'Galar': [810, 905],
+    'Paldea': [906, 1000],
   };
 
-  // Starters por generación
-  static const Map<int, List<int>> startersByGeneration = {
-    1: [1, 4, 7],
-    2: [152, 155, 158],
-    3: [252, 255, 258],
-    4: [387, 390, 393],
-    5: [494, 497, 500],
-    6: [650, 653, 656],
-    7: [722, 725, 728],
-    8: [810, 813, 816],
-    9: [906, 909, 912],
+  // Starters por región (IDs) — alineado con la lista proporcionada
+  static const Map<String, List<int>> startersByRegion = {
+    'Kanto': [1, 4, 7],
+    'Johto': [152, 155, 158],
+    'Hoenn': [252, 255, 258],
+    'Sinnoh': [387, 390, 393],
+    'Teselia': [495, 498, 501],
+    'Kalos': [650, 653, 656],
+    'Alola': [722, 725, 728],
+    'Galar': [810, 813, 816],
+    'Paldea': [906, 909, 912],
   };
 
-  // Mapeo de regiones a generaciones
+  // Mapeo de regiones a generaciones (mantener para compatibilidad interna)
   static const Map<String, String> regionToGeneration = {
     'Kanto': '1',
     'Johto': '2',
@@ -155,14 +155,14 @@ class PokemonConstants {
     return _apiToSpanish[apiType.toLowerCase()] ?? apiType;
   }
 
-  /// Obtiene el rango de IDs para una generación
-  static List<int> getGenerationRange(String generation) {
-    return generationRanges[generation] ?? [0, 9999];
+  /// Obtiene el rango de IDs para una región
+  static List<int> getRegionRange(String region) {
+    return regionRanges[region] ?? [0, 9999];
   }
 
-  /// Verifica si un ID es un starter
+  /// Verifica si un ID es un starter (ahora por regiones)
   static bool isStarter(int id) {
-    return startersByGeneration.values.any((starters) => starters.contains(id));
+    return startersByRegion.values.any((s) => s.contains(id));
   }
 
   /// Verifica si un ID es una Ultra Bestia
@@ -170,8 +170,13 @@ class PokemonConstants {
     return id >= ultraBeastRangeStart && id <= ultraBeastRangeEnd;
   }
 
-  /// Convierte región a número de generación
+  /// Convierte región a número de generación (compatibilidad)
   static String regionToGen(String region) {
     return regionToGeneration[region] ?? '1';
+  }
+
+  /// Mantener getGenerationRange para compatibilidad (deprecated)
+  static List<int> getGenerationRange(String generation) {
+    return regionRanges[generation] ?? [0, 9999];
   }
 }

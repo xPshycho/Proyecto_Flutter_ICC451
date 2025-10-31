@@ -8,10 +8,9 @@ class FilterUtils {
   static bool isInGenerationRange(int id, List<String> regions) {
     if (regions.isEmpty) return true;
 
-    // Convertir regiones a generaciones para verificar el rango
+    // Verifica si el id cae en el rango de alguna de las regiones seleccionadas
     return regions.any((region) {
-      final gen = PokemonConstants.regionToGen(region);
-      final range = PokemonConstants.getGenerationRange(gen);
+      final range = PokemonConstants.getRegionRange(region);
       return id >= range[0] && id <= range[1];
     });
   }
