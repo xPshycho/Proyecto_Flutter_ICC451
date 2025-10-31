@@ -25,7 +25,7 @@ class SplashScreen extends StatelessWidget {
           Text(
             'Pokedex',
             style: Theme.of(context).appBarTheme.titleTextStyle?.copyWith(
-              fontSize: 48,
+              fontSize: 32,
             ),
           ),
         ],
