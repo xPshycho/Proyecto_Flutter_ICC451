@@ -16,6 +16,30 @@ class PokemonEvolutionSection extends StatelessWidget {
     return name[0].toUpperCase() + name.substring(1);
   }
 
+  // Extrae etiquetas de forms a partir de `pokemon.forms` (misma heurística que en la tarjeta)
+  List<String> _extractFormLabelsFromPokemon(Pokemon pokemon) {
+    final labels = <String>{};
+    final forms = pokemon.forms;
+    if (forms == null) return [];
+    for (final f in forms) {
+      try {
+        if (f is Map) {
+          final isMega = f['is_mega'] as bool?;
+          final name = (f['name'] ?? f['form_name'] ?? '') as String? ?? '';
+          final lower = name.toLowerCase();
+          if (isMega == true || lower.contains('mega')) labels.add('MEGA');
+          if (lower.contains('alola') || lower.contains('alolan')) labels.add('ALOLA');
+          if (lower.contains('galar')) labels.add('GALAR');
+          if (lower.contains('hisui') || lower.contains('hisuan')) labels.add('HISUI');
+          if (lower.contains('paldea') || lower.contains('paldean')) labels.add('PALDEA');
+          if (lower.contains('gmax') || lower.contains('gigantamax')) labels.add('GIGANTAMAX');
+          if (lower.contains('primal')) labels.add('PRIMAL');
+        }
+      } catch (_) {}
+    }
+    return labels.toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (pokemon.evolutions == null || pokemon.evolutions!.isEmpty) {
@@ -147,6 +171,24 @@ class PokemonEvolutionSection extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 6),
+            // Mostrar etiquetas de forma si existen
+            Builder(builder: (context) {
+              final labels = _extractFormLabelsFromPokemon(evolution);
+              if (labels.isEmpty) return const SizedBox.shrink();
+              return Wrap(
+                spacing: 4,
+                alignment: WrapAlignment.center,
+                children: labels.map((lbl) {
+                  final bg = lbl == 'MEGA' ? Colors.orange : Colors.blueGrey;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+                    child: Text(lbl, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  );
+                }).toList(),
+              );
+            }),
             const SizedBox(height: 4),
             // ID
             Text(
@@ -182,4 +224,3 @@ class PokemonEvolutionSection extends StatelessWidget {
     );
   }
 }
-

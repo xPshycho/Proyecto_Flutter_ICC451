@@ -133,14 +133,28 @@ class PokemonInfoCard extends StatelessWidget {
   }
 
   Widget _buildDescription() {
-    // Placeholder para descripción - agregar esto desde la API
-    return const Text(
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-      style: TextStyle(
+    // Mostrar la descripción si existe; si no, construir un resumen corto usando tipos y categorías
+    final desc = pokemon.description ?? _buildFallbackDescription();
+    return Text(
+      desc,
+      style: const TextStyle(
         fontSize: 14,
         height: 1.5,
       ),
     );
+  }
+
+  String _buildFallbackDescription() {
+    final parts = <String>[];
+    if (pokemon.types.isNotEmpty) {
+      final types = pokemon.types.map((t) => PokemonConstants.toSpanishType(t)).join(' / ');
+      parts.add('Tipo: $types.');
+    }
+    if (pokemon.categories != null && pokemon.categories!.isNotEmpty) {
+      parts.add('Categorías: ${pokemon.categories!.join(', ')}.');
+    }
+    if (parts.isEmpty) return 'Descripción no disponible.';
+    return parts.join(' ');
   }
 
   Widget _buildStatCard({

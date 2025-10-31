@@ -10,6 +10,32 @@ class PokemonCard extends StatelessWidget {
   final VoidCallback? onTap;
   const PokemonCard({super.key, required this.pokemon, this.onTap});
 
+  // Extrae etiquetas simples a partir de `pokemon.forms`.
+  // Busca flags explícitos (`is_mega`) y keywords en `name`/`form_name`.
+  List<String> _extractFormLabels() {
+    final labels = <String>{};
+    final forms = pokemon.forms;
+    if (forms == null) return [];
+    for (final f in forms) {
+      try {
+        if (f is Map) {
+          final isMega = f['is_mega'] as bool?;
+          final name = (f['name'] ?? f['form_name'] ?? '') as String? ?? '';
+          final lower = name.toLowerCase();
+          if (isMega == true || lower.contains('mega')) labels.add('MEGA');
+          if (lower.contains('alola') || lower.contains('alolan')) labels.add('ALOLA');
+          if (lower.contains('galar')) labels.add('GALAR');
+          if (lower.contains('hisui') || lower.contains('hisuan')) labels.add('HISUI');
+          if (lower.contains('paldea') || lower.contains('paldean')) labels.add('PALDEA');
+          if (lower.contains('gmax') || lower.contains('gigantamax')) labels.add('GIGANTAMAX');
+          if (lower.contains('primal')) labels.add('PRIMAL');
+          if (lower.contains('lunar') || lower.contains('cosplay')) labels.add('SPECIAL');
+        }
+      } catch (_) {}
+    }
+    return labels.toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -101,6 +127,36 @@ class PokemonCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+
+                          const SizedBox(height: 6),
+
+                          // Labels de forms (MEGA, Alola, etc.)
+                          Builder(builder: (context) {
+                            final labels = _extractFormLabels();
+                            if (labels.isEmpty) return const SizedBox.shrink();
+                            return Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: labels.map((lbl) {
+                                final color = lbl == 'MEGA'
+                                    ? Colors.orange
+                                    : lbl == 'GIGANTAMAX'
+                                        ? Colors.purple
+                                        : Colors.blueGrey;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    lbl,
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          }),
 
                           const SizedBox(height: 6),
 

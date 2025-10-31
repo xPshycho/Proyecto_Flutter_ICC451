@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
+// 'dart:convert' removed: not used in this file
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
@@ -23,39 +23,6 @@ class PokemonRepository {
     }
   ''';
 
-  static const String _evolutionChainQuery = r'''
-    query getEvolutionChain($id: Int!) {
-      pokemon_v2_evolutionchain_by_pk(id: $id) {
-        id
-        baby_trigger_item_id
-        pokemonspecies(order_by: {id: asc}) {
-          id
-          name
-          evolves_from_species_id
-          evolution_chain_id
-          pokemon_v2_pokemons(order_by: {id: asc}) {
-            id
-            name
-            pokemon_v2_pokemonsprites { sprites }
-            pokemon_v2_pokemontypes { pokemon_v2_type { name } }
-          }
-        }
-      }
-    }
-  ''';
-
-  static const String _speciesByIdQuery = r'''
-    query getSpecies($id: Int!) {
-      pokemon_v2_pokemonspecies_by_pk(id: $id) {
-        id
-        name
-        is_legendary
-        is_mythical
-        evolution_chain_id
-      }
-    }
-  ''';
-
   // Query para obtener detalles completos (abilities, stats, sprites, types) por lista de ids
   static const String _detailsByIdsQuery = r'''
     query getDetailsByIds($ids: [Int!]) {
@@ -73,6 +40,22 @@ class PokemonRepository {
     }
   ''';
 
+  // Query para obtener forms (variantes) por lista de pokemon ids
+  static const String _formsByPokemonIdsQuery = r'''
+    query getFormsByPokemonIds($ids: [Int!]) {
+      pokemon_v2_pokemonform(where: {pokemon_id: {_in: $ids}}) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+        pokemon_v2_pokemonsprites { sprites }
+      }
+    }
+  ''';
+
   // Caché de páginas pequeña para evitar refetching de las mismas páginas
   final Map<int, List<Pokemon>> _pageCache = {};
 
@@ -82,11 +65,11 @@ class PokemonRepository {
   // Caché de detalles por ID para evitar llamadas repetidas (abilities, stats, species)
   final Map<int, Pokemon> _detailsCache = {};
 
-  // Mapa para guardar evolution_chain_id por pokemon id cuando está disponible
-  final Map<int, int?> _evolutionChainIdMap = {};
-
   // Caché de cadenas evolutivas por chainId
   final Map<int, List<Pokemon>> _evolutionChainCache = {};
+
+  // Caché de forms por pokemon id
+  final Map<int, List<dynamic>> _formsCache = {}; // store raw maps or PokemonForm
 
   // Query para lista de pokémon con tipos y sprites
   static const String _listQuery = r'''
@@ -118,7 +101,34 @@ class PokemonRepository {
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonabilities { pokemon_v2_ability { name } }
         pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
-        pokemon_v2_pokemonspecy { evolution_chain_id }
+        pokemon_v2_pokemonspecy {
+          evolution_chain_id
+          pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: 9}}, limit: 1) {
+            flavor_text
+          }
+        }
+      }
+    }
+  ''';
+
+  // Query para obtener cadena evolutiva por id
+  static const String _evolutionChainQuery = r'''
+    query getEvolutionChain($id: Int!) {
+      pokemon_v2_evolutionchain_by_pk(id: $id) {
+        id
+        baby_trigger_item_id
+        pokemonspecies(order_by: {id: asc}) {
+          id
+          name
+          evolves_from_species_id
+          evolution_chain_id
+          pokemon_v2_pokemons(order_by: {id: asc}) {
+            id
+            name
+            pokemon_v2_pokemonsprites { sprites }
+            pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+          }
+        }
       }
     }
   ''';
@@ -200,8 +210,11 @@ class PokemonRepository {
             }
             // ordenar
             if (sortBy != null) {
-              if (sortBy == 'name') list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
-              else if (sortBy == 'id') list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+              if (sortBy == 'name') {
+                list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+              } else if (sortBy == 'id') {
+                list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+              }
             } else {
               list.sort((a, b) => a.id - b.id);
             }
@@ -228,8 +241,11 @@ class PokemonRepository {
           list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
         }
         if (sortBy != null) {
-          if (sortBy == 'name') list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
-          else if (sortBy == 'id') list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+          if (sortBy == 'name') {
+            list.sort((a, b) => a.name.compareTo(b.name) * (ascending == true ? 1 : -1));
+          } else if (sortBy == 'id') {
+            list.sort((a, b) => (a.id - b.id) * (ascending == true ? 1 : -1));
+          }
         } else {
           list.sort((a, b) => a.id - b.id);
         }
@@ -363,18 +379,41 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon_by_pk'];
         if (data != null) {
-          final pokemon = _mapSingleFromGraphQL(data);
-          // Intentar obtener especies/evolución si existe campo
+          var pokemon = _mapSingleFromGraphQL(data);
+          // extraer descripción desde species flavor text si existe
           try {
-            final species = data['pokemon_v2_pokemonspecy'];
-            if (species != null && species['evolution_chain_id'] != null) {
-              final chainId = species['evolution_chain_id'] as int;
-              // obtener cadena evolutiva por GraphQL
-              final evols = await _fetchEvolutionChain(chainId);
-              return Pokemon(id: pokemon.id, name: pokemon.name, spriteUrl: pokemon.spriteUrl, types: pokemon.types, height: pokemon.height, weight: pokemon.weight, evolutions: evols);
+            final specy = data['pokemon_v2_pokemonspecy'];
+            if (specy != null && specy['pokemon_v2_pokemonspeciesflavortexts'] is List) {
+              final texts = specy['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>;
+              if (texts.isNotEmpty) {
+                final ft = texts[0]['flavor_text'] as String?;
+                if (ft != null && ft.trim().isNotEmpty) {
+                  // limpiar saltos y caracteres raros
+                  final cleaned = ft.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
+                  pokemon = pokemon.copyWith(description: cleaned);
+                }
+              }
             }
           } catch (_) {}
-          return pokemon;
+          // Adjuntar forms si existen
+          try {
+            final formsMap = await _fetchFormsByPokemonIds([pokemon.id]);
+            final forms = formsMap[pokemon.id] ?? [];
+            final pokemonWithForms = pokemon.copyWith(forms: forms);
+            // Intentar obtener especies/evolución si existe campo
+            try {
+              final species = data['pokemon_v2_pokemonspecy'];
+              if (species != null && species['evolution_chain_id'] != null) {
+                final chainId = species['evolution_chain_id'] as int;
+                // obtener cadena evolutiva por GraphQL
+                final evols = await _fetchEvolutionChain(chainId);
+                return Pokemon(id: pokemonWithForms.id, name: pokemonWithForms.name, spriteUrl: pokemonWithForms.spriteUrl, types: pokemonWithForms.types, height: pokemonWithForms.height, weight: pokemonWithForms.weight, evolutions: evols, forms: pokemonWithForms.forms, description: pokemonWithForms.description);
+              }
+            } catch (_) {}
+            return pokemonWithForms;
+          } catch (_) {
+            // si fallan forms, continuar con pokemon base
+          }
         }
       } else {
         debugPrint('GraphQL detail error: ${result.exception}');
@@ -391,7 +430,10 @@ class PokemonRepository {
   // Obtiene la cadena evolutiva desde GraphQL por id de cadena
   Future<List<Pokemon>> _fetchEvolutionChain(int chainId) async {
     // Usar caché si existe
-    if (_evolutionChainCache.containsKey(chainId)) return _evolutionChainCache[chainId]!;
+    if (_evolutionChainCache.containsKey(chainId)) {
+      return _evolutionChainCache[chainId]!;
+    }
+
     try {
       final options = QueryOptions(document: gql(_evolutionChainQuery), variables: {'id': chainId});
       final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
@@ -404,23 +446,8 @@ class PokemonRepository {
             final pokemons = sp['pokemon_v2_pokemons'] as List<dynamic>?;
             if (pokemons != null) {
               for (final p in pokemons) {
-                final spriteList = (p['pokemon_v2_pokemonsprites'] as List<dynamic>?);
-                String? spriteUrl;
-                if (spriteList != null && spriteList.isNotEmpty) {
-                  final spritesJson = spriteList[0]['sprites'];
-                  if (spritesJson is String) {
-                    try {
-                      final decoded = jsonDecode(spritesJson);
-                      spriteUrl = decoded['front_default'] as String?;
-                    } catch (_) {}
-                  } else if (spritesJson is Map) {
-                    spriteUrl = spritesJson['front_default'] as String?;
-                  }
-                }
-                final typesList = (p['pokemon_v2_pokemontypes'] as List<dynamic>?);
-                final List<String> types = typesList != null
-                    ? List<String>.from(typesList.map((t) => (t['pokemon_v2_type']['name'] as String)))
-                    : <String>[];
+                final spriteUrl = _getSpriteUrl(p['pokemon_v2_pokemonsprites']);
+                final types = _getTypes(p['pokemon_v2_pokemontypes']);
                 final pokemon = Pokemon(id: p['id'] as int, name: p['name'] as String, spriteUrl: spriteUrl, types: types);
                 out.add(pokemon);
                 // Guardar datos mínimos en caché
@@ -428,14 +455,29 @@ class PokemonRepository {
               }
             }
           }
-          _evolutionChainCache[chainId] = out;
-          return out;
+
+          // Obtener forms en batch para los pokemons de la cadena (si existen)
+          final ids = out.map((p) => p.id).toList();
+          try {
+            final formsMap = await _fetchFormsByPokemonIds(ids);
+            // Adjuntar forms a cada Pokemon
+            final withForms = out.map((p) {
+              final forms = formsMap[p.id] ?? [];
+              return p.copyWith(forms: forms);
+            }).toList();
+            _evolutionChainCache[chainId] = withForms;
+            return withForms;
+          } catch (_) {
+            _evolutionChainCache[chainId] = out;
+            return out;
+          }
         }
       }
     } catch (e, st) {
       debugPrint('PokemonRepository: error fetching evolution chain via GraphQL: $e');
       debugPrint('$st');
     }
+
     return [];
   }
 
@@ -503,28 +545,80 @@ class PokemonRepository {
 
   // Batch: obtener detalles (abilities, stats, categories) por lista de ids
   Future<List<Pokemon>> _fetchDetailsByIdsGraphQL(List<int> ids) async {
-    if (ids.isEmpty) return [];
+    if (ids.isEmpty) {
+      return [];
+    }
     // separar ids ya cacheados
     final missingIds = <int>[];
     final fromCache = <Pokemon>[];
     for (final id in ids) {
       final cached = _detailsCache[id];
-      if (cached != null) fromCache.add(cached);
-      else missingIds.add(id);
+      if (cached != null) {
+        fromCache.add(cached);
+      } else {
+        missingIds.add(id);
+      }
     }
-    if (missingIds.isEmpty) return fromCache;
+    if (missingIds.isEmpty) {
+      return fromCache;
+    }
     try {
       final options = QueryOptions(document: gql(_detailsByIdsQuery), variables: {'ids': missingIds}, fetchPolicy: FetchPolicy.networkOnly);
       final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
-        if (data != null) return _mapDetailedFromGraphQL(data);
+        if (data != null) {
+          return _mapDetailedFromGraphQL(data);
+        }
       }
     } catch (e, st) {
       debugPrint('PokemonRepository: error al obtener detalles por ids vía GraphQL: $e');
       debugPrint('$st');
     }
     return [];
+  }
+
+  // Obtener forms (variantes) para una lista de pokemon ids en batch.
+  // Devuelve un mapa pokemonId -> lista de forms (como estructuras `PokemonForm` o mapas).
+  Future<Map<int, List<dynamic>>> _fetchFormsByPokemonIds(List<int> ids) async {
+    final result = <int, List<dynamic>>{};
+    if (ids.isEmpty) return result;
+
+    final missing = <int>[];
+    for (final id in ids) {
+      if (_formsCache.containsKey(id)) {
+        result[id] = _formsCache[id]!;
+      } else {
+        missing.add(id);
+      }
+    }
+    if (missing.isEmpty) return result;
+
+    try {
+      final options = QueryOptions(document: gql(_formsByPokemonIdsQuery), variables: {'ids': missing});
+      final res = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+      if (!res.hasException && res.data != null) {
+        final data = res.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        if (data != null) {
+          for (final f in data) {
+            final pid = f['pokemon_id'] as int;
+            final form = f; // keep raw map or construct PokemonForm.fromGraphQL(f)
+            final list = result[pid] ?? <dynamic>[];
+            list.add(form);
+            result[pid] = list;
+          }
+          // cachear
+          for (final id in missing) {
+            _formsCache[id] = result[id] ?? [];
+          }
+        }
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error fetching forms by ids: $e');
+      debugPrint('$st');
+    }
+
+    return result;
   }
 
   List<Pokemon> _mapFromGraphQL(List<dynamic> data) {
@@ -595,6 +689,69 @@ class PokemonRepository {
         isMythical: isMythical,
       );
     }).toList();
+  }
+
+  // Mapea un solo objeto GraphQL a Pokemon reutilizando la lógica existente
+  Pokemon _mapSingleFromGraphQL(Map<String, dynamic> item) {
+    final id = item['id'] as int;
+    final name = item['name'] as String;
+    final spriteUrl = _getSpriteUrl(item['pokemon_v2_pokemonsprites']);
+    final types = _getTypes(item['pokemon_v2_pokemontypes']);
+    final height = (item['height'] as num?)?.toDouble();
+    final weight = (item['weight'] as num?)?.toDouble();
+
+    // Abilities
+    final abilitiesList = <String>[];
+    if (item['pokemon_v2_pokemonabilities'] is List) {
+      for (final a in item['pokemon_v2_pokemonabilities'] as List<dynamic>) {
+        final an = a['pokemon_v2_ability']?['name'];
+        if (an != null) abilitiesList.add(an as String);
+      }
+    }
+
+    // Stats
+    final statsMap = <String, int>{};
+    if (item['pokemon_v2_pokemonstats'] is List) {
+      for (final s in item['pokemon_v2_pokemonstats'] as List<dynamic>) {
+        final statName = s['pokemon_v2_stat']?['name'];
+        final base = s['base_stat'];
+        if (statName != null && base != null) statsMap[statName as String] = (base as int);
+      }
+    }
+
+    // Species-derived categories
+    List<String>? categories;
+    bool? isLegendary;
+    bool? isMythical;
+    try {
+      final specy = item['pokemon_v2_pokemonspecy'];
+      if (specy != null) {
+        isLegendary = specy['is_legendary'] as bool?;
+        isMythical = specy['is_mythical'] as bool?;
+        final cats = <String>[];
+        if (isLegendary == true) cats.add('legendario');
+        if (isMythical == true) cats.add('mitico');
+        categories = cats;
+      }
+    } catch (_) {}
+
+    final pokemon = Pokemon(
+      id: id,
+      name: name,
+      spriteUrl: spriteUrl,
+      types: types,
+      height: height,
+      weight: weight,
+      abilities: abilitiesList,
+      stats: statsMap,
+      categories: categories,
+      isLegendary: isLegendary,
+      isMythical: isMythical,
+    );
+
+    // cache minimal
+    _detailsCache[id] = _detailsCache[id] ?? pokemon;
+    return pokemon;
   }
 
   String? _getSpriteUrl(dynamic spritesData) {
