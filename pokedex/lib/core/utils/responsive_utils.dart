@@ -13,11 +13,10 @@ class ResponsiveUtils {
 
   /// Calcula el aspect ratio basado en el ancho
   static double calculateChildAspectRatio(double width) {
-    if (width >= 1200) return 3 / 1.8;
-    if (width >= 1000) return 3 / 1.9;
-    if (width >= 700) return 3 / 2.0;
-    if (width >= 480) return 3 / 2.2;
-    return 3 / 1.2;
+    if (width >= 1200) return 3.28 / 1.02;
+    if (width >= 1000) return 3.28 / 1.12;
+    if (width >= 700) return 3.28 / 1.22;
+    if (width >= 480) return 3.28 / 1.32;
+    return 3.28 / 1.02;
   }
 }
-

@@ -600,11 +600,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
         return GridView.builder(
           controller: _scrollController,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(0),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: 0,
+            crossAxisSpacing: 0,
             childAspectRatio: childAspectRatio,
           ),
           itemCount: _pokemons.length + (_loading ? 1 : 0),

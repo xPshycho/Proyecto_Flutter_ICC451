@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/favorites_service.dart';
 import '../../core/constants/pokemon_constants.dart';
@@ -12,7 +13,6 @@ class PokemonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     final favService = Provider.of<FavoritesService>(context, listen: true);
 
     return InkWell(
@@ -22,19 +22,20 @@ class PokemonCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               // Imagen (reduced size)
               SizedBox(
-                width: 56,
-                height: 56,
+                width: 91,
+                height: 91,
                 child: pokemon.spriteUrl != null
-                    ? Image.network(pokemon.spriteUrl!, width: 56, height: 56, fit: BoxFit.contain)
-                    : Container(width: 56, height: 56, color: Colors.grey[200]),
+                    ? Image.network(pokemon.spriteUrl!, width: 91, height: 91, fit: BoxFit.contain)
+                    : Container(width: 91, height: 91, color: Colors.grey[200]),
+
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
               // Texto y tipos
               Flexible(
@@ -56,8 +57,6 @@ class PokemonCard extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(width: 6),
-
                         // Botón favorito con ancho fijo y sin padding excesivo (reduced)
                         SizedBox(
                           width: 30,
@@ -75,7 +74,8 @@ class PokemonCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+
+                    const SizedBox(height: 6),
                     // Nombre con tamaño ligeramente menor
                     Text(
                       pokemon.name,
@@ -86,29 +86,43 @@ class PokemonCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     // Mostrar tipos en una fila desplazable horizontalmente para evitar overflow vertical
                     SizedBox(
-                      height: 22,
+                      height: 24,
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: pokemon.types.map((t) {
-                            final typeColor = PokemonConstants.getTypeColor(t);
-                            final icon = PokemonConstants.getTypeIcon(t);
+                            // Traducir el tipo de inglés a español
+                            final spanishType = PokemonConstants.toSpanishType(t);
+                            final typeColor = PokemonConstants.getTypeColor(spanishType);
+                            final icon = PokemonConstants.getTypeIcon(spanishType);
                             return Container(
                               margin: const EdgeInsets.only(right: 6),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: typeColor,
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: typeColor.withAlpha(204),
+                                  width: 1,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (icon != null) ...[
-                                    Image.asset(icon, width: 12, height: 12),
+                                    SvgPicture.asset(
+                                      icon,
+                                      width: 12,
+                                      height: 12,
+                                      colorFilter: const ColorFilter.mode(
+                                        Colors.white,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
                                     const SizedBox(width: 4),
                                   ],
                                   Text(
-                                    t,
+                                    spanishType,
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

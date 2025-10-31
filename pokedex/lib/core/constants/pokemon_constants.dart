@@ -113,6 +113,28 @@ class PokemonConstants {
     'Agua': 'water',
   };
 
+  // Mapeo inverso de nombres de tipo de la API (inglés) a español (UI)
+  static const Map<String, String> _apiToSpanish = {
+    'bug': 'Bicho',
+    'dark': 'Siniestro',
+    'dragon': 'Dragón',
+    'electric': 'Eléctrico',
+    'fire': 'Fuego',
+    'fairy': 'Hada',
+    'fighting': 'Lucha',
+    'flying': 'Volador',
+    'ghost': 'Fantasma',
+    'grass': 'Planta',
+    'ground': 'Tierra',
+    'ice': 'Hielo',
+    'normal': 'Normal',
+    'poison': 'Veneno',
+    'psychic': 'Psíquico',
+    'rock': 'Roca',
+    'steel': 'Acero',
+    'water': 'Agua',
+  };
+
   /// Obtiene el color asociado a un tipo
   static Color getTypeColor(String type) {
     return typeColors[type] ?? const Color(0xFFA0A29F); // Default Normal color
@@ -128,6 +150,10 @@ class PokemonConstants {
     return spanishTypes.map((s) => _spanishToApi[s] ?? s.toLowerCase()).toList();
   }
 
+  // Traduce un nombre de tipo de la API (inglés) a español
+  static String toSpanishType(String apiType) {
+    return _apiToSpanish[apiType.toLowerCase()] ?? apiType;
+  }
 
   /// Obtiene el rango de IDs para una generación
   static List<int> getGenerationRange(String generation) {
@@ -149,4 +175,3 @@ class PokemonConstants {
     return regionToGeneration[region] ?? '1';
   }
 }
-
