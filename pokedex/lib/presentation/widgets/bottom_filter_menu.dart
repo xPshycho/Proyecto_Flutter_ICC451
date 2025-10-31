@@ -25,7 +25,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
   List<String> _regionesSeleccionadas = [];
   List<String> _filtro4Seleccionados = [];
   List<String> _filtro5Seleccionados = [];
-  List<String> _generacionSeleccionadas = [];
 
   // Opciones disponibles para cada categoría
   final List<String> _categoriaOptions = [
@@ -70,9 +69,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     'Paldea'
   ];
 
-  // Generaciones (1..9) - ahora se muestran por separado además de Región
-  final List<String> _generacionOptions = ['1','2','3','4','5','6','7','8','9'];
-
   final List<String> _filtro4Options = [
     'Opción 1',
     'Opción 2',
@@ -101,7 +97,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
         _categoriasSeleccionadas = List<String>.from(initialFilters['categorias'] ?? []);
         _tiposSeleccionados = List<String>.from(initialFilters['tipos'] ?? []);
         _regionesSeleccionadas = List<String>.from(initialFilters['regiones'] ?? []);
-        _generacionSeleccionadas = List<String>.from(initialFilters['generaciones'] ?? []);
         _filtro4Seleccionados = List<String>.from(initialFilters['filtro4'] ?? []);
         _filtro5Seleccionados = List<String>.from(initialFilters['filtro5'] ?? []);
       });
@@ -115,7 +110,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       _categoriasSeleccionadas = [];
       _tiposSeleccionados = [];
       _regionesSeleccionadas = [];
-      _generacionSeleccionadas = [];
       _filtro4Seleccionados = [];
       _filtro5Seleccionados = [];
     });
@@ -128,7 +122,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       'categorias': _categoriasSeleccionadas,
       'tipos': _tiposSeleccionados,
       'regiones': _regionesSeleccionadas,
-      'generaciones': _generacionSeleccionadas,
       'filtro4': _filtro4Seleccionados,
       'filtro5': _filtro5Seleccionados,
     };
@@ -256,18 +249,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
                     selectedOptions: _regionesSeleccionadas,
                     onSelectionChanged: (selected) {
                       setState(() => _regionesSeleccionadas = selected);
-                    },
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Generación (separada de Region)
-                  ExpandableFilterBox(
-                    title: 'Generación',
-                    options: _generacionOptions,
-                    selectedOptions: _generacionSeleccionadas,
-                    onSelectionChanged: (selected) {
-                      setState(() => _generacionSeleccionadas = selected);
                     },
                   ),
 

@@ -17,8 +17,8 @@ class PokemonRepository {
 
   // Query para lista de pokémon con tipos y sprites
   static const String _listQuery = r'''
-    query getPokemons($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!) {
-      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy) {
+    query getPokemons($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!, $where: pokemon_v2_pokemon_bool_exp) {
+      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy, where: $where) {
         id
         name
         pokemon_v2_pokemonsprites {
@@ -95,7 +95,7 @@ class PokemonRepository {
     debugPrint('PokemonRepository: cached total ${_allCache?.length ?? 0} pokemons');
   }
 
-  Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0, List<String>? types, List<String>? generations, List<String>? categories, String? sortBy, bool? ascending}) async {
+  Future<List<Pokemon>> fetchPokemons({int limit = 20, int offset = 0, List<String>? types, List<String>? regions, List<String>? categories, String? sortBy, bool? ascending}) async {
     final bool hasCategories = categories != null && categories.isNotEmpty;
 
     // If categories requested, ensure we have the full cache so we can filter reliably
@@ -109,19 +109,20 @@ class PokemonRepository {
         list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
       }
 
-      // Apply generations filter if present
-      if (generations != null && generations.isNotEmpty) {
-        final ranges = generations.map((g) {
-          switch (g) {
-            case '1': return [1,151];
-            case '2': return [152,251];
-            case '3': return [252,386];
-            case '4': return [387,493];
-            case '5': return [494,649];
-            case '6': return [650,721];
-            case '7': return [722,809];
-            case '8': return [810,905];
-            case '9': return [906,1000];
+      // Apply regions filter if present
+      if (regions != null && regions.isNotEmpty) {
+        final ranges = regions.map((region) {
+          // Convertir región a generación y obtener rango
+          switch (region) {
+            case 'Kanto': return [1,151];
+            case 'Johto': return [152,251];
+            case 'Hoenn': return [252,386];
+            case 'Sinnoh': return [387,493];
+            case 'Teselia': return [494,649];
+            case 'Kalos': return [650,721];
+            case 'Alola': return [722,809];
+            case 'Galar': return [810,905];
+            case 'Paldea': return [906,1000];
           }
           return [0,9999];
         }).toList();
@@ -184,19 +185,19 @@ class PokemonRepository {
             list = list.where((p) => p.types.any((t) => lower.contains(t.toLowerCase()))).toList();
           }
 
-          // Generations filter
-          if (generations != null && generations.isNotEmpty) {
-            final ranges = generations.map((g) {
-              switch (g) {
-                case '1': return [1,151];
-                case '2': return [152,251];
-                case '3': return [252,386];
-                case '4': return [387,493];
-                case '5': return [494,649];
-                case '6': return [650,721];
-                case '7': return [722,809];
-                case '8': return [810,905];
-                case '9': return [906,1000];
+          // Regions filter
+          if (regions != null && regions.isNotEmpty) {
+            final ranges = regions.map((region) {
+              switch (region) {
+                case 'Kanto': return [1,151];
+                case 'Johto': return [152,251];
+                case 'Hoenn': return [252,386];
+                case 'Sinnoh': return [387,493];
+                case 'Teselia': return [494,649];
+                case 'Kalos': return [650,721];
+                case 'Alola': return [722,809];
+                case 'Galar': return [810,905];
+                case 'Paldea': return [906,1000];
               }
               return [0,9999];
             }).toList();
