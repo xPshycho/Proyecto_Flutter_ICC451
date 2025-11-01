@@ -48,6 +48,7 @@ class Pokemon {
   Pokemon copyWith({
     List<dynamic>? forms,
     String? description,
+    List<Pokemon>? evolutions,
   }) {
     return Pokemon(
       id: id,
@@ -56,7 +57,7 @@ class Pokemon {
       types: types,
       height: height,
       weight: weight,
-      evolutions: evolutions,
+      evolutions: evolutions ?? this.evolutions,
       isFavorite: isFavorite,
       abilities: abilities,
       stats: stats,

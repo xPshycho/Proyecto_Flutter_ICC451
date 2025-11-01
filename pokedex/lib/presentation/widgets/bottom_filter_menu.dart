@@ -2,6 +2,30 @@ import 'package:flutter/material.dart';
 import 'FilterBoxes/expandable_filter_box.dart';
 import 'FilterBoxes/type_filter_box.dart';
 
+class FilterOptions {
+  static const categorias = [
+    'Starter',
+    'Mega',
+    'Gigantamax',
+    'Ultra Bestia',
+    'Legendario',
+    'Mítico',
+  ];
+
+  static const tipos = [
+    'Fuego', 'Agua', 'Planta', 'Eléctrico',
+    'Hielo', 'Lucha', 'Veneno', 'Tierra',
+    'Volador', 'Psíquico', 'Dragón', 'Hada',
+    'Acero', 'Bicho', 'Roca', 'Fantasma',
+    'Siniestro', 'Normal'
+  ];
+
+  static const regiones = [
+    'Kanto', 'Johto', 'Hoenn', 'Sinnoh',
+    'Teselia', 'Kalos', 'Alola', 'Galar', 'Paldea'
+  ];
+}
+
 class BottomFilterMenu extends StatefulWidget {
   final Function(Map<String, dynamic>)? onApplyFilters;
   final Map<String, dynamic>? initialFilters;
@@ -17,88 +41,27 @@ class BottomFilterMenu extends StatefulWidget {
 }
 
 class _BottomFilterMenuState extends State<BottomFilterMenu> {
-  // Estado de los filtros
   bool _favoritos = false;
   bool _noFavoritos = false;
   List<String> _categoriasSeleccionadas = [];
   List<String> _tiposSeleccionados = [];
   List<String> _regionesSeleccionadas = [];
-  List<String> _filtro4Seleccionados = [];
-  List<String> _filtro5Seleccionados = [];
-
-  // Opciones disponibles para cada categoría
-  final List<String> _categoriaOptions = [
-    'Starter',
-    'Mega',
-    'Gigantamax',
-    'Ultra Bestia',
-    'Legendario',
-    'Mítico',
-  ];
-
-  final List<String> _tipoOptions = [
-    'Fuego',
-    'Agua',
-    'Planta',
-    'Eléctrico',
-    'Hielo',
-    'Lucha',
-    'Veneno',
-    'Tierra',
-    'Volador',
-    'Psíquico',
-    'Dragón',
-    'Hada',
-    'Acero',
-    'Bicho',
-    'Roca',
-    'Fantasma',
-    'Siniestro',
-    'Normal'
-  ];
-
-  final List<String> _regionOptions = [
-    'Kanto',
-    'Johto',
-    'Hoenn',
-    'Sinnoh',
-    'Teselia',
-    'Kalos',
-    'Alola',
-    'Galar',
-    'Paldea'
-  ];
-
-  final List<String> _filtro4Options = [
-    'Opción 1',
-    'Opción 2',
-    'Opción 3',
-    'Opción 4',
-  ];
-
-  final List<String> _filtro5Options = [
-    'Opción A',
-    'Opción B',
-    'Opción C',
-    'Opción D',
-  ];
 
   @override
   void initState() {
     super.initState();
+    _initializeFilters();
+  }
 
-    // Inicializar filtros con los valores proporcionados
+  void _initializeFilters() {
     if (widget.initialFilters != null) {
-      final initialFilters = widget.initialFilters!;
-
+      final filters = widget.initialFilters!;
       setState(() {
-        _favoritos = initialFilters['favoritos'] ?? false;
-        _noFavoritos = initialFilters['noFavoritos'] ?? false;
-        _categoriasSeleccionadas = List<String>.from(initialFilters['categorias'] ?? []);
-        _tiposSeleccionados = List<String>.from(initialFilters['tipos'] ?? []);
-        _regionesSeleccionadas = List<String>.from(initialFilters['regiones'] ?? []);
-        _filtro4Seleccionados = List<String>.from(initialFilters['filtro4'] ?? []);
-        _filtro5Seleccionados = List<String>.from(initialFilters['filtro5'] ?? []);
+        _favoritos = filters['favoritos'] ?? false;
+        _noFavoritos = filters['noFavoritos'] ?? false;
+        _categoriasSeleccionadas = List<String>.from(filters['categorias'] ?? []);
+        _tiposSeleccionados = List<String>.from(filters['tipos'] ?? []);
+        _regionesSeleccionadas = List<String>.from(filters['regiones'] ?? []);
       });
     }
   }
@@ -110,8 +73,6 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       _categoriasSeleccionadas = [];
       _tiposSeleccionados = [];
       _regionesSeleccionadas = [];
-      _filtro4Seleccionados = [];
-      _filtro5Seleccionados = [];
     });
   }
 
@@ -122,14 +83,9 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       'categorias': _categoriasSeleccionadas,
       'tipos': _tiposSeleccionados,
       'regiones': _regionesSeleccionadas,
-      'filtro4': _filtro4Seleccionados,
-      'filtro5': _filtro5Seleccionados,
     };
 
-    if (widget.onApplyFilters != null) {
-      widget.onApplyFilters!(filters);
-    }
-
+    widget.onApplyFilters?.call(filters);
     Navigator.pop(context);
   }
 
@@ -221,7 +177,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
                   // Categoría
                   ExpandableFilterBox(
                     title: 'Categoría',
-                    options: _categoriaOptions,
+                    options: FilterOptions.categorias,
                     selectedOptions: _categoriasSeleccionadas,
                     onSelectionChanged: (selected) {
                       setState(() => _categoriasSeleccionadas = selected);
@@ -233,7 +189,7 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
                   // Tipo - Usando TypeFilterBox con íconos
                   TypeFilterBox(
                     title: 'Tipo',
-                    options: _tipoOptions,
+                    options: FilterOptions.tipos,
                     selectedOptions: _tiposSeleccionados,
                     onSelectionChanged: (selected) {
                       setState(() => _tiposSeleccionados = selected);
@@ -245,36 +201,13 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
                   // Region
                   ExpandableFilterBox(
                     title: 'Region',
-                    options: _regionOptions,
+                    options: FilterOptions.regiones,
                     selectedOptions: _regionesSeleccionadas,
                     onSelectionChanged: (selected) {
                       setState(() => _regionesSeleccionadas = selected);
                     },
                   ),
 
-                  const SizedBox(height: 8),
-
-                  // Filtro 4
-                  ExpandableFilterBox(
-                    title: '...',
-                    options: _filtro4Options,
-                    selectedOptions: _filtro4Seleccionados,
-                    onSelectionChanged: (selected) {
-                      setState(() => _filtro4Seleccionados = selected);
-                    },
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Filtro 5
-                  ExpandableFilterBox(
-                    title: '...',
-                    options: _filtro5Options,
-                    selectedOptions: _filtro5Seleccionados,
-                    onSelectionChanged: (selected) {
-                      setState(() => _filtro5Seleccionados = selected);
-                    },
-                  ),
 
                   const SizedBox(height: 20),
                 ],
@@ -343,6 +276,12 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    final backgroundColor = isSelected
+        ? colorScheme.primary
+        : colorScheme.onSurface.withAlpha(20);
+    final foregroundColor = isSelected
+        ? Colors.white
+        : colorScheme.onSurface;
 
     return InkWell(
       onTap: onTap,
@@ -352,31 +291,23 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary
-              : colorScheme.onSurface.withAlpha(20),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : Colors.transparent,
+            color: isSelected ? colorScheme.primary : Colors.transparent,
             width: 1.5,
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? Colors.white : colorScheme.onSurface,
-            ),
+            Icon(icon, size: 16, color: foregroundColor),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? Colors.white : colorScheme.onSurface,
+                color: foregroundColor,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),

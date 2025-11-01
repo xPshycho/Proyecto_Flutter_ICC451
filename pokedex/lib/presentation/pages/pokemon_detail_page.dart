@@ -40,15 +40,17 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 
-  void _handleBackNavigation() {
-    Navigator.of(context).pop();
-  }
-
   void _handleFavoriteToggle(FavoritesService favService, Pokemon pokemon) {
     favService.toggleFavorite(pokemon);
+    _showFavoriteSnackBar(favService.isFavorite(pokemon.id), pokemon.name);
+  }
 
-    // Mostrar un SnackBar con feedback visual
-    final isFavorite = favService.isFavorite(pokemon.id);
+  void _showFavoriteSnackBar(bool isFavorite, String pokemonName) {
+    final capitalizedName = '${pokemonName[0].toUpperCase()}${pokemonName.substring(1)}';
+    final message = isFavorite
+        ? '$capitalizedName agregado a favoritos'
+        : '$capitalizedName removido de favoritos';
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -59,20 +61,13 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
               size: 20,
             ),
             const SizedBox(width: 8),
-            Text(
-              isFavorite
-                  ? '${pokemon.name[0].toUpperCase()}${pokemon.name.substring(1)} agregado a favoritos'
-                  : '${pokemon.name[0].toUpperCase()}${pokemon.name.substring(1)} removido de favoritos',
-              style: const TextStyle(fontSize: 11),
-            ),
+            Text(message, style: const TextStyle(fontSize: 11)),
           ],
         ),
         backgroundColor: isFavorite ? Colors.red : Colors.grey[700],
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
     );
@@ -104,61 +99,24 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
 
     return CustomScrollView(
       slivers: [
-        // Header con imagen y fondo de tipo
         SliverToBoxAdapter(
           child: PokemonHeader(
             pokemon: pokemon,
-            onBack: _handleBackNavigation,
+            onBack: () => Navigator.of(context).pop(),
             onFavoriteToggle: () => _handleFavoriteToggle(favService, pokemon),
             isFavorite: favService.isFavorite(pokemon.id),
           ),
         ),
-
-        // Contenido principal
         SliverToBoxAdapter(
           child: Transform.translate(
             offset: const Offset(0, -30),
             child: Column(
               children: [
-                // Información básica
                 PokemonInfoCard(
                   pokemon: pokemon,
                   onEvolutionTap: _navigateToEvolution,
                 ),
-
-                // Secciones adicionales
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 24),
-
-                      // Habilidades
-                      PokemonAbilitiesSection(pokemon: pokemon),
-                      const SizedBox(height: 24),
-
-                      // Debilidades
-                      PokemonWeaknessesSection(pokemon: pokemon),
-                      const SizedBox(height: 24),
-
-                      // Estadísticas
-                      PokemonStatsSection(pokemon: pokemon),
-                      const SizedBox(height: 24),
-
-                      // Formas alternativas y mega evoluciones
-                      PokemonFormsSection(pokemon: pokemon),
-                      const SizedBox(height: 24),
-
-                      // Evoluciones
-                      PokemonEvolutionSection(
-                        pokemon: pokemon,
-                        onEvolutionTap: _navigateToEvolution,
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                ),
+                _buildDetailSections(pokemon),
               ],
             ),
           ),
@@ -167,8 +125,36 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 
+  Widget _buildDetailSections(Pokemon pokemon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          PokemonAbilitiesSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          PokemonWeaknessesSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          PokemonStatsSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          PokemonFormsSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          PokemonEvolutionSection(
+            pokemon: pokemon,
+            onEvolutionTap: _navigateToEvolution,
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
   Widget _buildErrorView(String error) {
     final isRegionalForm = widget.id > 10000;
+    final title = isRegionalForm
+        ? 'Error al cargar la forma regional'
+        : 'Error al cargar el Pokémon';
 
     return Scaffold(
       appBar: AppBar(
@@ -189,9 +175,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
               ),
               const SizedBox(height: 16),
               Text(
-                isRegionalForm
-                  ? 'Error al cargar la forma regional'
-                  : 'Error al cargar el Pokémon',
+                title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 20,
@@ -199,54 +183,51 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (isRegionalForm) ...[
+              if (isRegionalForm)
                 const Text(
                   'Las formas regionales pueden tener problemas de caché.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.orange,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.orange),
                 ),
-                const SizedBox(height: 8),
-              ],
+              const SizedBox(height: 8),
               Text(
                 error.length > 100 ? '${error.substring(0, 100)}...' : error,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Regresar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[600],
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _retryWithCacheClear,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reintentar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+              _buildErrorButtons(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildErrorButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back),
+          label: const Text('Regresar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey[600],
+            foregroundColor: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton.icon(
+          onPressed: _retryWithCacheClear,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Reintentar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 

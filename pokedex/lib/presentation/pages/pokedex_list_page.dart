@@ -50,41 +50,54 @@ class _PokedexListPageState extends State<PokedexListPage> {
 
   Future<void> _applyFilterMap(Map<String, dynamic> filters) async {
     final favoritos = filters['favoritos'] as bool? ?? false;
-    final tiposSpanish = (filters['tipos'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final tiposSpanish = (filters['tipos'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList() ?? [];
     final tiposApi = PokemonConstants.toApiTypes(tiposSpanish);
-    // Usar únicamente 'regiones' (enviadas por BottomFilterMenu)
-    final regiones = (filters['regiones'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-    final categorias = (filters['categorias'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final regiones = (filters['regiones'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList() ?? [];
+    final categorias = (filters['categorias'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList() ?? [];
 
     setState(() {
-      _typeFilters = tiposApi; // ahora _typeFilters guarda nombres en esquema API
+      _typeFilters = tiposApi;
       _categoryFilters = categorias;
-      _regionFilters = regiones; // Guardar regiones seleccionadas
+      _regionFilters = regiones;
       _pokemons = [];
       _offset = 0;
     });
 
-    // Si filter favoritos está activo, recarga y filtra usando FavoritesService
-    final favService = Provider.of<FavoritesService>(context, listen: false);
     await _loadMore();
 
     if (favoritos) {
-      final filteredFavs = _pokemons.where((p) => favService.isFavorite(p.id)).toList();
-      setState(() {
-        _pokemons = filteredFavs;
-      });
+      _applyFavoritesFilter();
     }
 
-    // Filtrar por regiones si hay
     if (regiones.isNotEmpty) {
-      final ranges = regiones.map((r) => PokemonConstants.getRegionRange(r)).toList();
-
-      setState(() {
-        _pokemons = _pokemons.where((p) {
-          return ranges.any((r) => p.id >= r[0] && p.id <= r[1]);
-        }).toList();
-      });
+      _applyRegionsFilter(regiones);
     }
+  }
+
+  void _applyFavoritesFilter() {
+    final favService = Provider.of<FavoritesService>(context, listen: false);
+    final filteredFavs = _pokemons.where((p) => favService.isFavorite(p.id)).toList();
+    setState(() {
+      _pokemons = filteredFavs;
+    });
+  }
+
+  void _applyRegionsFilter(List<String> regiones) {
+    final ranges = regiones
+        .map((r) => PokemonConstants.getRegionRange(r))
+        .toList();
+
+    setState(() {
+      _pokemons = _pokemons.where((p) {
+        return ranges.any((r) => p.id >= r[0] && p.id <= r[1]);
+      }).toList();
+    });
   }
 
   Future<void> _loadMore() async {
@@ -93,15 +106,17 @@ class _PokedexListPageState extends State<PokedexListPage> {
       _error = false;
       _errorMessage = '';
     });
+
     try {
-      final list = await widget.repository.fetchPokemons(limit: _limit, offset: _offset, types: _typeFilters, regions: _regionFilters, categories: _categoryFilters);
-      final filtered = list.where((p) {
-        final matchesQuery = _query.isEmpty || p.name.toLowerCase().contains(_query.toLowerCase());
-        final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();
-        final matchesTypes = _typeFilters.isEmpty || pTypesApi.any((t) => _typeFilters.contains(t));
-        // No aplicar favoritos aquí; se aplica cuando user solicita filtros
-        return matchesQuery && matchesTypes;
-      }).toList();
+      final list = await widget.repository.fetchPokemons(
+        limit: _limit,
+        offset: _offset,
+        types: _typeFilters,
+        regions: _regionFilters,
+        categories: _categoryFilters,
+      );
+
+      final filtered = _filterPokemons(list);
 
       setState(() {
         _pokemons.addAll(filtered);
@@ -119,6 +134,19 @@ class _PokedexListPageState extends State<PokedexListPage> {
     }
   }
 
+  List<Pokemon> _filterPokemons(List<Pokemon> list) {
+    return list.where((p) {
+      final matchesQuery = _query.isEmpty ||
+          p.name.toLowerCase().contains(_query.toLowerCase());
+
+      final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();
+      final matchesTypes = _typeFilters.isEmpty ||
+          pTypesApi.any((t) => _typeFilters.contains(t));
+
+      return matchesQuery && matchesTypes;
+    }).toList();
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -128,29 +156,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          decoration: const InputDecoration(
-            hintText: 'Buscar Pokémon...',
-            border: InputBorder.none,
-            isDense: true,
-          ),
-          onChanged: (v) {
-            _query = v;
-            _pokemons = [];
-            _offset = 0;
-            _loadMore();
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              showFilterMenu(context, onApplyFilters: (filters) => _applyFilterMap(filters));
-            },
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: _buildBody(),
@@ -158,81 +164,154 @@ class _PokedexListPageState extends State<PokedexListPage> {
     );
   }
 
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: TextField(
+        decoration: const InputDecoration(
+          hintText: 'Buscar Pokémon...',
+          border: InputBorder.none,
+          isDense: true,
+        ),
+        onChanged: _onSearchChanged,
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.filter_list),
+          onPressed: _showFilters,
+        ),
+      ],
+    );
+  }
+
+  void _onSearchChanged(String value) {
+    _query = value;
+    _pokemons = [];
+    _offset = 0;
+    _loadMore();
+  }
+
+  void _showFilters() {
+    showFilterMenu(context, onApplyFilters: _applyFilterMap);
+  }
+
   Widget _buildBody() {
     if (_error && _pokemons.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
-              const SizedBox(height: 12),
-              Text('No se pudieron cargar los Pokémon', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18)),
-              const SizedBox(height: 8),
-              Text(_errorMessage, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadMore, child: const Text('Reintentar')),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorView();
     }
 
     if (_pokemons.isEmpty && _loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    return _buildPokemonGrid();
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.redAccent,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No se pudieron cargar los Pokémon',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadMore,
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPokemonGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        int crossAxisCount = 2;
-        double childAspectRatio = 3 / 2.2;
-        if (width >= 1200) {
-          crossAxisCount = 5;
-          childAspectRatio = 3 / 1.8;
-        } else if (width >= 1000) {
-          crossAxisCount = 4;
-          childAspectRatio = 3 / 1.9;
-        } else if (width >= 700) {
-          crossAxisCount = 3;
-          childAspectRatio = 3 / 2.0;
-        } else if (width >= 480) {
-          crossAxisCount = 2;
-          childAspectRatio = 3 / 2.2;
-        } else {
-          crossAxisCount = 1;
-          childAspectRatio = 3 / 1.2;
-        }
+        final gridConfig = _calculateGridConfig(constraints.maxWidth);
 
         return GridView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.all(12),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
+            crossAxisCount: gridConfig['crossAxisCount'],
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: childAspectRatio,
+            childAspectRatio: gridConfig['aspectRatio'],
           ),
           itemCount: _pokemons.length + (_loading ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index >= _pokemons.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.0),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            final p = _pokemons[index];
-            return PokemonCard(
-              pokemon: p,
-              onTap: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => PokemonDetailPage(id: p.id, repository: widget.repository)));
-              },
-            );
-          },
+          itemBuilder: _buildGridItem,
         );
       },
+    );
+  }
+
+  Map<String, dynamic> _calculateGridConfig(double width) {
+    int crossAxisCount = 2;
+    double childAspectRatio = 3 / 2.2;
+
+    if (width >= 1200) {
+      crossAxisCount = 5;
+      childAspectRatio = 3 / 1.8;
+    } else if (width >= 1000) {
+      crossAxisCount = 4;
+      childAspectRatio = 3 / 1.9;
+    } else if (width >= 700) {
+      crossAxisCount = 3;
+      childAspectRatio = 3 / 2.0;
+    } else if (width >= 480) {
+      crossAxisCount = 2;
+      childAspectRatio = 3 / 2.2;
+    } else {
+      crossAxisCount = 1;
+      childAspectRatio = 3 / 1.2;
+    }
+
+    return {
+      'crossAxisCount': crossAxisCount,
+      'aspectRatio': childAspectRatio,
+    };
+  }
+
+  Widget _buildGridItem(BuildContext context, int index) {
+    if (index >= _pokemons.length) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final pokemon = _pokemons[index];
+    return PokemonCard(
+      pokemon: pokemon,
+      onTap: () => _navigateToPokemonDetail(pokemon),
+    );
+  }
+
+  void _navigateToPokemonDetail(Pokemon pokemon) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PokemonDetailPage(
+          id: pokemon.id,
+          repository: widget.repository,
+        ),
+      ),
     );
   }
 }
