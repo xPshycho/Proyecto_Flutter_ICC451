@@ -7,7 +7,6 @@ class FilterOptions {
     'Starter',
     'Mega',
     'Gigantamax',
-    'Ultra Bestia',
     'Legendario',
     'Mítico',
   ];

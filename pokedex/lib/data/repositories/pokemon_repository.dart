@@ -290,15 +290,7 @@ class PokemonRepository {
 
     var list = List<Pokemon>.from(_allCache ?? []);
 
-    // Aplicar filtros
-    if (types != null && types.isNotEmpty) {
-      list = PokemonFilterService.filterByTypes(
-        list,
-        types,
-        (p) => p.types,
-      );
-    }
-
+    // Aplicar filtros de región primero
     if (regions != null && regions.isNotEmpty) {
       final ranges = regions
           .map((r) => PokemonConstants.getRegionRange(r))
@@ -310,7 +302,17 @@ class PokemonRepository {
       );
     }
 
+    // Filtrar por categorías (ya están enriquecidas en _ensureAllCached)
     list = await _filterByCategories(list, categories);
+
+    // Aplicar filtros de tipo al final
+    if (types != null && types.isNotEmpty) {
+      list = PokemonFilterService.filterByTypes(
+        list,
+        types,
+        (p) => p.types,
+      );
+    }
 
     // Ordenar
     if (sortBy != null) {
@@ -390,7 +392,7 @@ class PokemonRepository {
     return [];
   }
 
-  /// Asegura que el caché completo esté poblado
+  /// Asegura que el caché completo esté poblado con información de especies
   Future<void> _ensureAllCached() async {
     if (_allCache != null) return;
 
@@ -401,7 +403,7 @@ class PokemonRepository {
     try {
       while (true) {
         final result = await _executor.executeQuery(
-          query: GraphQLQueryService.list,
+          query: GraphQLQueryService.listWithSpecies,
           variables: {
             'limit': chunkSize,
             'offset': offset,
@@ -414,7 +416,7 @@ class PokemonRepository {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data == null || data.isEmpty) break;
 
-        final page = PokemonMapperService.mapList(data);
+        final page = PokemonMapperService.mapDetailedList(data);
         accumulated.addAll(page);
 
         if (page.length < chunkSize) break;
@@ -424,8 +426,31 @@ class PokemonRepository {
       debugPrint('Error in _ensureAllCached: $e');
     }
 
+
     _allCache = accumulated;
     debugPrint('Cached ${_allCache?.length ?? 0} Pokémon');
+
+    // Debug: Contar pokémon por categoría
+    final withCategories = accumulated.where((p) => p.categories != null && p.categories!.isNotEmpty).length;
+    final legendary = accumulated.where((p) => p.isLegendary == true).length;
+    final mythical = accumulated.where((p) => p.isMythical == true).length;
+    final withCatLegendary = accumulated.where((p) => p.categories?.contains('legendario') == true).length;
+    final withCatMythical = accumulated.where((p) => p.categories?.contains('mitico') == true).length;
+
+    debugPrint('Pokemon with categories: $withCategories');
+    debugPrint('Pokemon with isLegendary=true: $legendary');
+    debugPrint('Pokemon with isMythical=true: $mythical');
+    debugPrint('Pokemon with category "legendario": $withCatLegendary');
+    debugPrint('Pokemon with category "mitico": $withCatMythical');
+
+    // Enriquecer con categorías de formas (Mega, Gigantamax) para todos
+    debugPrint('Enriching all pokemon with form categories...');
+    _allCache = await _enrichWithFormCategories(_allCache ?? []);
+
+    final afterMega = _allCache!.where((p) => p.categories?.contains('mega') == true).length;
+    final afterGiga = _allCache!.where((p) => p.categories?.contains('gigantamax') == true).length;
+    debugPrint('Pokemon with Mega after enrichment: $afterMega');
+    debugPrint('Pokemon with Gigantamax after enrichment: $afterGiga');
   }
 
   /// Procesa y filtra una lista de datos GraphQL
@@ -661,6 +686,76 @@ class PokemonRepository {
     return result;
   }
 
+  /// Enriquece los pokémon con categorías basadas en sus formas
+  Future<List<Pokemon>> _enrichWithFormCategories(List<Pokemon> list) async {
+    if (list.isEmpty) return list;
+
+    debugPrint('Starting to enrich ${list.length} pokemon with form categories');
+
+    // Obtener formas para todos los pokémon en lotes
+    final ids = list.map((p) => p.id).toList();
+    final formsMap = await _fetchFormsByPokemonIds(ids);
+
+    int enrichedCount = 0;
+
+    // Enriquecer cada pokémon con categorías derivadas de sus formas
+    final result = list.map((pokemon) {
+      final forms = formsMap[pokemon.id] ?? [];
+      final categories = List<String>.from(pokemon.categories ?? []);
+
+      // Detectar Mega
+      final hasMega = forms.any((f) {
+        final isMega = f['is_mega'] as bool? ?? false;
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        return isMega || name.contains('mega');
+      });
+
+      if (hasMega && !categories.contains('mega')) {
+        categories.add('mega');
+        enrichedCount++;
+      }
+
+      // Detectar Gigantamax
+      final hasGigantamax = forms.any((f) {
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+        return name.contains('gmax') || formName.contains('gmax') ||
+               name.contains('gigantamax') || formName.contains('gigantamax');
+      });
+
+      if (hasGigantamax && !categories.contains('gigantamax')) {
+        categories.add('gigantamax');
+        enrichedCount++;
+      }
+
+      // Si se agregaron categorías, crear nuevo pokémon
+      if (categories.length > (pokemon.categories?.length ?? 0)) {
+        return Pokemon(
+          id: pokemon.id,
+          name: pokemon.name,
+          spriteUrl: pokemon.spriteUrl,
+          types: pokemon.types,
+          height: pokemon.height,
+          weight: pokemon.weight,
+          description: pokemon.description,
+          evolutions: pokemon.evolutions,
+          isFavorite: pokemon.isFavorite,
+          abilities: pokemon.abilities,
+          stats: pokemon.stats,
+          categories: categories,
+          isLegendary: pokemon.isLegendary,
+          isMythical: pokemon.isMythical,
+          forms: forms,
+        );
+      }
+
+      return pokemon;
+    }).toList();
+
+    debugPrint('Enriched $enrichedCount pokemon with form categories');
+    return result;
+  }
+
   /// Filtra por categorías
   Future<List<Pokemon>> _filterByCategories(
     List<Pokemon> list,
@@ -669,31 +764,18 @@ class PokemonRepository {
     if (categories.isEmpty) return list;
 
     final catSet = categories.map((c) => c.toLowerCase()).toSet();
+    debugPrint('Filtering by categories: $catSet');
 
-    // Filtrar por categorías existentes
-    var filtered = list.where((p) {
+    // Filtrar por categorías (ya enriquecidas previamente)
+    final filtered = list.where((p) {
       if (p.categories != null && p.categories!.isNotEmpty) {
-        return p.categories!.any((c) => catSet.contains(c.toLowerCase()));
+        final pokemonCats = p.categories!.map((c) => c.toLowerCase()).toSet();
+        return pokemonCats.any((c) => catSet.contains(c));
       }
       return false;
     }).toList();
 
-    // Si hay categorías pesadas, obtener detalles adicionales
-    const heavyCats = {'legendario', 'mítico', 'mitico', 'mega', 'gigantamax'};
-    if (catSet.any((c) => heavyCats.contains(c))) {
-      final ids = filtered.map((p) => p.id).toList();
-      final details = await _fetchDetailsByIds(ids);
-      final byId = {for (var d in details) d.id: d};
-
-      filtered = filtered.where((p) {
-        final d = byId[p.id];
-        if (d?.categories != null && d!.categories!.isNotEmpty) {
-          return d.categories!.any((c) => catSet.contains(c.toLowerCase()));
-        }
-        return false;
-      }).toList();
-    }
-
+    debugPrint('Found ${filtered.length} pokemon with categories from ${list.length} total');
     return filtered;
   }
 

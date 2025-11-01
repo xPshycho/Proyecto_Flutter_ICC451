@@ -73,6 +73,24 @@ class GraphQLQueryService {
     }
   ''';
 
+  // Query para lista con información de especies (para filtros de Legendario/Mítico)
+  static const String listWithSpecies = r'''
+    query getPokemonsWithSpecies($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!) {
+      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+        }
+      }
+    }
+  ''';
+
   // Query para detalle individual
   static const String detail = r'''
     query getPokemon($id: Int!) {
