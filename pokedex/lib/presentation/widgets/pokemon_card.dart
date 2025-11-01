@@ -94,7 +94,7 @@ class PokemonCard extends StatelessWidget {
                   // Texto y tipos - alineados con la imagen
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 26, top: 4, bottom: 4),
+                      padding: const EdgeInsets.only(right: 26, top: 2, bottom: 2),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -105,63 +105,64 @@ class PokemonCard extends StatelessWidget {
                             '#${pokemon.id.toString().padLeft(3, '0')}',
                             style: TextStyle(
                               color: colorScheme.onSurface.withAlpha(140),
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              height: 1.2,
+                              height: 1.1,
                               letterSpacing: 0.5,
                             ),
                             overflow: TextOverflow.visible,
                             maxLines: 1,
                           ),
 
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 1),
 
                           // Nombre
                           Text(
                             pokemon.name[0].toUpperCase() + pokemon.name.substring(1),
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              height: 1.2,
+                              height: 1.1,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
 
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
 
                           // Labels de forms (MEGA, Alola, etc.)
                           Builder(builder: (context) {
                             final labels = _extractFormLabels();
                             if (labels.isEmpty) return const SizedBox.shrink();
-                            return Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: labels.map((lbl) {
-                                final color = lbl == 'MEGA'
-                                    ? Colors.orange
-                                    : lbl == 'GIGANTAMAX'
-                                        ? Colors.purple
-                                        : Colors.blueGrey;
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    lbl,
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                                  ),
-                                );
-                              }).toList(),
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Wrap(
+                                spacing: 4,
+                                runSpacing: 2,
+                                children: labels.map((lbl) {
+                                  final color = lbl == 'MEGA'
+                                      ? Colors.orange
+                                      : lbl == 'GIGANTAMAX'
+                                          ? Colors.purple
+                                          : Colors.blueGrey;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      lbl,
+                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                             );
                           }),
 
-                          const SizedBox(height: 6),
-
                           // Tipos
-                          Flexible(
+                          Expanded(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
@@ -170,11 +171,11 @@ class PokemonCard extends StatelessWidget {
                                   final typeColor = PokemonConstants.getTypeColor(spanishType);
                                   final icon = PokemonConstants.getTypeIcon(spanishType);
                                   return Container(
-                                    margin: const EdgeInsets.only(right: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    margin: const EdgeInsets.only(right: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: typeColor,
-                                      borderRadius: BorderRadius.circular(20),
+                                      borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
                                         color: typeColor.withAlpha(204),
                                         width: 1,
@@ -186,22 +187,22 @@ class PokemonCard extends StatelessWidget {
                                         if (icon != null) ...[
                                           SvgPicture.asset(
                                             icon,
-                                            width: 12,
-                                            height: 12,
+                                            width: 10,
+                                            height: 10,
                                             colorFilter: const ColorFilter.mode(
                                               Colors.white,
                                               BlendMode.srcIn,
                                             ),
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 3),
                                         ],
                                         Text(
                                           spanishType,
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 11,
-                                            height: 1.2,
+                                            fontSize: 10,
+                                            height: 1.1,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,

@@ -9,6 +9,7 @@ import '../widgets/detail_components/pokemon_abilities_section.dart';
 import '../widgets/detail_components/pokemon_stats_section.dart';
 import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
+import '../widgets/detail_components/pokemon_forms_section.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -120,7 +121,10 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             child: Column(
               children: [
                 // Información básica
-                PokemonInfoCard(pokemon: pokemon),
+                PokemonInfoCard(
+                  pokemon: pokemon,
+                  onEvolutionTap: _navigateToEvolution,
+                ),
 
                 // Secciones adicionales
                 Padding(
@@ -142,6 +146,10 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                       PokemonStatsSection(pokemon: pokemon),
                       const SizedBox(height: 24),
 
+                      // Formas alternativas y mega evoluciones
+                      PokemonFormsSection(pokemon: pokemon),
+                      const SizedBox(height: 24),
+
                       // Evoluciones
                       PokemonEvolutionSection(
                         pokemon: pokemon,
@@ -160,44 +168,99 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   }
 
   Widget _buildErrorView(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.redAccent,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Error al cargar el Pokémon',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+    final isRegionalForm = widget.id > 10000;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Error'),
+        backgroundColor: Colors.redAccent,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.redAccent,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+              const SizedBox(height: 16),
+              Text(
+                isRegionalForm
+                  ? 'Error al cargar la forma regional'
+                  : 'Error al cargar el Pokémon',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Regresar'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              if (isRegionalForm) ...[
+                const Text(
+                  'Las formas regionales pueden tener problemas de caché.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                error.length > 100 ? '${error.substring(0, 100)}...' : error,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Regresar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[600],
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _retryWithCacheClear,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _retryWithCacheClear() async {
+    try {
+      // Limpiar caché antes de reintentar
+      await widget.repository.clearGraphQLCache();
+
+      // Recrear el future
+      setState(() {
+        _future = widget.repository.fetchPokemonDetail(widget.id);
+      });
+    } catch (e) {
+      debugPrint('Error during retry: $e');
+    }
   }
 }

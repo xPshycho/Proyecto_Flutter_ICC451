@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -39,6 +41,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   bool _error = false;
   String _errorMessage = '';
   bool _isRotated = false;
+
+  // Debouncing para búsqueda
+  Timer? _searchDebounceTimer;
 
   // UI State para filtros seleccionados (español)
   List<String> _selectedTypesSpanish = [];
@@ -91,6 +96,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void dispose() {
     _scrollController.dispose();
     _animationController.dispose();
+    _searchDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -115,21 +121,36 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       final repo = context.read<PokemonRepository>();
       final favService = context.read<FavoritesService>();
 
-      final list = await repo.fetchPokemons(
-        limit: AppConstants.defaultPageSize,
-        offset: _offset,
-        types: _filters.types,
-        regions: _filters.regions,
-        categories: _filters.categories,
-        sortBy: _filters.sortBy,
-        ascending: _filters.ascending,
-      );
+      List<Pokemon> list;
+
+      // Si hay una búsqueda activa, usar searchPokemonByName
+      if (_query.isNotEmpty) {
+        list = await repo.searchPokemonByName(
+          _query,
+          limit: AppConstants.defaultPageSize,
+          offset: _offset,
+        );
+      } else {
+        // Búsqueda normal con filtros
+        list = await repo.fetchPokemons(
+          limit: AppConstants.defaultPageSize,
+          offset: _offset,
+          types: _filters.types,
+          regions: _filters.regions,
+          categories: _filters.categories,
+          sortBy: _filters.sortBy,
+          ascending: _filters.ascending,
+        );
+      }
 
       final filtered = _applyLocalFilters(list);
 
       setState(() {
-        _pokemons.addAll(filtered);
-        _offset += AppConstants.defaultPageSize;
+        // Evitar duplicados
+        final existingIds = _pokemons.map((p) => p.id).toSet();
+        final newResults = filtered.where((p) => !existingIds.contains(p.id)).toList();
+        _pokemons.addAll(newResults);
+        _offset += list.length; // Usar la cantidad real de resultados obtenidos
       });
 
       _applyFavoriteFilters(favService);
@@ -259,12 +280,65 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _onSearchChanged(String value) {
+    // Cancelar búsqueda anterior si existe
+    _searchDebounceTimer?.cancel();
+
     setState(() {
-      _query = value;
-      _pokemons.clear();
-      _offset = 0;
+      _query = value.trim();
     });
-    _loadMore();
+
+    // Si no hay query, cargar normal inmediatamente
+    if (_query.isEmpty) {
+      setState(() {
+        _pokemons.clear();
+        _offset = 0;
+      });
+      _loadMore();
+      return;
+    }
+
+    // Debounce para búsquedas
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _pokemons.clear();
+        _offset = 0;
+      });
+      _searchPokemon();
+    });
+  }
+
+  /// Busca Pokémon por nombre en la base de datos
+  Future<void> _searchPokemon() async {
+    setState(() {
+      _loading = true;
+      _error = false;
+      _errorMessage = '';
+    });
+
+    try {
+      final repo = context.read<PokemonRepository>();
+      final favService = context.read<FavoritesService>();
+
+      final searchResults = await repo.searchPokemonByName(
+        _query,
+        limit: AppConstants.defaultPageSize,
+        offset: _offset,
+      );
+
+      setState(() {
+        // Solo agregar si no hay duplicados
+        final existingIds = _pokemons.map((p) => p.id).toSet();
+        final newResults = searchResults.where((p) => !existingIds.contains(p.id)).toList();
+        _pokemons.addAll(newResults);
+        _offset += searchResults.length; // Usar la cantidad real de resultados
+      });
+
+      _applyFavoriteFilters(favService);
+    } catch (e, st) {
+      _handleError(e, st);
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   // ==================== Navigation ====================
@@ -312,16 +386,67 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _animationController.reverse();
   }
 
-  void _navigateToPokemonDetail(Pokemon pokemon) {
+  void _navigateToPokemonDetail(Pokemon pokemon) async {
     final repo = context.read<PokemonRepository>();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PokemonDetailPage(
-          id: pokemon.id,
-          repository: repo,
+
+    try {
+      // Para formas regionales/especiales, intentar limpiar caché primero
+      if (pokemon.id > 10000) {
+        debugPrint('Navigating to regional/special form Pokemon: ${pokemon.name} (ID: ${pokemon.id})');
+        // No limpiar caché automáticamente, solo si es necesario
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PokemonDetailPage(
+            id: pokemon.id,
+            repository: repo,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Error navigating to Pokemon detail: $e');
+
+      // Mostrar mensaje de error al usuario
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar ${pokemon.name}. Intentando nuevamente...'),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: () => _retryPokemonDetail(pokemon, repo),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _retryPokemonDetail(Pokemon pokemon, PokemonRepository repo) async {
+    try {
+      // Limpiar caché antes de reintentar
+      await repo.clearGraphQLCache();
+
+      if (mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PokemonDetailPage(
+              id: pokemon.id,
+              repository: repo,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Retry also failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cargar el detalle del Pokémon'),
+          ),
+        );
+      }
+    }
   }
 
   // ==================== UI Builders ====================

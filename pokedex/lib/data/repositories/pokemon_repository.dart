@@ -1,5 +1,4 @@
 import 'dart:async';
-// 'dart:convert' removed: not used in this file
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
@@ -51,25 +50,24 @@ class PokemonRepository {
         is_default
         is_battle_only
         is_mega
-        pokemon_v2_pokemonsprites { sprites }
       }
     }
   ''';
 
-  // Caché de páginas pequeña para evitar refetching de las mismas páginas
-  final Map<int, List<Pokemon>> _pageCache = {};
-
-  // Caché global usado para operaciones costosas (filtrado por categorías)
-  static List<Pokemon>? _allCache;
-
-  // Caché de detalles por ID para evitar llamadas repetidas (abilities, stats, species)
-  final Map<int, Pokemon> _detailsCache = {};
-
-  // Caché de cadenas evolutivas por chainId
-  final Map<int, List<Pokemon>> _evolutionChainCache = {};
-
-  // Caché de forms por pokemon id
-  final Map<int, List<dynamic>> _formsCache = {}; // store raw maps or PokemonForm
+  // Query específica para obtener mega evoluciones
+  static const String _megaEvolutionsQuery = r'''
+    query getMegaEvolutions($pokemonId: Int!) {
+      pokemon_v2_pokemonform(where: {pokemon_id: {_eq: $pokemonId}, is_mega: {_eq: true}}) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+      }
+    }
+  ''';
 
   // Query para lista de pokémon con tipos y sprites
   static const String _listQuery = r'''
@@ -117,7 +115,7 @@ class PokemonRepository {
       pokemon_v2_evolutionchain_by_pk(id: $id) {
         id
         baby_trigger_item_id
-        pokemonspecies(order_by: {id: asc}) {
+        pokemon_v2_pokemonspecies(order_by: {id: asc}) {
           id
           name
           evolves_from_species_id
@@ -132,6 +130,84 @@ class PokemonRepository {
       }
     }
   ''';
+
+  // Query auxiliar: obtener pokemons asociados a una especie (por si la relación no viene anidada)
+  static const String _pokemonsBySpeciesQuery = r'''
+    query getPokemonsBySpecies($speciesId: Int!) {
+      pokemon_v2_pokemon(where: {pokemon_v2_pokemonspecy: {id: {_eq: $speciesId}}}, order_by: {id: asc}) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+      }
+    }
+  ''';
+
+  // Query de test para verificar formas disponibles
+  static const String _testMegaFormsQuery = r'''
+    query getTestMegaForms {
+      pokemon_v2_pokemonform(limit: 20) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_mega
+        is_default
+      }
+    }
+  ''';
+
+  // Query para búsqueda por nombre
+  static const String _searchByNameQuery = r'''
+    query searchPokemonByName($name: String!, $limit: Int!, $offset: Int!) {
+      pokemon_v2_pokemon(
+        where: {name: {_ilike: $name}}, 
+        limit: $limit, 
+        offset: $offset,
+        order_by: {id: asc}
+      ) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { id is_legendary is_mythical evolution_chain_id }
+      }
+    }
+  ''';
+
+  // Caché de páginas pequeña para evitar refetching de las mismas páginas
+  final Map<int, List<Pokemon>> _pageCache = {};
+
+  // Caché global usado para operaciones costosas (filtrado por categorías)
+  static List<Pokemon>? _allCache;
+
+  // Caché de detalles por ID para evitar llamadas repetidas (abilities, stats, species)
+  final Map<int, Pokemon> _detailsCache = {};
+
+  // Caché de cadenas evolutivas por chainId
+  final Map<int, List<Pokemon>> _evolutionChainCache = {};
+
+  // Caché de forms por pokemon id
+  final Map<int, List<dynamic>> _formsCache = {};
+
+  // Flag para test de mega evoluciones
+  bool _testDone = false;
+
+  /// Limpia el caché del cliente GraphQL
+  Future<void> clearGraphQLCache() async {
+    try {
+      client.cache.store.reset();
+      debugPrint('GraphQL cache cleared successfully');
+    } catch (e) {
+      debugPrint('Error clearing GraphQL cache: $e');
+    }
+  }
+
+  /// Verifica si un Pokémon es una forma regional/especial basado en su ID
+  bool _isRegionalOrSpecialForm(int id) {
+    // Los IDs superiores a 10000 generalmente son formas regionales/especiales
+    return id > 10000;
+  }
 
   // Helper: asegura que '_allCache' esté poblada (obtener en bloques para evitar una sola petición enorme)
   Future<void> _ensureAllCached() async {
@@ -372,62 +448,186 @@ class PokemonRepository {
     }
   }
 
+  /// Verifica si un error es relacionado con problemas de caché
+  bool _isCacheRelatedError(Object error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('cachemiss') ||
+           errorString.contains('cache.readquery') ||
+           errorString.contains('round trip cache');
+  }
+
+  /// Obtiene detalles completos de un Pokémon incluyendo evoluciones y formas
   Future<Pokemon> fetchPokemonDetail(int id) async {
+    // Test de mega evoluciones solo la primera vez
+    if (!_testDone) {
+      _testDone = true;
+      await testMegaEvolutions();
+      await testSpecificPokemonForms();
+    }
+
+    // Verificar si ya está en caché y retornarlo directamente
+    if (_detailsCache.containsKey(id)) {
+      debugPrint('Returning cached Pokemon for ID: $id');
+      final cachedPokemon = _detailsCache[id]!;
+
+      // Si el Pokemon cacheado tiene datos completos, devolverlo
+      if (cachedPokemon.abilities != null && cachedPokemon.abilities!.isNotEmpty) {
+        return cachedPokemon;
+      }
+    }
+
     try {
-      final options = QueryOptions(document: gql(_detailQuery), variables: {'id': id});
+      final options = QueryOptions(
+        document: gql(_detailQuery),
+        variables: {'id': id},
+        fetchPolicy: FetchPolicy.cacheAndNetwork, // Intentar caché primero, luego red
+        errorPolicy: ErrorPolicy.all, // Manejar errores de manera más flexible
+      );
+
       final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon_by_pk'];
         if (data != null) {
-          var pokemon = _mapSingleFromGraphQL(data);
-          // extraer descripción desde species flavor text si existe
-          try {
-            final specy = data['pokemon_v2_pokemonspecy'];
-            if (specy != null && specy['pokemon_v2_pokemonspeciesflavortexts'] is List) {
-              final texts = specy['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>;
-              if (texts.isNotEmpty) {
-                final ft = texts[0]['flavor_text'] as String?;
-                if (ft != null && ft.trim().isNotEmpty) {
-                  // limpiar saltos y caracteres raros
-                  final cleaned = ft.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
-                  pokemon = pokemon.copyWith(description: cleaned);
-                }
-              }
-            }
-          } catch (_) {}
-          // Adjuntar forms si existen
-          try {
-            final formsMap = await _fetchFormsByPokemonIds([pokemon.id]);
-            final forms = formsMap[pokemon.id] ?? [];
-            final pokemonWithForms = pokemon.copyWith(forms: forms);
-            // Intentar obtener especies/evolución si existe campo
-            try {
-              final species = data['pokemon_v2_pokemonspecy'];
-              if (species != null && species['evolution_chain_id'] != null) {
-                final chainId = species['evolution_chain_id'] as int;
-                // obtener cadena evolutiva por GraphQL
-                final evols = await _fetchEvolutionChain(chainId);
-                return Pokemon(id: pokemonWithForms.id, name: pokemonWithForms.name, spriteUrl: pokemonWithForms.spriteUrl, types: pokemonWithForms.types, height: pokemonWithForms.height, weight: pokemonWithForms.weight, evolutions: evols, forms: pokemonWithForms.forms, description: pokemonWithForms.description);
-              }
-            } catch (_) {}
-            return pokemonWithForms;
-          } catch (_) {
-            // si fallan forms, continuar con pokemon base
-          }
+          return await _processDetailedPokemon(data, id);
         }
-      } else {
-        debugPrint('GraphQL detail error: ${result.exception}');
       }
-    } catch (e, st) {
-      debugPrint('GraphQL detail exception: $e');
-      debugPrint('$st');
-    }
 
-    // Si GraphQL falla, intentar detalle por GraphQL directo (ya intentado) -> devolver error
-    throw Exception('No se pudo obtener detalle de Pokémon por GraphQL');
+      // Si hay errores de caché pero tenemos datos, intentar procesarlos
+      if (result.exception != null && result.data != null) {
+        debugPrint('GraphQL cache warning for ID $id: ${result.exception}');
+        final data = result.data!['pokemon_v2_pokemon_by_pk'];
+        if (data != null) {
+          return await _processDetailedPokemon(data, id);
+        }
+      }
+
+      debugPrint('GraphQL detail error for ID $id: ${result.exception}');
+
+      // Si es un error de caché, limpiar automáticamente y reintentar
+      if (result.exception != null && _isCacheRelatedError(result.exception!)) {
+        debugPrint('Cache-related error detected, clearing cache and retrying...');
+        await clearGraphQLCache();
+        return await _fetchPokemonDetailFallback(id);
+      }
+
+      // Fallback: intentar sin caché
+      return await _fetchPokemonDetailFallback(id);
+
+    } catch (e, st) {
+      debugPrint('GraphQL detail exception for ID $id: $e');
+      debugPrint('$st');
+
+      // Si es un error de caché, limpiar automáticamente y reintentar
+      if (_isCacheRelatedError(e)) {
+        debugPrint('Cache-related exception detected, clearing cache and retrying...');
+        await clearGraphQLCache();
+        return await _fetchPokemonDetailFallback(id);
+      }
+
+      // Fallback: intentar sin caché
+      return await _fetchPokemonDetailFallback(id);
+    }
   }
 
-  // Obtiene la cadena evolutiva desde GraphQL por id de cadena
+  /// Fallback para obtener detalles de Pokémon sin usar caché
+  Future<Pokemon> _fetchPokemonDetailFallback(int id) async {
+    try {
+      debugPrint('Attempting fallback fetch for Pokemon ID: $id');
+
+      final options = QueryOptions(
+        document: gql(_detailQuery),
+        variables: {'id': id},
+        fetchPolicy: FetchPolicy.networkOnly,
+        errorPolicy: ErrorPolicy.ignore, // Ignorar errores de caché
+      );
+
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds * 2));
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon_by_pk'];
+        if (data != null) {
+          return await _processDetailedPokemon(data, id);
+        }
+      }
+
+      debugPrint('Fallback also failed for ID $id: ${result.exception}');
+    } catch (e) {
+      debugPrint('Fallback exception for ID $id: $e');
+    }
+
+    throw Exception('No se pudo obtener detalle de Pokémon ID: $id');
+  }
+
+  /// Procesa los datos detallados de un Pokémon desde GraphQL
+  Future<Pokemon> _processDetailedPokemon(Map<String, dynamic> data, int id) async {
+    var pokemon = _mapSingleFromGraphQL(data);
+
+    // Obtener descripción si existe
+    try {
+      final specy = data['pokemon_v2_pokemonspecy'];
+      if (specy != null && specy['pokemon_v2_pokemonspeciesflavortexts'] is List) {
+        final texts = specy['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>;
+        if (texts.isNotEmpty) {
+          final ft = texts[0]['flavor_text'] as String?;
+          if (ft != null && ft.trim().isNotEmpty) {
+            final cleaned = ft.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
+            pokemon = pokemon.copyWith(description: cleaned);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error processing description for ID $id: $e');
+    }
+
+    // Obtener formas del pokemon
+    List<dynamic> forms = [];
+    try {
+      final formsData = await _fetchFormsByPokemonIds([pokemon.id]);
+      forms = formsData[pokemon.id] ?? [];
+    } catch (e) {
+      debugPrint('Error fetching forms for ID $id: $e');
+    }
+
+    // Obtener cadena evolutiva completa
+    List<Pokemon>? evolutions;
+    try {
+      final species = data['pokemon_v2_pokemonspecy'];
+      if (species != null && species['evolution_chain_id'] != null) {
+        final chainId = species['evolution_chain_id'] as int;
+        evolutions = await _fetchEvolutionChain(chainId);
+        debugPrint('Fetched ${evolutions.length} evolutions for Pokemon ${pokemon.name}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching evolution chain for ID $id: $e');
+    }
+
+    // Crear el Pokemon final con todas las propiedades
+    final finalPokemon = Pokemon(
+      id: pokemon.id,
+      name: pokemon.name,
+      spriteUrl: pokemon.spriteUrl,
+      types: pokemon.types,
+      height: pokemon.height,
+      weight: pokemon.weight,
+      abilities: pokemon.abilities,
+      stats: pokemon.stats,
+      categories: pokemon.categories,
+      isLegendary: pokemon.isLegendary,
+      isMythical: pokemon.isMythical,
+      evolutions: evolutions,
+      forms: forms,
+      description: pokemon.description,
+    );
+
+    // Actualizar caché con datos completos
+    _detailsCache[id] = finalPokemon;
+
+    debugPrint('Final Pokemon ${finalPokemon.name}: evolutions=${finalPokemon.evolutions?.length}, forms=${finalPokemon.forms?.length}');
+    return finalPokemon;
+  }
+
+  /// Obtiene la cadena evolutiva completa desde GraphQL
   Future<List<Pokemon>> _fetchEvolutionChain(int chainId) async {
     // Usar caché si existe
     if (_evolutionChainCache.containsKey(chainId)) {
@@ -437,41 +637,76 @@ class PokemonRepository {
     try {
       final options = QueryOptions(document: gql(_evolutionChainQuery), variables: {'id': chainId});
       final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
       if (!result.hasException && result.data != null) {
         final chain = result.data!['pokemon_v2_evolutionchain_by_pk'] as Map<String, dynamic>?;
-        if (chain != null && chain['pokemonspecies'] is List) {
-          final speciesList = chain['pokemonspecies'] as List<dynamic>;
-          final List<Pokemon> out = [];
-          for (final sp in speciesList) {
-            final pokemons = sp['pokemon_v2_pokemons'] as List<dynamic>?;
+        if (chain != null && chain['pokemon_v2_pokemonspecies'] is List) {
+          final speciesList = chain['pokemon_v2_pokemonspecies'] as List<dynamic>;
+          debugPrint('PokemonRepository: evolution chain (graphql) returned ${speciesList.length} species for chainId $chainId');
+
+          final List<Pokemon> evolutionChain = [];
+
+          for (final species in speciesList) {
+            var pokemons = species['pokemon_v2_pokemons'] as List<dynamic>?;
+
+            // Si no hay pokémons directamente, buscarlos por species id
+            if (pokemons == null || pokemons.isEmpty) {
+              try {
+                final speciesId = species['id'] as int?;
+                if (speciesId != null) {
+                  final opts = QueryOptions(document: gql(_pokemonsBySpeciesQuery), variables: {'speciesId': speciesId});
+                  final res2 = await client.query(opts).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+                  if (!res2.hasException && res2.data != null) {
+                    pokemons = res2.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+                  }
+                }
+              } catch (_) {}
+            }
+
             if (pokemons != null) {
-              for (final p in pokemons) {
-                final spriteUrl = _getSpriteUrl(p['pokemon_v2_pokemonsprites']);
-                final types = _getTypes(p['pokemon_v2_pokemontypes']);
-                final pokemon = Pokemon(id: p['id'] as int, name: p['name'] as String, spriteUrl: spriteUrl, types: types);
-                out.add(pokemon);
+              for (final pokemonData in pokemons) {
+                final spriteUrl = _getSpriteUrl(pokemonData['pokemon_v2_pokemonsprites']);
+                final types = _getTypes(pokemonData['pokemon_v2_pokemontypes']);
+
+                final pokemon = Pokemon(
+                  id: pokemonData['id'] as int,
+                  name: pokemonData['name'] as String,
+                  spriteUrl: spriteUrl,
+                  types: types,
+                );
+
+                evolutionChain.add(pokemon);
+
                 // Guardar datos mínimos en caché
                 _detailsCache[pokemon.id] = _detailsCache[pokemon.id] ?? pokemon;
               }
             }
           }
 
-          // Obtener forms en batch para los pokemons de la cadena (si existen)
-          final ids = out.map((p) => p.id).toList();
+          // Obtener formas en batch para todos los pokémons de la cadena
+          final pokemonIds = evolutionChain.map((p) => p.id).toList();
           try {
-            final formsMap = await _fetchFormsByPokemonIds(ids);
-            // Adjuntar forms a cada Pokemon
-            final withForms = out.map((p) {
+            final formsMap = await _fetchFormsByPokemonIds(pokemonIds);
+
+            // Adjuntar formas a cada Pokemon
+            final withForms = evolutionChain.map((p) {
               final forms = formsMap[p.id] ?? [];
               return p.copyWith(forms: forms);
             }).toList();
+
             _evolutionChainCache[chainId] = withForms;
+            debugPrint('PokemonRepository: Cached ${withForms.length} evolutions for chain $chainId');
             return withForms;
           } catch (_) {
-            _evolutionChainCache[chainId] = out;
-            return out;
+            _evolutionChainCache[chainId] = evolutionChain;
+            debugPrint('PokemonRepository: Cached ${evolutionChain.length} evolutions for chain $chainId (no forms)');
+            return evolutionChain;
           }
+        } else {
+          debugPrint('PokemonRepository: No species found in evolution chain $chainId');
         }
+      } else {
+        debugPrint('PokemonRepository: GraphQL error fetching evolution chain: ${result.exception}');
       }
     } catch (e, st) {
       debugPrint('PokemonRepository: error fetching evolution chain via GraphQL: $e');
@@ -578,8 +813,8 @@ class PokemonRepository {
     return [];
   }
 
-  // Obtener forms (variantes) para una lista de pokemon ids en batch.
-  // Devuelve un mapa pokemonId -> lista de forms (como estructuras `PokemonForm` o mapas).
+  /// Obtiene las formas/variantes para una lista de pokemon ids en batch
+  /// Devuelve un mapa pokemonId -> lista de PokemonForm
   Future<Map<int, List<dynamic>>> _fetchFormsByPokemonIds(List<int> ids) async {
     final result = <int, List<dynamic>>{};
     if (ids.isEmpty) return result;
@@ -594,24 +829,40 @@ class PokemonRepository {
     }
     if (missing.isEmpty) return result;
 
+    debugPrint('Fetching forms for Pokemon IDs: $missing');
+
     try {
       final options = QueryOptions(document: gql(_formsByPokemonIdsQuery), variables: {'ids': missing});
       final res = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
       if (!res.hasException && res.data != null) {
         final data = res.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        debugPrint('Received ${data?.length ?? 0} forms from GraphQL');
+
         if (data != null) {
-          for (final f in data) {
-            final pid = f['pokemon_id'] as int;
-            final form = f; // keep raw map or construct PokemonForm.fromGraphQL(f)
-            final list = result[pid] ?? <dynamic>[];
+          for (final formData in data) {
+            final pokemonId = formData['pokemon_id'] as int;
+
+            // Crear PokemonForm desde los datos GraphQL
+            final form = _createPokemonFormFromGraphQL(formData);
+
+            final list = result[pokemonId] ?? <dynamic>[];
             list.add(form);
-            result[pid] = list;
+            result[pokemonId] = list;
+
+            debugPrint('Added form for Pokemon $pokemonId: ${form['name']} (is_mega: ${form['is_mega']})');
           }
-          // cachear
+
+          // Cachear los resultados
           for (final id in missing) {
             _formsCache[id] = result[id] ?? [];
+            if (result[id]?.isNotEmpty == true) {
+              debugPrint('Cached ${result[id]!.length} forms for Pokemon $id');
+            }
           }
         }
+      } else {
+        debugPrint('GraphQL error fetching forms: ${res.exception}');
       }
     } catch (e, st) {
       debugPrint('PokemonRepository: error fetching forms by ids: $e');
@@ -619,6 +870,168 @@ class PokemonRepository {
     }
 
     return result;
+  }
+
+  /// Crea un objeto PokemonForm desde datos GraphQL
+  dynamic _createPokemonFormFromGraphQL(Map<String, dynamic> formData) {
+    try {
+      debugPrint('Creating form from data: ${formData.toString()}');
+
+      final form = {
+        'id': formData['id'] as int,
+        'pokemon_id': formData['pokemon_id'] as int,
+        'name': formData['name'] as String?,
+        'form_name': formData['form_name'] as String?,
+        'is_default': (formData['is_default'] as bool?) ?? false,
+        'is_battle_only': (formData['is_battle_only'] as bool?) ?? false,
+        'is_mega': formData['is_mega'] as bool?,
+        'sprite_url': null, // Por ahora sin sprites para debugging
+        'types': <String>[], // Por ahora sin tipos para debugging
+      };
+
+      debugPrint('Created form: ${form.toString()}');
+      return form;
+    } catch (e) {
+      debugPrint('Error creating PokemonForm: $e');
+      return formData; // Fallback a datos originales
+    }
+  }
+
+  /// Extrae tipos de un objeto pokemon en los datos de forma
+  List<String> _getTypesFromPokemon(dynamic pokemonData) {
+    if (pokemonData == null) return [];
+    try {
+      final types = pokemonData['pokemon_v2_pokemontypes'] as List<dynamic>?;
+      if (types != null) {
+        return types.map((t) => t['pokemon_v2_type']['name'] as String).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Obtiene específicamente las mega evoluciones de un Pokémon
+  Future<List<dynamic>> fetchMegaEvolutions(int pokemonId) async {
+    try {
+      final options = QueryOptions(
+        document: gql(_megaEvolutionsQuery),
+        variables: {'pokemonId': pokemonId}
+      );
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        if (data != null) {
+          return data.map((formData) => _createPokemonFormFromGraphQL(formData)).toList();
+        }
+      }
+    } catch (e, st) {
+      debugPrint('PokemonRepository: error fetching mega evolutions: $e');
+      debugPrint('$st');
+    }
+
+    return [];
+  }
+
+  /// Función de test para verificar mega evoluciones disponibles
+  Future<void> testMegaEvolutions() async {
+    try {
+      final options = QueryOptions(document: gql(_testMegaFormsQuery));
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        debugPrint('Test: Found ${data?.length ?? 0} total forms in database');
+        if (data != null) {
+          int megaCount = 0;
+          int regionalCount = 0;
+          int specialCount = 0;
+
+          for (final form in data) {
+            final formName = form['name'] ?? '';
+            final isMega = form['is_mega'] as bool? ?? false;
+            final isDefault = form['is_default'] as bool? ?? false;
+
+            if (!isDefault) {
+              debugPrint('Test form: $formName (is_mega: $isMega)');
+
+              if (isMega) {
+                megaCount++;
+              } else if (formName.contains('alola') || formName.contains('galar') ||
+                        formName.contains('hisui') || formName.contains('paldea')) {
+                regionalCount++;
+              } else {
+                specialCount++;
+              }
+            }
+          }
+
+          debugPrint('Test summary: $megaCount mega, $regionalCount regional, $specialCount special forms');
+        }
+      } else {
+        debugPrint('Test: Error fetching forms: ${result.exception}');
+      }
+    } catch (e) {
+      debugPrint('Test: Exception fetching forms: $e');
+    }
+  }
+
+  /// Busca Pokémon por nombre usando GraphQL
+  Future<List<Pokemon>> searchPokemonByName(String query, {int limit = 20, int offset = 0}) async {
+    if (query.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      final searchPattern = '%${query.toLowerCase()}%';
+      final options = QueryOptions(
+        document: gql(_searchByNameQuery),
+        variables: {
+          'name': searchPattern,
+          'limit': limit,
+          'offset': offset,
+        }
+      );
+
+      final result = await client.query(options).timeout(Duration(seconds: AppConstants.graphqlTimeoutSeconds));
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          debugPrint('Search: Found ${data.length} Pokémon for query "$query"');
+          return _mapDetailedFromGraphQL(data);
+        }
+      } else {
+        debugPrint('Search error: ${result.exception}');
+      }
+    } catch (e, st) {
+      debugPrint('Search exception: $e');
+      debugPrint('$st');
+    }
+
+    return [];
+  }
+
+  /// Obtiene Pokémon específicos para testing (Charizard, Mewtwo, etc.)
+  Future<void> testSpecificPokemonForms() async {
+    final testIds = [6, 150, 26, 103, 94]; // Charizard, Mewtwo, Raichu, Exeggutor, Gengar
+
+    for (final id in testIds) {
+      try {
+        final pokemon = await fetchPokemonDetail(id);
+        debugPrint('Test Pokemon ${pokemon.name}: ${pokemon.forms?.length ?? 0} forms found');
+        if (pokemon.forms != null && pokemon.forms!.isNotEmpty) {
+          for (final form in pokemon.forms!) {
+            if (form is Map<String, dynamic>) {
+              final name = form['name'] ?? form['form_name'] ?? 'Unknown';
+              final isMega = form['is_mega'] ?? false;
+              debugPrint('  Form: $name (is_mega: $isMega)');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error testing Pokemon $id: $e');
+      }
+    }
   }
 
   List<Pokemon> _mapFromGraphQL(List<dynamic> data) {

@@ -5,10 +5,12 @@ import '../../../core/constants/pokemon_constants.dart';
 
 class PokemonInfoCard extends StatelessWidget {
   final Pokemon pokemon;
+  final Function(int)? onEvolutionTap;
 
   const PokemonInfoCard({
     super.key,
     required this.pokemon,
+    this.onEvolutionTap,
   });
 
   String _formatPokemonName(String name) {
@@ -61,6 +63,13 @@ class PokemonInfoCard extends StatelessWidget {
           // Descripción (si existe)
           _buildDescription(),
           const SizedBox(height: 24),
+
+          // Línea evolutiva (si existe)
+          if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
+            _buildEvolutionLine(),
+
+          if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
+            const SizedBox(height: 24),
 
           // Peso y Altura
           Row(
@@ -155,6 +164,146 @@ class PokemonInfoCard extends StatelessWidget {
     }
     if (parts.isEmpty) return 'Descripción no disponible.';
     return parts.join(' ');
+  }
+
+  /// Construye la línea evolutiva compacta
+  Widget _buildEvolutionLine() {
+    final evolutions = pokemon.evolutions!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.change_circle_outlined, size: 16, color: Colors.grey[700]),
+            const SizedBox(width: 8),
+            const Text(
+              'LÍNEA EVOLUTIVA',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(
+              evolutions.length * 2 - 1,
+              (index) {
+                if (index.isOdd) {
+                  // Flecha entre evoluciones
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(
+                      Icons.arrow_forward,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                  );
+                } else {
+                  // Elemento de evolución
+                  final evolutionIndex = index ~/ 2;
+                  final evolution = evolutions[evolutionIndex];
+                  final isCurrentPokemon = evolution.id == pokemon.id;
+
+                  return _buildEvolutionLineItem(
+                    evolution: evolution,
+                    isCurrentPokemon: isCurrentPokemon,
+                  );
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Construye un elemento individual de la línea evolutiva
+  Widget _buildEvolutionLineItem({
+    required Pokemon evolution,
+    required bool isCurrentPokemon,
+  }) {
+    final primaryType = evolution.types.isNotEmpty
+        ? PokemonConstants.toSpanishType(evolution.types.first)
+        : 'Normal';
+    final typeColor = PokemonConstants.getTypeColor(primaryType);
+
+    return GestureDetector(
+      onTap: () => onEvolutionTap?.call(evolution.id),
+      child: Container(
+        width: 60,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isCurrentPokemon
+              ? typeColor.withAlpha(51)
+              : Colors.grey.withAlpha(25),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCurrentPokemon
+                ? typeColor
+                : Colors.grey.withAlpha(76),
+            width: isCurrentPokemon ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Imagen
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: typeColor.withAlpha(76),
+              ),
+              child: evolution.spriteUrl != null
+                  ? Image.network(
+                      evolution.spriteUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.catching_pokemon,
+                          size: 24,
+                          color: typeColor,
+                        );
+                      },
+                    )
+                  : Icon(
+                      Icons.catching_pokemon,
+                      size: 24,
+                      color: typeColor,
+                    ),
+            ),
+            const SizedBox(height: 6),
+            // Nombre
+            Text(
+              _formatPokemonName(evolution.name),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: isCurrentPokemon ? FontWeight.bold : FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // ID
+            Text(
+              'Nº${evolution.id.toString().padLeft(3, '0')}',
+              style: TextStyle(
+                fontSize: 8,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildStatCard({
