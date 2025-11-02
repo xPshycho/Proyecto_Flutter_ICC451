@@ -10,6 +10,7 @@ import '../widgets/detail_components/pokemon_stats_section.dart';
 import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
+import '../widgets/detail_components/pokemon_moveset_section.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -137,6 +138,11 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           PokemonWeaknessesSection(pokemon: pokemon),
           const SizedBox(height: 24),
           PokemonStatsSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          PokemonMovesetSection(
+            pokemon: pokemon,
+            repository: widget.repository,
+          ),
           const SizedBox(height: 24),
           PokemonFormsSection(pokemon: pokemon),
           const SizedBox(height: 24),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
+import '../models/pokemon_move.dart';
 import '../services/graphql_query_service.dart';
 import '../services/pokemon_mapper_service.dart';
 import '../services/data_services.dart';
@@ -813,5 +814,41 @@ class PokemonRepository {
     // Implementación simplificada para testing
     debugPrint('Test: Specific pokemon forms check completed');
   }
-}
 
+  /// Obtiene los movimientos de un Pokémon
+  Future<List<PokemonMove>> fetchPokemonMoves(int pokemonId) async {
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.movesByPokemonId,
+        variables: {'pokemonId': pokemonId},
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemonmove'] as List<dynamic>?;
+        if (data != null) {
+          final movesMap = <int, PokemonMove>{};
+
+          for (final moveData in data) {
+            try {
+              final move = PokemonMove.fromGraphQL(moveData);
+              // Solo agregar si no existe o si queremos mantener el primero
+              if (!movesMap.containsKey(move.moveId)) {
+                movesMap[move.moveId] = move;
+              }
+            } catch (e) {
+              debugPrint('Error parsing move: $e');
+            }
+          }
+
+          final moves = movesMap.values.toList();
+          debugPrint('Loaded ${moves.length} unique moves for Pokemon ID: $pokemonId');
+          return moves;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching moves for Pokemon $pokemonId: $e');
+    }
+
+    return [];
+  }
+}

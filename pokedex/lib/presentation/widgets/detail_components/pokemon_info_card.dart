@@ -68,8 +68,8 @@ class PokemonInfoCard extends StatelessWidget {
           // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
           //   _buildEvolutionLine(),
 
-          if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
-            const SizedBox(height: 24),
+          // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
+          //   const SizedBox(height: 24),
 
           // Peso y Altura
           Row(

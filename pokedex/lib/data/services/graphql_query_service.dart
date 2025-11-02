@@ -105,7 +105,7 @@ class GraphQLQueryService {
         pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
         pokemon_v2_pokemonspecy {
           evolution_chain_id
-          pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: 9}}, limit: 1) {
+          pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: 7}}, limit: 1) {
             flavor_text
           }
         }
@@ -161,6 +161,26 @@ class GraphQLQueryService {
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { id is_legendary is_mythical evolution_chain_id }
+      }
+    }
+  ''';
+
+  // Query para detalle de movimientos
+  static const String movesByPokemonId = r'''
+    query getMovesByPokemonId($pokemonId: Int!) {
+      pokemon_v2_pokemonmove(where: {pokemon_id: {_eq: $pokemonId}}) {
+        move_id
+        pokemon_v2_move {
+          name
+          power
+          accuracy
+          pp
+          pokemon_v2_type { name }
+          pokemon_v2_movedamageclass { name }
+          pokemon_v2_movenames(where: {language_id: {_eq: 7}}, limit: 1) {
+            name
+          }
+        }
       }
     }
   ''';
