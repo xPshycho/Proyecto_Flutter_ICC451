@@ -94,28 +94,66 @@ class PokemonCard extends StatelessWidget {
                   // Texto y tipos - alineados con la imagen
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 26, top: 2, bottom: 2),
+                      padding: const EdgeInsets.only(right: 26, top: 8, bottom: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // ID
-                          Text(
-                            '#${pokemon.id.toString().padLeft(3, '0')}',
-                            style: TextStyle(
-                              color: colorScheme.onSurface.withAlpha(140),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              height: 1.1,
-                              letterSpacing: 0.5,
-                            ),
-                            overflow: TextOverflow.visible,
-                            maxLines: 1,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '#${pokemon.id.toString().padLeft(3, '0')}',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface.withAlpha(140),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.1,
+                                  letterSpacing: 0.5,
+                                ),
+                                overflow: TextOverflow.visible,
+                                maxLines: 1,
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              // Labels de forms (MEGA, Alola, etc.)
+                              Builder(builder: (context) {
+                                final labels = _extractFormLabels();
+                                if (labels.isEmpty) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Wrap(
+                                    spacing: 4,
+                                    runSpacing: 2,
+                                    children: labels.map((lbl) {
+                                      final color = lbl == 'MEGA'
+                                          ? Colors.orange
+                                          : lbl == 'GIGANTAMAX'
+                                          ? Colors.purple
+                                          : Colors.blueGrey;
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          lbl,
+                                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              }),
+                            ]
                           ),
 
-                          const SizedBox(height: 1),
-
+                          if(_extractFormLabels().isEmpty)
+                            const SizedBox(height: 6),
                           // Nombre
                           Text(
                             pokemon.name[0].toUpperCase() + pokemon.name.substring(1),
@@ -127,40 +165,6 @@ class PokemonCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-
-                          const SizedBox(height: 4),
-
-                          // Labels de forms (MEGA, Alola, etc.)
-                          Builder(builder: (context) {
-                            final labels = _extractFormLabels();
-                            if (labels.isEmpty) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Wrap(
-                                spacing: 4,
-                                runSpacing: 2,
-                                children: labels.map((lbl) {
-                                  final color = lbl == 'MEGA'
-                                      ? Colors.orange
-                                      : lbl == 'GIGANTAMAX'
-                                          ? Colors.purple
-                                          : Colors.blueGrey;
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      lbl,
-                                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            );
-                          }),
-
                           // Tipos
                           Expanded(
                             child: SingleChildScrollView(

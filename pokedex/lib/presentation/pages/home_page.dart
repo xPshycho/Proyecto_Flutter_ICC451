@@ -475,7 +475,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           return Opacity(
             opacity: AppConstants.pokeballOpacity,
             child: Transform.rotate(
-              angle: _rotationAnimation.value * 3.14159 * 2,
+              angle: _rotationAnimation.value,
               child: ColorFiltered(
                 colorFilter: ColorFilter.mode(
                   _isRotated ? _pokeballActiveColor : _pokeballDefaultColor,

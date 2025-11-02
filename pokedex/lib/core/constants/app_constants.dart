@@ -16,13 +16,13 @@ class AppConstants {
 
   // Animaciones / UI
   static const int pokeballAnimationDuration = 800; // ms
-  static const double pokeballRotationStart = 0.0;
-  static const double pokeballRotationEnd = 1.0;
+  static const double pokeballRotationStart = -0.125;
+  static const double pokeballRotationEnd = 0.4;
   static const double scrollThreshold = 200.0;
 
   // Tamaño / opacidad del pokeball de fondo
   static const double pokeballSize = 240.0;
-  static const double pokeballOpacity = 0.06;
+  static const double pokeballOpacity = 1;
 
   // Botón Pokedex
   static const double pokedexButtonIconSize = 20.0;

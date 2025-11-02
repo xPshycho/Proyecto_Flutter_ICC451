@@ -47,8 +47,11 @@ class PokemonStatsSection extends StatelessWidget {
       'speed',
     ];
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final barWidth = screenWidth * 0.45;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Row(
           children: [
@@ -74,7 +77,7 @@ class PokemonStatsSection extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                  width: 90,
+                  width: 100,
                   child: Text(
                     _translateStatName(stat),
                     style: const TextStyle(
@@ -84,7 +87,7 @@ class PokemonStatsSection extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: 35,
+                  width: 60,
                   child: Text(
                     value.toString(),
                     style: const TextStyle(
@@ -95,7 +98,8 @@ class PokemonStatsSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: barWidth,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(

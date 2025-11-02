@@ -65,8 +65,8 @@ class PokemonInfoCard extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Línea evolutiva (si existe)
-          if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
-            _buildEvolutionLine(),
+          // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
+          //   _buildEvolutionLine(),
 
           if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
             const SizedBox(height: 24),
@@ -167,61 +167,61 @@ class PokemonInfoCard extends StatelessWidget {
   }
 
   /// Construye la línea evolutiva compacta
-  Widget _buildEvolutionLine() {
-    final evolutions = pokemon.evolutions!;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.change_circle_outlined, size: 16, color: Colors.grey[700]),
-            const SizedBox(width: 8),
-            const Text(
-              'LÍNEA EVOLUTIVA',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(
-              evolutions.length * 2 - 1,
-              (index) {
-                if (index.isOdd) {
-                  // Flecha entre evoluciones
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      Icons.arrow_forward,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                  );
-                } else {
-                  // Elemento de evolución
-                  final evolutionIndex = index ~/ 2;
-                  final evolution = evolutions[evolutionIndex];
-                  final isCurrentPokemon = evolution.id == pokemon.id;
-
-                  return _buildEvolutionLineItem(
-                    evolution: evolution,
-                    isCurrentPokemon: isCurrentPokemon,
-                  );
-                }
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildEvolutionLine() {
+  //   final evolutions = pokemon.evolutions!;
+  //
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Row(
+  //         children: [
+  //           Icon(Icons.change_circle_outlined, size: 16, color: Colors.grey[700]),
+  //           const SizedBox(width: 8),
+  //           const Text(
+  //             'LÍNEA EVOLUTIVA',
+  //             style: TextStyle(
+  //               fontSize: 10,
+  //               fontWeight: FontWeight.bold,
+  //               letterSpacing: 1.2,
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //       const SizedBox(height: 12),
+  //       SingleChildScrollView(
+  //         scrollDirection: Axis.horizontal,
+  //         child: Row(
+  //           children: List.generate(
+  //             evolutions.length * 2 - 1,
+  //             (index) {
+  //               if (index.isOdd) {
+  //                 // Flecha entre evoluciones
+  //                 return Padding(
+  //                   padding: const EdgeInsets.symmetric(horizontal: 6),
+  //                   child: Icon(
+  //                     Icons.arrow_forward,
+  //                     size: 16,
+  //                     color: Colors.grey[600],
+  //                   ),
+  //                 );
+  //               } else {
+  //                 // Elemento de evolución
+  //                 final evolutionIndex = index ~/ 2;
+  //                 final evolution = evolutions[evolutionIndex];
+  //                 final isCurrentPokemon = evolution.id == pokemon.id;
+  //
+  //                 return _buildEvolutionLineItem(
+  //                   evolution: evolution,
+  //                   isCurrentPokemon: isCurrentPokemon,
+  //                 );
+  //               }
+  //             },
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   /// Construye un elemento individual de la línea evolutiva
   Widget _buildEvolutionLineItem({
