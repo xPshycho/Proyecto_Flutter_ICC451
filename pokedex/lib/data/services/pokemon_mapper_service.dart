@@ -91,7 +91,20 @@ class PokemonMapperService {
     if (abilitiesData == null || abilitiesData is! List) return [];
 
     return abilitiesData
-        .map((a) => a['pokemon_v2_ability']?['name'])
+        .map((a) {
+      final ability = a['pokemon_v2_ability'];
+      if (ability == null) return null;
+
+      // Intentar obtener nombre en español
+      final abilityNames = ability['pokemon_v2_abilitynames'];
+      if (abilityNames is List && abilityNames.isNotEmpty) {
+        final spanishName = abilityNames[0]['name'];
+        if (spanishName != null) return spanishName as String;
+      }
+
+      // Fallback al nombre en inglés
+      return ability['name'] as String?;
+    })
         .where((name) => name != null)
         .cast<String>()
         .toList();
