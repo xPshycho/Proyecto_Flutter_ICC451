@@ -14,12 +14,17 @@ class PokemonMapperService {
     final name = item['name'] as String;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
+    final speciesData = _extractSpeciesData(item['pokemon_v2_pokemonspecy']);
 
     return Pokemon(
       id: id,
       name: name,
       spriteUrl: spriteUrl,
       types: types,
+      categories: speciesData['categories'],
+      isLegendary: speciesData['isLegendary'],
+      isMythical: speciesData['isMythical'],
+      generationId: speciesData['generationId'],
     );
   }
 
@@ -58,6 +63,7 @@ class PokemonMapperService {
       categories: speciesData['categories'],
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
+      generationId: speciesData['generationId'],
     );
   }
 
@@ -128,18 +134,20 @@ class PokemonMapperService {
     return statsMap;
   }
 
-  /// Extrae datos de la especie (legendary, mythical, categories)
+  /// Extrae datos de la especie (legendary, mythical, categories, generationId)
   static Map<String, dynamic> _extractSpeciesData(dynamic speciesData) {
     if (speciesData == null) {
       return {
         'categories': null,
         'isLegendary': null,
         'isMythical': null,
+        'generationId': null,
       };
     }
 
     final isLegendary = speciesData['is_legendary'] as bool?;
     final isMythical = speciesData['is_mythical'] as bool?;
+    final generationId = speciesData['generation_id'] as int?;
 
     final categories = <String>[];
     if (isLegendary == true) categories.add('legendario');
@@ -149,6 +157,7 @@ class PokemonMapperService {
       'categories': categories.isEmpty ? null : categories,
       'isLegendary': isLegendary,
       'isMythical': isMythical,
+      'generationId': generationId,
     };
   }
 

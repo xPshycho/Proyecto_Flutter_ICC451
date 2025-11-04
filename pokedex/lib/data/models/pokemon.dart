@@ -23,6 +23,8 @@ class Pokemon {
   final List<String>? categories;
   final bool? isLegendary;
   final bool? isMythical;
+  // ID de generación de la API para filtrado por región
+  final int? generationId;
 
   // Forms (mega, alola, regional variants, etc.)
   final List<dynamic>? forms; // usar PokemonForm en repositorio
@@ -42,6 +44,7 @@ class Pokemon {
     this.categories,
     this.isLegendary,
     this.isMythical,
+    this.generationId,
     this.forms,
   });
 
@@ -49,6 +52,7 @@ class Pokemon {
     List<dynamic>? forms,
     String? description,
     List<Pokemon>? evolutions,
+    int? generationId,
   }) {
     return Pokemon(
       id: id,
@@ -64,6 +68,7 @@ class Pokemon {
       categories: categories,
       isLegendary: isLegendary,
       isMythical: isMythical,
+      generationId: generationId ?? this.generationId,
       forms: forms ?? this.forms,
       description: description ?? this.description,
     );
@@ -83,6 +88,7 @@ class Pokemon {
       categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
       isLegendary: json['isLegendary'] as bool?,
       isMythical: json['isMythical'] as bool?,
+      generationId: json['generationId'] as int?,
       forms: json['forms'] as List<dynamic>?,
       description: json['description'] as String?,
     );

@@ -41,9 +41,14 @@ class _PokedexListPageState extends State<PokedexListPage> {
   }
 
   Future<void> _refresh() async {
+    // Limpiar caché del repositorio
+    await widget.repository.clearGraphQLCache();
+
     setState(() {
       _pokemons = [];
       _offset = 0;
+      _error = false;
+      _errorMessage = '';
     });
     await _loadMore();
   }
@@ -61,22 +66,25 @@ class _PokedexListPageState extends State<PokedexListPage> {
         ?.map((e) => e.toString())
         .toList() ?? [];
 
+    // Limpiar caché del repositorio cuando cambien los filtros
+    await widget.repository.clearGraphQLCache();
+
     setState(() {
       _typeFilters = tiposApi;
       _categoryFilters = categorias;
       _regionFilters = regiones;
       _pokemons = [];
       _offset = 0;
+      _error = false;
+      _errorMessage = '';
     });
 
+    // Cargar nuevos datos con filtros
     await _loadMore();
 
+    // Aplicar filtro de favoritos solo en la UI (ya que no está en el repositorio)
     if (favoritos) {
       _applyFavoritesFilter();
-    }
-
-    if (regiones.isNotEmpty) {
-      _applyRegionsFilter(regiones);
     }
   }
 
@@ -88,17 +96,6 @@ class _PokedexListPageState extends State<PokedexListPage> {
     });
   }
 
-  void _applyRegionsFilter(List<String> regiones) {
-    final ranges = regiones
-        .map((r) => PokemonConstants.getRegionRange(r))
-        .toList();
-
-    setState(() {
-      _pokemons = _pokemons.where((p) {
-        return ranges.any((r) => p.id >= r[0] && p.id <= r[1]);
-      }).toList();
-    });
-  }
 
   Future<void> _loadMore() async {
     setState(() {
@@ -138,12 +135,7 @@ class _PokedexListPageState extends State<PokedexListPage> {
     return list.where((p) {
       final matchesQuery = _query.isEmpty ||
           p.name.toLowerCase().contains(_query.toLowerCase());
-
-      final pTypesApi = p.types.map((t) => t.toLowerCase()).toList();
-      final matchesTypes = _typeFilters.isEmpty ||
-          pTypesApi.any((t) => _typeFilters.contains(t));
-
-      return matchesQuery && matchesTypes;
+      return matchesQuery;
     }).toList();
   }
 

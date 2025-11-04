@@ -34,7 +34,33 @@ class PokemonConstants {
     'Paldea': [906, 909, 912],
   };
 
-  // Mapeo de regiones a generaciones (mantener para compatibilidad interna)
+  // Mapeo de regiones a IDs de generación de la API
+  static const Map<String, int> regionToGenerationId = {
+    'Kanto': 1,
+    'Johto': 2,
+    'Hoenn': 3,
+    'Sinnoh': 4,
+    'Teselia': 5,
+    'Kalos': 6,
+    'Alola': 7,
+    'Galar': 8,
+    'Paldea': 9,
+  };
+
+  // Mapeo inverso de ID de generación a región
+  static const Map<int, String> generationIdToRegion = {
+    1: 'Kanto',
+    2: 'Johto',
+    3: 'Hoenn',
+    4: 'Sinnoh',
+    5: 'Teselia',
+    6: 'Kalos',
+    7: 'Alola',
+    8: 'Galar',
+    9: 'Paldea',
+  };
+
+  // Mantener para compatibilidad interna (deprecated)
   static const Map<String, String> regionToGeneration = {
     'Kanto': '1',
     'Johto': '2',
@@ -153,6 +179,25 @@ class PokemonConstants {
   // Traduce un nombre de tipo de la API (inglés) a español
   static String toSpanishType(String apiType) {
     return _apiToSpanish[apiType.toLowerCase()] ?? apiType;
+  }
+
+  /// Obtiene el ID de generación para una región
+  static int? getGenerationId(String region) {
+    return regionToGenerationId[region];
+  }
+
+  /// Obtiene la región por ID de generación
+  static String? getRegionByGenerationId(int generationId) {
+    return generationIdToRegion[generationId];
+  }
+
+  /// Obtiene una lista de IDs de generación para múltiples regiones
+  static List<int> getGenerationIds(List<String> regions) {
+    return regions
+        .map((region) => getGenerationId(region))
+        .where((id) => id != null)
+        .cast<int>()
+        .toList();
   }
 
   /// Obtiene el rango de IDs para una región

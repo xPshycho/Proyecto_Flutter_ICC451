@@ -136,6 +136,19 @@ class PokemonFilterService {
     }).toList();
   }
 
+  static List<T> filterByGenerationIds<T>(
+    List<T> items,
+    List<int> generationIds,
+    int? Function(T) generationIdExtractor,
+  ) {
+    if (generationIds.isEmpty) return items;
+
+    return items.where((item) {
+      final generationId = generationIdExtractor(item);
+      return generationId != null && generationIds.contains(generationId);
+    }).toList();
+  }
+
   static List<T> filterByQuery<T>(
     List<T> items,
     String query,

@@ -26,7 +26,7 @@ class PokemonRepository {
     _executor = GraphQLExecutor(client);
   }
 
-  /// Limpia el caché de GraphQL
+  /// Limpia el caché de GraphQL y todos los cachés internos
   Future<void> clearGraphQLCache() async {
     await _executor.clearCache();
     _pageCache.clear();
@@ -34,6 +34,7 @@ class PokemonRepository {
     _evolutionChainCache.clear();
     _formsCache.clear();
     _allCache = null;
+    debugPrint('All caches cleared');
   }
 
   /// Obtiene una lista paginada de Pokémon con filtros opcionales
@@ -291,22 +292,22 @@ class PokemonRepository {
 
     var list = List<Pokemon>.from(_allCache ?? []);
 
-    // Aplicar filtros de región primero
+    // Aplicar filtros de región usando generation_id si hay caché completo
     if (regions != null && regions.isNotEmpty) {
-      final ranges = regions
-          .map((r) => PokemonConstants.getRegionRange(r))
-          .toList();
-      list = PokemonFilterService.filterByRegions(
-        list,
-        ranges,
-        (p) => p.id,
-      );
+      final generationIds = PokemonConstants.getGenerationIds(regions);
+      if (generationIds.isNotEmpty) {
+        list = PokemonFilterService.filterByGenerationIds(
+          list,
+          generationIds,
+          (p) => p.generationId,
+        );
+      }
     }
 
     // Filtrar por categorías (ya están enriquecidas en _ensureAllCached)
     list = await _filterByCategories(list, categories);
 
-    // Aplicar filtros de tipo al final
+    // Aplicar filtros de tipo usando datos precargados del caché
     if (types != null && types.isNotEmpty) {
       list = PokemonFilterService.filterByTypes(
         list,
@@ -339,17 +340,195 @@ class PokemonRepository {
     String? sortBy,
     bool? ascending,
   }) async {
-    // Verificar caché de página
-    final cached = _pageCache.get(offset);
-    if (cached != null) return cached;
+    // Crear clave de caché que incluya filtros
+    final cacheKey = _createCacheKey(offset, types, regions, sortBy, ascending);
+    final cached = _pageCache.get(cacheKey);
+    if (cached != null) {
+      debugPrint('Returning cached page for key: $cacheKey');
+      return cached;
+    }
 
     try {
       final orderBy = sortBy != null
           ? [{sortBy: ascending == true ? 'asc' : 'desc'}]
           : [{'id': 'asc'}];
 
+      List<Pokemon> result;
+
+      // Determinar qué query usar basado en los filtros
+      if (types != null && types.isNotEmpty && regions != null && regions.isNotEmpty) {
+        // Filtros de tipos Y regiones
+        final generationIds = PokemonConstants.getGenerationIds(regions);
+        if (generationIds.isNotEmpty) {
+          result = await _fetchByTypesAndGenerations(
+            limit: limit,
+            offset: offset,
+            typeNames: types,
+            generationIds: generationIds,
+            orderBy: orderBy,
+          );
+        } else {
+          result = [];
+        }
+      } else if (types != null && types.isNotEmpty) {
+        // Solo filtros de tipos
+        result = await _fetchByTypes(
+          limit: limit,
+          offset: offset,
+          typeNames: types,
+          orderBy: orderBy,
+        );
+      } else if (regions != null && regions.isNotEmpty) {
+        // Solo filtros de regiones
+        final generationIds = PokemonConstants.getGenerationIds(regions);
+        if (generationIds.isNotEmpty) {
+          result = await _fetchByGenerationIds(
+            limit: limit,
+            offset: offset,
+            generationIds: generationIds,
+            types: null,
+            sortBy: sortBy,
+            ascending: ascending,
+          );
+        } else {
+          result = [];
+        }
+      } else {
+        // Sin filtros específicos
+        result = await _fetchWithoutFilters(
+          limit: limit,
+          offset: offset,
+          orderBy: orderBy,
+        );
+      }
+
+      _pageCache.put(cacheKey, result);
+      return result;
+    } catch (e) {
+      debugPrint('GraphQL error: $e');
+      return [];
+    }
+  }
+
+  /// Crea una clave de caché basada en parámetros
+  String _createCacheKey(int offset, List<String>? types, List<String>? regions, String? sortBy, bool? ascending) {
+    final parts = [
+      'offset:$offset',
+      if (types != null && types.isNotEmpty) 'types:${types.join(',')}',
+      if (regions != null && regions.isNotEmpty) 'regions:${regions.join(',')}',
+      if (sortBy != null) 'sort:$sortBy:${ascending ?? true}',
+    ];
+    return parts.join('|');
+  }
+
+  /// Obtiene Pokémon filtrados por generation_ids
+  Future<List<Pokemon>> _fetchByGenerationIds({
+    required int limit,
+    required int offset,
+    required List<int> generationIds,
+    List<String>? types,
+    String? sortBy,
+    bool? ascending,
+  }) async {
+    try {
+      final orderBy = sortBy != null
+          ? [{sortBy: ascending == true ? 'asc' : 'desc'}]
+          : [{'id': 'asc'}];
+
       final result = await _executor.executeQuery(
-        query: GraphQLQueryService.list,
+        query: GraphQLQueryService.listByGenerationIds,
+        variables: {
+          'limit': limit,
+          'offset': offset,
+          'orderBy': orderBy,
+          'generationIds': generationIds,
+        },
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          return PokemonMapperService.mapList(data);
+        }
+      }
+    } catch (e) {
+      debugPrint('GraphQL error filtering by generation_ids: $e');
+    }
+
+    return [];
+  }
+
+  /// Obtiene Pokémon filtrados por tipos
+  Future<List<Pokemon>> _fetchByTypes({
+    required int limit,
+    required int offset,
+    required List<String> typeNames,
+    required List<Map<String, String>> orderBy,
+  }) async {
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.listByTypes,
+        variables: {
+          'limit': limit,
+          'offset': offset,
+          'orderBy': orderBy,
+          'typeNames': typeNames,
+        },
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          return PokemonMapperService.mapList(data);
+        }
+      }
+    } catch (e) {
+      debugPrint('GraphQL error filtering by types: $e');
+    }
+    return [];
+  }
+
+  /// Obtiene Pokémon filtrados por tipos y generaciones
+  Future<List<Pokemon>> _fetchByTypesAndGenerations({
+    required int limit,
+    required int offset,
+    required List<String> typeNames,
+    required List<int> generationIds,
+    required List<Map<String, String>> orderBy,
+  }) async {
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.listByTypesAndGenerations,
+        variables: {
+          'limit': limit,
+          'offset': offset,
+          'orderBy': orderBy,
+          'typeNames': typeNames,
+          'generationIds': generationIds,
+        },
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
+        if (data != null) {
+          return PokemonMapperService.mapList(data);
+        }
+      }
+    } catch (e) {
+      debugPrint('GraphQL error filtering by types and generations: $e');
+    }
+    return [];
+  }
+
+  /// Obtiene Pokémon sin filtros específicos
+  Future<List<Pokemon>> _fetchWithoutFilters({
+    required int limit,
+    required int offset,
+    required List<Map<String, String>> orderBy,
+  }) async {
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.listWithSpecies,
         variables: {
           'limit': limit,
           'offset': offset,
@@ -360,36 +539,12 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
-          var list = PokemonMapperService.mapList(data);
-
-          // Aplicar filtros
-          if (types != null && types.isNotEmpty) {
-            list = PokemonFilterService.filterByTypes(
-              list,
-              types,
-              (p) => p.types,
-            );
-          }
-
-          if (regions != null && regions.isNotEmpty) {
-            final ranges = regions
-                .map((r) => PokemonConstants.getRegionRange(r))
-                .toList();
-            list = PokemonFilterService.filterByRegions(
-              list,
-              ranges,
-              (p) => p.id,
-            );
-          }
-
-          _pageCache.put(offset, list);
-          return list;
+          return PokemonMapperService.mapList(data);
         }
       }
     } catch (e) {
-      debugPrint('GraphQL error: $e');
+      debugPrint('GraphQL error fetching without filters: $e');
     }
-
     return [];
   }
 
@@ -465,14 +620,8 @@ class PokemonRepository {
   }) {
     var list = PokemonMapperService.mapList(data);
 
-    if (types != null && types.isNotEmpty) {
-      list = PokemonFilterService.filterByTypes(
-        list,
-        types,
-        (p) => p.types,
-      );
-    }
-
+    // Solo aplicar ordenamiento y paginación aquí
+    // Los filtros de tipo ya se aplicaron en la query GraphQL
     if (sortBy != null) {
       list = PokemonFilterService.sort(
         list,
@@ -746,6 +895,7 @@ class PokemonRepository {
           categories: categories,
           isLegendary: pokemon.isLegendary,
           isMythical: pokemon.isMythical,
+          generationId: pokemon.generationId,
           forms: forms,
         );
       }

@@ -9,7 +9,13 @@ class GraphQLQueryService {
         name
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
-        pokemon_v2_pokemonspecy { id is_legendary is_mythical evolution_chain_id }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+        }
       }
     }
   ''';
@@ -26,7 +32,10 @@ class GraphQLQueryService {
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonabilities { pokemon_v2_ability { name } }
         pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
-        pokemon_v2_pokemonspecy { evolution_chain_id }
+        pokemon_v2_pokemonspecy { 
+          evolution_chain_id 
+          generation_id
+        }
       }
     }
   ''';
@@ -86,6 +95,7 @@ class GraphQLQueryService {
           is_legendary 
           is_mythical 
           evolution_chain_id 
+          generation_id
         }
       }
     }
@@ -112,6 +122,7 @@ class GraphQLQueryService {
         pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
         pokemon_v2_pokemonspecy {
           evolution_chain_id
+          generation_id
           pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: 7}}, limit: 1) {
             flavor_text
           }
@@ -167,7 +178,90 @@ class GraphQLQueryService {
         name
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
-        pokemon_v2_pokemonspecy { id is_legendary is_mythical evolution_chain_id }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+        }
+      }
+    }
+  ''';
+
+  // Query para lista con filtro por tipos
+  static const String listByTypes = r'''
+    query getPokemonsByTypes($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!, $typeNames: [String!]!) {
+      pokemon_v2_pokemon(
+        limit: $limit, 
+        offset: $offset, 
+        order_by: $orderBy,
+        where: {pokemon_v2_pokemontypes: {pokemon_v2_type: {name: {_in: $typeNames}}}}
+      ) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+        }
+      }
+    }
+  ''';
+
+  // Query para lista con filtro por tipos y generaciones
+  static const String listByTypesAndGenerations = r'''
+    query getPokemonsByTypesAndGenerations($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!, $typeNames: [String!]!, $generationIds: [Int!]!) {
+      pokemon_v2_pokemon(
+        limit: $limit, 
+        offset: $offset, 
+        order_by: $orderBy,
+        where: {
+          _and: [
+            {pokemon_v2_pokemontypes: {pokemon_v2_type: {name: {_in: $typeNames}}}},
+            {pokemon_v2_pokemonspecy: {generation_id: {_in: $generationIds}}}
+          ]
+        }
+      ) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+        }
+      }
+    }
+  ''';
+
+  // Query para lista con filtro por generation_id
+  static const String listByGenerationIds = r'''
+    query getPokemonsByGenerations($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!, $generationIds: [Int!]!) {
+      pokemon_v2_pokemon(
+        limit: $limit, 
+        offset: $offset, 
+        order_by: $orderBy,
+        where: {pokemon_v2_pokemonspecy: {generation_id: {_in: $generationIds}}}
+      ) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+        }
       }
     }
   ''';
