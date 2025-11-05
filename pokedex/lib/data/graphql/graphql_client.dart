@@ -21,7 +21,6 @@ class GraphQLService {
         query: Policies(
           fetch: FetchPolicy.cacheAndNetwork,
           error: ErrorPolicy.all,
-          cacheRereadPolicy: CacheRereadPolicy.mergeOptimistic,
         ),
         mutate: Policies(
           fetch: FetchPolicy.networkOnly,
