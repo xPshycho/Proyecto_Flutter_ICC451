@@ -13,10 +13,14 @@ enum SortOrder {
 
 class FloatingSortMenu extends StatefulWidget {
   final Function(SortOption, SortOrder)? onApplySort;
+  final SortOption initialOption;
+  final SortOrder initialOrder;
 
   const FloatingSortMenu({
     super.key,
     this.onApplySort,
+    this.initialOption = SortOption.numero,
+    this.initialOrder = SortOrder.asc,
   });
 
   @override
@@ -24,8 +28,15 @@ class FloatingSortMenu extends StatefulWidget {
 }
 
 class _FloatingSortMenuState extends State<FloatingSortMenu> {
-  SortOption _selectedOption = SortOption.numero; // Numero seleccionado por defecto
-  SortOrder _sortOrder = SortOrder.asc;
+  late SortOption _selectedOption;
+  late SortOrder _sortOrder;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedOption = widget.initialOption;
+    _sortOrder = widget.initialOrder;
+  }
 
   void _selectOption(SortOption option) {
     setState(() {
@@ -291,9 +302,18 @@ class _FloatingSortMenuState extends State<FloatingSortMenu> {
 }
 
 // Función helper para mostrar el menú desde cualquier parte
-void showSortMenu(BuildContext context, {Function(SortOption, SortOrder)? onApplySort}) {
+void showSortMenu(
+  BuildContext context, {
+  Function(SortOption, SortOrder)? onApplySort,
+  SortOption initialOption = SortOption.numero,
+  SortOrder initialOrder = SortOrder.asc,
+}) {
   showDialog(
     context: context,
-    builder: (context) => FloatingSortMenu(onApplySort: onApplySort),
+    builder: (context) => FloatingSortMenu(
+      onApplySort: onApplySort,
+      initialOption: initialOption,
+      initialOrder: initialOrder,
+    ),
   );
 }

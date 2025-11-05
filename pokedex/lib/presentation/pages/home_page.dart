@@ -50,6 +50,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   List<String> _selectedRegions = [];
   List<String> _selectedCategories = [];
 
+  // UI State para ordenamiento
+  SortOption _selectedSortOption = SortOption.numero;
+  SortOrder _selectedSortOrder = SortOrder.asc;
+
   // Colores
   static const Color _pokeballDefaultColor = Color(0xFF424242);
   static const Color _pokeballActiveColor = Color(0xFF424242);
@@ -248,6 +252,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final ascending = order == SortOrder.asc;
 
     setState(() {
+      _selectedSortOption = option;
+      _selectedSortOrder = order;
       _filters = _filters.copyWith(sortBy: sortBy, ascending: ascending);
       _pokemons.clear();
       _offset = 0;
@@ -583,6 +589,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     showSortMenu(
       context,
       onApplySort: (option, order) => _applySort(option, order),
+      initialOption: _selectedSortOption,
+      initialOrder: _selectedSortOrder,
     );
   }
 
@@ -617,7 +625,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     return Column(
       children: [
-        if (_filters.hasActiveFilters) _buildActiveFiltersChip(),
+        // if (_filters.hasActiveFilters) _buildActiveFiltersChip(),
         Expanded(child: _buildResponsiveGrid()),
       ],
     );

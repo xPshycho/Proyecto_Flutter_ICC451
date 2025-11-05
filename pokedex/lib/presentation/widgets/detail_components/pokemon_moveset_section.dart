@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../data/models/pokemon.dart';
 import '../../../data/models/pokemon_move.dart';
 import '../../../data/repositories/pokemon_repository.dart';
@@ -183,6 +184,7 @@ class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
 
   Widget _buildMoveChip(PokemonMove move) {
     final typeColor = PokemonConstants.getTypeColor(move.typeNameSpanish);
+    final icon = PokemonConstants.getTypeIcon(move.typeNameSpanish);
 
     return Tooltip(
       message: _buildMoveTooltip(move),
@@ -195,6 +197,18 @@ class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (icon!= null) ...[
+              SvgPicture.asset(
+                icon,
+                width: 12,
+                height: 12,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             Text(
               move.displayName,
               style: const TextStyle(
