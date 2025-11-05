@@ -86,17 +86,17 @@ class _SearchBoxState extends State<SearchBox> {
             ),
             prefixIcon: widget.prefixIcon ?? const Icon(Icons.search, size: 18),
             prefixIconConstraints: const BoxConstraints(
-              minWidth: 36,
-              minHeight: 32,
+              minWidth: 44,
+              minHeight: 44,
             ),
             suffixIcon: _controller.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: _clearSearch,
-                    tooltip: 'Limpiar búsqueda',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  )
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: _clearSearch,
+              tooltip: 'Limpiar búsqueda',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            )
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
