@@ -43,6 +43,11 @@ dependencies:
   provider: ^6.0.5
   fl_chart: ^1.1.1
 
+  # BLoC State Management
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.5
+  bloc_concurrency: ^0.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

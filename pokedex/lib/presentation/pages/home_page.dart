@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../widgets/search_box.dart';
@@ -11,13 +11,14 @@ import '../widgets/bottom_menu.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../widgets/pokemon_card.dart';
 import '../../data/models/pokemon.dart';
-import '../../data/favorites_service.dart';
 import 'pokemon_detail_page.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/pokemon_constants.dart';
-import '../../core/utils/filter_utils.dart';
 import '../../core/utils/responsive_utils.dart';
-import '../../domain/models/pokemon_filters.dart';
+import '../bloc/pokemon/pokemon_bloc.dart';
+import '../bloc/pokemon/pokemon_event.dart';
+import '../bloc/pokemon/pokemon_state.dart';
+import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
+import '../bloc/pokemon_detail/pokemon_detail_event.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -32,23 +33,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final AnimationController _animationController;
   late final Animation<double> _rotationAnimation;
 
-  // State
-  final List<Pokemon> _pokemons = [];
-  PokemonFilters _filters = const PokemonFilters();
-  String _query = '';
-  int _offset = 0;
-  bool _loading = false;
-  bool _error = false;
-  String _errorMessage = '';
+  // UI State local (solo animaciones)
   bool _isRotated = false;
 
   // Debouncing para búsqueda
   Timer? _searchDebounceTimer;
-
-  // UI State para filtros seleccionados (español)
-  List<String> _selectedTypesSpanish = [];
-  List<String> _selectedRegions = [];
-  List<String> _selectedCategories = [];
 
   // UI State para ordenamiento
   SortOption _selectedSortOption = SortOption.numero;
@@ -63,7 +52,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.initState();
     _initializeAnimation();
     _initializeScrollListener();
-    _loadMore();
   }
 
   void _initializeAnimation() {
@@ -84,16 +72,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _initializeScrollListener() {
     _scrollController.addListener(() {
       if (_shouldLoadMore()) {
-        _loadMore();
+        context.read<PokemonBloc>().add(const LoadMorePokemons());
       }
     });
   }
 
   bool _shouldLoadMore() {
     return _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - AppConstants.scrollThreshold &&
-        !_loading &&
-        !_error;
+        _scrollController.position.maxScrollExtent - AppConstants.scrollThreshold;
   }
 
   @override
@@ -104,147 +90,44 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
-  // ==================== Data Loading ====================
+  // ==================== Event Handlers ====================
 
-  Future<void> _refresh() async {
-    setState(() {
-      _pokemons.clear();
-      _offset = 0;
-    });
-    await _loadMore();
-  }
+  void _onSearchChanged(String value) {
+    _searchDebounceTimer?.cancel();
 
-  Future<void> _loadMore() async {
-    setState(() {
-      _loading = true;
-      _error = false;
-      _errorMessage = '';
-    });
-
-    try {
-      final repo = context.read<PokemonRepository>();
-      final favService = context.read<FavoritesService>();
-
-      List<Pokemon> list;
-
-      // Si hay una búsqueda activa, usar searchPokemonByName
-      if (_query.isNotEmpty) {
-        list = await repo.searchPokemonByName(
-          _query,
-          limit: AppConstants.defaultPageSize,
-          offset: _offset,
-        );
-      } else {
-        // Búsqueda normal con filtros
-        list = await repo.fetchPokemons(
-          limit: AppConstants.defaultPageSize,
-          offset: _offset,
-          types: _filters.types,
-          regions: _filters.regions,
-          categories: _filters.categories,
-          sortBy: _filters.sortBy,
-          ascending: _filters.ascending,
-        );
-      }
-
-      final filtered = _applyLocalFilters(list);
-
-      setState(() {
-        // Evitar duplicados
-        final existingIds = _pokemons.map((p) => p.id).toSet();
-        final newResults = filtered.where((p) => !existingIds.contains(p.id)).toList();
-        _pokemons.addAll(newResults);
-        _offset += list.length; // Usar la cantidad real de resultados obtenidos
-      });
-
-      _applyFavoriteFilters(favService);
-      _applyRegionFilters();
-    } catch (e, st) {
-      _handleError(e, st);
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-
-  List<Pokemon> _applyLocalFilters(List<Pokemon> list) {
-    return list.where((pokemon) {
-      final matchesQuery = _matchesSearchQuery(pokemon);
-      final matchesTypes = _matchesTypeFilter(pokemon);
-      return matchesQuery && matchesTypes;
-    }).toList();
-  }
-
-  bool _matchesSearchQuery(Pokemon pokemon) {
-    return _query.isEmpty || pokemon.name.toLowerCase().contains(_query.toLowerCase());
-  }
-
-  bool _matchesTypeFilter(Pokemon pokemon) {
-    if (_filters.types.isEmpty) return true;
-    final pokemonTypes = pokemon.types.map((t) => t.toLowerCase()).toList();
-    return pokemonTypes.any((t) => _filters.types.contains(t));
-  }
-
-  void _applyFavoriteFilters(FavoritesService favService) {
-    if (_filters.favorites) {
-      setState(() {
-        _pokemons.retainWhere((p) => favService.isFavorite(p.id));
-      });
+    if (value.trim().isEmpty) {
+      context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
+      return;
     }
 
-    if (_filters.noFavorites) {
-      setState(() {
-        _pokemons.retainWhere((p) => !favService.isFavorite(p.id));
-      });
-    }
-  }
-  void _applyRegionFilters() {
-    if (_filters.regions.isEmpty) return;
-
-    setState(() {
-      _pokemons.retainWhere((pokemon) =>
-          FilterUtils.isInGenerationRange(pokemon.id, _filters.regions));
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      context.read<PokemonBloc>().add(SearchPokemon(value.trim()));
     });
   }
-
-  void _handleError(Object error, StackTrace stackTrace) {
-    debugPrint('Error fetching pokemons: $error');
-    debugPrint('$stackTrace');
-    setState(() {
-      _error = true;
-      _errorMessage = error.toString();
-    });
-  }
-
-  // ==================== Filter Management ====================
 
   Future<void> _applyFilterMap(Map<String, dynamic> filterMap) async {
-    final favoritos = FilterUtils.getBoolFilter(filterMap, 'favoritos');
-    final noFavoritos = FilterUtils.getBoolFilter(filterMap, 'noFavoritos');
-    final tiposSpanish = FilterUtils.getListFilter(filterMap, 'tipos');
-    final tiposApi = PokemonConstants.toApiTypes(tiposSpanish);
-    final regiones = FilterUtils.getListFilter(filterMap, 'regiones');
-    final categorias = FilterUtils.getListFilter(filterMap, 'categorias');
+    final favoritos = filterMap['favoritos'] as bool? ?? false;
+    final noFavoritos = filterMap['noFavoritos'] as bool? ?? false;
+    final tiposSpanish = (filterMap['tipos'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+    final regiones = (filterMap['regiones'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+    final categorias = (filterMap['categorias'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
-    setState(() {
-      _filters = PokemonFilters(
-        favorites: favoritos,
-        noFavorites: noFavoritos,
-        types: tiposApi,
-        regions: regiones,
-        categories: categorias,
-        sortBy: _filters.sortBy,
-        ascending: _filters.ascending,
-      );
-
-      _selectedTypesSpanish = tiposSpanish;
-      _selectedRegions = regiones;
-      _selectedCategories = categorias;
-
-      _pokemons.clear();
-      _offset = 0;
-    });
-
-    await _loadMore();
+    context.read<PokemonBloc>().add(ApplyFilters(
+          types: tiposSpanish,
+          regions: regiones,
+          categories: categorias,
+          favorites: favoritos,
+          noFavorites: noFavoritos,
+        ));
   }
 
   Future<void> _applySort(SortOption option, SortOrder order) async {
@@ -254,12 +137,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     setState(() {
       _selectedSortOption = option;
       _selectedSortOrder = order;
-      _filters = _filters.copyWith(sortBy: sortBy, ascending: ascending);
-      _pokemons.clear();
-      _offset = 0;
     });
 
-    await _loadMore();
+    context.read<PokemonBloc>().add(ApplySort(
+          sortBy: sortBy,
+          ascending: ascending,
+        ));
   }
 
   String _getSortField(SortOption option) {
@@ -269,82 +152,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       case SortOption.nombre:
         return 'name';
       case SortOption.tipo:
-        return 'name'; // TODO: Implementar ordenamiento por tipo
+        return 'name';
     }
   }
 
   void _clearAllFilters() {
-    setState(() {
-      _filters = _filters.reset();
-      _selectedTypesSpanish = [];
-      _selectedRegions = [];
-      _selectedCategories = [];
-      _pokemons.clear();
-      _offset = 0;
-    });
-    _loadMore();
-  }
-
-  void _onSearchChanged(String value) {
-    // Cancelar búsqueda anterior si existe
-    _searchDebounceTimer?.cancel();
-
-    setState(() {
-      _query = value.trim();
-    });
-
-    // Si no hay query, cargar normal inmediatamente
-    if (_query.isEmpty) {
-      setState(() {
-        _pokemons.clear();
-        _offset = 0;
-      });
-      _loadMore();
-      return;
-    }
-
-    // Debounce para búsquedas
-    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      setState(() {
-        _pokemons.clear();
-        _offset = 0;
-      });
-      _searchPokemon();
-    });
-  }
-
-  /// Busca Pokémon por nombre en la base de datos
-  Future<void> _searchPokemon() async {
-    setState(() {
-      _loading = true;
-      _error = false;
-      _errorMessage = '';
-    });
-
-    try {
-      final repo = context.read<PokemonRepository>();
-      final favService = context.read<FavoritesService>();
-
-      final searchResults = await repo.searchPokemonByName(
-        _query,
-        limit: AppConstants.defaultPageSize,
-        offset: _offset,
-      );
-
-      setState(() {
-        // Solo agregar si no hay duplicados
-        final existingIds = _pokemons.map((p) => p.id).toSet();
-        final newResults = searchResults.where((p) => !existingIds.contains(p.id)).toList();
-        _pokemons.addAll(newResults);
-        _offset += searchResults.length; // Usar la cantidad real de resultados
-      });
-
-      _applyFavoriteFilters(favService);
-    } catch (e, st) {
-      _handleError(e, st);
-    } finally {
-      setState(() => _loading = false);
-    }
+    context.read<PokemonBloc>().add(const ClearFilters());
   }
 
   // ==================== Navigation ====================
@@ -393,66 +206,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _navigateToPokemonDetail(Pokemon pokemon) async {
-    final repo = context.read<PokemonRepository>();
+    final repo = RepositoryProvider.of<PokemonRepository>(context);
 
-    try {
-      // Para formas regionales/especiales, intentar limpiar caché primero
-      if (pokemon.id > 10000) {
-        debugPrint('Navigating to regional/special form Pokemon: ${pokemon.name} (ID: ${pokemon.id})');
-        // No limpiar caché automáticamente, solo si es necesario
-      }
-
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PokemonDetailPage(
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => PokemonDetailBloc(repository: repo)
+            ..add(LoadPokemonDetail(pokemon.id)),
+          child: PokemonDetailPage(
             id: pokemon.id,
             repository: repo,
           ),
         ),
-      );
-    } catch (e) {
-      debugPrint('Error navigating to Pokemon detail: $e');
-
-      // Mostrar mensaje de error al usuario
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar ${pokemon.name}. Intentando nuevamente...'),
-            action: SnackBarAction(
-              label: 'Reintentar',
-              onPressed: () => _retryPokemonDetail(pokemon, repo),
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  void _retryPokemonDetail(Pokemon pokemon, PokemonRepository repo) async {
-    try {
-      // Limpiar caché antes de reintentar
-      await repo.clearGraphQLCache();
-
-      if (mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PokemonDetailPage(
-              id: pokemon.id,
-              repository: repo,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Retry also failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo cargar el detalle del Pokémon'),
-          ),
-        );
-      }
-    }
+      ),
+    );
   }
 
   // ==================== UI Builders ====================
@@ -513,9 +280,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             _buildSearchBar(),
             const SizedBox(height: 18),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: _buildPokemonGrid(),
+              child: BlocConsumer<PokemonBloc, PokemonState>(
+                listener: (context, state) {
+                  if (state is PokemonError) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<PokemonBloc>().add(const RefreshPokemonList());
+                    },
+                    child: _buildPokemonGrid(state),
+                  );
+                },
               ),
             ),
           ],
@@ -595,43 +378,47 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _showFilterMenu() {
+    final state = context.read<PokemonBloc>().state;
+
+    Map<String, dynamic> initialFilters = {};
+    if (state is PokemonLoaded) {
+      initialFilters = {
+        'favoritos': state.showFavorites,
+        'noFavoritos': state.showNoFavorites,
+        'tipos': state.activeTypes,
+        'regiones': state.activeRegions,
+        'categorias': state.activeCategories,
+      };
+    }
+
     showFilterMenu(
       context,
       onApplyFilters: (filters) => _applyFilterMap(filters),
-      initialFilters: _buildInitialFiltersMap(),
+      initialFilters: initialFilters,
     );
   }
 
-  Map<String, dynamic> _buildInitialFiltersMap() {
-    return {
-      'favoritos': _filters.favorites,
-      'noFavoritos': _filters.noFavorites,
-      'tipos': _selectedTypesSpanish,
-      'regiones': _selectedRegions,
-      'categorias': _selectedCategories,
-      'filtro4': [],
-      'filtro5': [],
-    };
-  }
-
-  Widget _buildPokemonGrid() {
-    if (_error && _pokemons.isEmpty) {
-      return _buildErrorView();
-    }
-
-    if (_pokemons.isEmpty && _loading) {
+  Widget _buildPokemonGrid(PokemonState state) {
+    if (state is PokemonLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Column(
-      children: [
-        // if (_filters.hasActiveFilters) _buildActiveFiltersChip(),
-        Expanded(child: _buildResponsiveGrid()),
-      ],
-    );
+    if (state is PokemonError && state.cachedPokemons == null) {
+      return _buildErrorView(state.message);
+    }
+
+    if (state is PokemonLoaded) {
+      return _buildResponsiveGrid(state.pokemons, state.hasReachedMax);
+    }
+
+    if (state is PokemonLoadingMore) {
+      return _buildResponsiveGrid(state.currentPokemons, false, isLoadingMore: true);
+    }
+
+    return const SizedBox.shrink();
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(String message) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -647,13 +434,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
             const SizedBox(height: 8),
             Text(
-              _errorMessage,
+              message,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadMore,
+              onPressed: () {
+                context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
+              },
               child: const Text('Reintentar'),
             ),
           ],
@@ -662,70 +451,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildActiveFiltersChip() {
-    final activeFilters = _filters.getActiveFilterLabels();
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      color: Colors.grey[200],
-      child: Row(
-        children: [
-          const Text(
-            'Filtros activos: ',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: activeFilters.map((filter) {
-                if (_selectedTypesSpanish.contains(filter)) {
-                  return _buildActiveTypeChip(filter);
-                }
-                return Chip(
-                  label: Text(filter, style: const TextStyle(fontSize: 12)),
-                  backgroundColor: Colors.blue[100],
-                );
-              }).toList(),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: _clearAllFilters,
-            tooltip: 'Limpiar filtros',
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveTypeChip(String type) {
-    final typeColor = PokemonConstants.getTypeColor(type);
-    final icon = PokemonConstants.getTypeIcon(type);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: typeColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Image.asset(icon, width: 14, height: 14),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            type,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResponsiveGrid() {
+  Widget _buildResponsiveGrid(List<Pokemon> pokemons, bool hasReachedMax, {bool isLoadingMore = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = ResponsiveUtils.calculateCrossAxisCount(constraints.maxWidth);
@@ -740,22 +466,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             crossAxisSpacing: 0,
             childAspectRatio: childAspectRatio,
           ),
-          itemCount: _pokemons.length + (_loading ? 1 : 0),
-          itemBuilder: _buildGridItem,
+          itemCount: pokemons.length + (isLoadingMore || !hasReachedMax ? 1 : 0),
+          itemBuilder: (context, index) => _buildGridItem(context, index, pokemons, isLoadingMore),
         );
       },
     );
   }
 
-  Widget _buildGridItem(BuildContext context, int index) {
-    if (index >= _pokemons.length) {
+  Widget _buildGridItem(BuildContext context, int index, List<Pokemon> pokemons, bool isLoadingMore) {
+    if (index >= pokemons.length) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24.0),
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final pokemon = _pokemons[index];
+    final pokemon = pokemons[index];
     return PokemonCard(
       pokemon: pokemon,
       onTap: () => _navigateToPokemonDetail(pokemon),

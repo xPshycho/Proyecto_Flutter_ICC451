@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
-import '../../data/favorites_service.dart';
 import '../widgets/detail_components/pokemon_header.dart';
 import '../widgets/detail_components/pokemon_info_card.dart';
 import '../widgets/detail_components/pokemon_abilities_section.dart';
@@ -11,42 +10,49 @@ import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
 import '../widgets/detail_components/pokemon_moveset_section.dart';
+import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
+import '../bloc/pokemon_detail/pokemon_detail_event.dart';
+import '../bloc/pokemon_detail/pokemon_detail_state.dart';
+import '../bloc/favorites/favorites_bloc.dart';
+import '../bloc/favorites/favorites_event.dart';
+import '../bloc/favorites/favorites_state.dart';
 
-class PokemonDetailPage extends StatefulWidget {
+class PokemonDetailPage extends StatelessWidget {
   final int id;
   final PokemonRepository repository;
-  const PokemonDetailPage({super.key, required this.id, required this.repository});
 
-  @override
-  State<PokemonDetailPage> createState() => _PokemonDetailPageState();
-}
+  const PokemonDetailPage({
+    super.key,
+    required this.id,
+    required this.repository,
+  });
 
-class _PokemonDetailPageState extends State<PokemonDetailPage> {
-  late Future<Pokemon> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = widget.repository.fetchPokemonDetail(widget.id);
-  }
-
-  void _navigateToEvolution(int evolutionId) {
+  void _navigateToEvolution(BuildContext context, int evolutionId) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => PokemonDetailPage(
-          id: evolutionId,
-          repository: widget.repository,
+        builder: (_) => BlocProvider(
+          create: (_) => PokemonDetailBloc(repository: repository)
+            ..add(LoadPokemonDetail(evolutionId)),
+          child: PokemonDetailPage(
+            id: evolutionId,
+            repository: repository,
+          ),
         ),
       ),
     );
   }
 
-  void _handleFavoriteToggle(FavoritesService favService, Pokemon pokemon) {
-    favService.toggleFavorite(pokemon);
-    _showFavoriteSnackBar(favService.isFavorite(pokemon.id), pokemon.name);
+  void _handleFavoriteToggle(BuildContext context, Pokemon pokemon) {
+    context.read<FavoritesBloc>().add(ToggleFavorite(pokemon));
+    _showFavoriteSnackBar(
+      context,
+      context.read<FavoritesBloc>().state is FavoritesLoaded &&
+          (context.read<FavoritesBloc>().state as FavoritesLoaded).isFavorite(pokemon.id),
+      pokemon.name,
+    );
   }
 
-  void _showFavoriteSnackBar(bool isFavorite, String pokemonName) {
+  void _showFavoriteSnackBar(BuildContext context, bool isFavorite, String pokemonName) {
     final capitalizedName = '${pokemonName[0].toUpperCase()}${pokemonName.substring(1)}';
     final message = isFavorite
         ? '$capitalizedName agregado a favoritos'
@@ -77,35 +83,42 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<Pokemon>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+      body: BlocBuilder<PokemonDetailBloc, PokemonDetailState>(
+        builder: (context, state) {
+          if (state is PokemonDetailLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return _buildErrorView(snapshot.error.toString());
+          if (state is PokemonDetailError) {
+            return _buildErrorView(context, state);
           }
 
-          final pokemon = snapshot.data!;
-          return _buildDetailView(pokemon);
+          if (state is PokemonDetailLoaded) {
+            return _buildDetailView(context, state.pokemon);
+          }
+
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
   }
 
-  Widget _buildDetailView(Pokemon pokemon) {
-    final favService = Provider.of<FavoritesService>(context, listen: true);
-
+  Widget _buildDetailView(BuildContext context, Pokemon pokemon) {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
-          child: PokemonHeader(
-            pokemon: pokemon,
-            onBack: () => Navigator.of(context).pop(),
-            onFavoriteToggle: () => _handleFavoriteToggle(favService, pokemon),
-            isFavorite: favService.isFavorite(pokemon.id),
+          child: BlocBuilder<FavoritesBloc, FavoritesState>(
+            builder: (context, favState) {
+              final isFavorite = favState is FavoritesLoaded &&
+                  favState.isFavorite(pokemon.id);
+
+              return PokemonHeader(
+                pokemon: pokemon,
+                onBack: () => Navigator.of(context).pop(),
+                onFavoriteToggle: () => _handleFavoriteToggle(context, pokemon),
+                isFavorite: isFavorite,
+              );
+            },
           ),
         ),
         SliverToBoxAdapter(
@@ -115,7 +128,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
               children: [
                 PokemonInfoCard(
                   pokemon: pokemon,
-                  onEvolutionTap: _navigateToEvolution,
+                  onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
                 ),
                 _buildDetailSections(pokemon),
               ],
@@ -141,14 +154,16 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           const SizedBox(height: 24),
           PokemonMovesetSection(
             pokemon: pokemon,
-            repository: widget.repository,
+            repository: repository,
           ),
           const SizedBox(height: 24),
           PokemonFormsSection(pokemon: pokemon),
           const SizedBox(height: 24),
-          PokemonEvolutionSection(
-            pokemon: pokemon,
-            onEvolutionTap: _navigateToEvolution,
+          Builder(
+            builder: (context) => PokemonEvolutionSection(
+              pokemon: pokemon,
+              onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+            ),
           ),
           const SizedBox(height: 32),
         ],
@@ -156,9 +171,8 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 
-  Widget _buildErrorView(String error) {
-    final isRegionalForm = widget.id > 10000;
-    final title = isRegionalForm
+  Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
+    final title = state.isRegionalForm
         ? 'Error al cargar la forma regional'
         : 'Error al cargar el Pokémon';
 
@@ -189,7 +203,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (isRegionalForm)
+              if (state.isRegionalForm)
                 const Text(
                   'Las formas regionales pueden tener problemas de caché.',
                   textAlign: TextAlign.center,
@@ -197,12 +211,14 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 ),
               const SizedBox(height: 8),
               Text(
-                error.length > 100 ? '${error.substring(0, 100)}...' : error,
+                state.message.length > 100
+                    ? '${state.message.substring(0, 100)}...'
+                    : state.message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 24),
-              _buildErrorButtons(),
+              _buildErrorButtons(context, state),
             ],
           ),
         ),
@@ -210,7 +226,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 
-  Widget _buildErrorButtons() {
+  Widget _buildErrorButtons(BuildContext context, PokemonDetailError state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -225,7 +241,11 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
         ),
         const SizedBox(width: 16),
         ElevatedButton.icon(
-          onPressed: _retryWithCacheClear,
+          onPressed: () {
+            context.read<PokemonDetailBloc>().add(
+              RetryLoadPokemonDetail(state.pokemonId),
+            );
+          },
           icon: const Icon(Icons.refresh),
           label: const Text('Reintentar'),
           style: ElevatedButton.styleFrom(
@@ -235,19 +255,5 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
         ),
       ],
     );
-  }
-
-  void _retryWithCacheClear() async {
-    try {
-      // Limpiar caché antes de reintentar
-      await widget.repository.clearGraphQLCache();
-
-      // Recrear el future
-      setState(() {
-        _future = widget.repository.fetchPokemonDetail(widget.id);
-      });
-    } catch (e) {
-      debugPrint('Error during retry: $e');
-    }
   }
 }

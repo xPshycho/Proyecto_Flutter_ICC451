@@ -161,7 +161,7 @@ class _PokemonStatsSectionState extends State<PokemonStatsSection> {
         .where((stat) => widget.pokemon.stats.containsKey(stat))
         .map((stat) => _getShortStatName(stat))
         .toList();
-
+  
     final statRawValues = orderedStats
         .where((stat) => widget.pokemon.stats.containsKey(stat))
         .map((stat) => widget.pokemon.stats[stat]!)

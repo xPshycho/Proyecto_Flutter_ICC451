@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/models/pokemon.dart';
-import '../../data/favorites_service.dart';
 import '../../core/constants/pokemon_constants.dart';
+import '../bloc/favorites/favorites_bloc.dart';
+import '../bloc/favorites/favorites_event.dart';
+import '../bloc/favorites/favorites_state.dart';
 
 class PokemonCard extends StatelessWidget {
   final Pokemon pokemon;
@@ -39,7 +41,6 @@ class PokemonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final favService = Provider.of<FavoritesService>(context, listen: true);
 
     return InkWell(
       onTap: onTap,
@@ -230,19 +231,27 @@ class PokemonCard extends StatelessWidget {
             Positioned(
               top: 4,
               right: 4,
-              child: SizedBox(
-                width: 30,
-                height: 30,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  iconSize: 18,
-                  icon: Icon(
-                    favService.isFavorite(pokemon.id) ? Icons.favorite : Icons.favorite_border,
-                    color: favService.isFavorite(pokemon.id) ? Colors.red : colorScheme.onSurface,
-                  ),
-                  onPressed: () => favService.toggleFavorite(pokemon),
-                ),
+              child: BlocBuilder<FavoritesBloc, FavoritesState>(
+                builder: (context, state) {
+                  final isFavorite = state is FavoritesLoaded && state.isFavorite(pokemon.id);
+
+                  return SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      iconSize: 18,
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : colorScheme.onSurface,
+                      ),
+                      onPressed: () {
+                        context.read<FavoritesBloc>().add(ToggleFavorite(pokemon));
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],
