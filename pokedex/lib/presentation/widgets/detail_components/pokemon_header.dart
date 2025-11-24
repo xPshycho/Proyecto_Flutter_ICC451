@@ -3,11 +3,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../data/models/pokemon.dart';
 import '../../../core/constants/pokemon_constants.dart';
 
-class PokemonHeader extends StatelessWidget {
+class PokemonHeader extends StatefulWidget {
   final Pokemon pokemon;
   final VoidCallback onBack;
   final VoidCallback onFavoriteToggle;
   final bool isFavorite;
+  final VoidCallback? onSpriteTap;
 
   const PokemonHeader({
     super.key,
@@ -15,12 +16,20 @@ class PokemonHeader extends StatelessWidget {
     required this.onBack,
     required this.onFavoriteToggle,
     required this.isFavorite,
+    this.onSpriteTap,
   });
 
   @override
+  State<PokemonHeader> createState() => _PokemonHeaderState();
+}
+
+class _PokemonHeaderState extends State<PokemonHeader> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final primaryType = pokemon.types.isNotEmpty
-        ? PokemonConstants.toSpanishType(pokemon.types.first)
+    final primaryType = widget.pokemon.types.isNotEmpty
+        ? PokemonConstants.toSpanishType(widget.pokemon.types.first)
         : 'Normal';
     final typeColor = PokemonConstants.getTypeColor(primaryType);
     final typeIcon = PokemonConstants.getTypeIcon(primaryType);
@@ -63,25 +72,37 @@ class PokemonHeader extends StatelessWidget {
 
           // Imagen del Pokémon (debe estar ANTES de los botones para que no bloquee los clics)
           Center(
-            child: pokemon.spriteUrl != null
-                ? Image.network(
-                    pokemon.spriteUrl!,
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
+            child: GestureDetector(
+              onTapDown: widget.onSpriteTap != null ? (_) => setState(() => _isPressed = true) : null,
+              onTapUp: widget.onSpriteTap != null ? (_) {
+                setState(() => _isPressed = false);
+                widget.onSpriteTap?.call();
+              } : null,
+              onTapCancel: widget.onSpriteTap != null ? () => setState(() => _isPressed = false) : null,
+              child: AnimatedScale(
+                scale: _isPressed ? 0.95 : 1.0,
+                duration: const Duration(milliseconds: 100),
+                child: widget.pokemon.spriteUrl != null
+                    ? Image.network(
+                        widget.pokemon.spriteUrl!,
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.catching_pokemon,
+                            size: 200,
+                            color: colorScheme.onSurface.withAlpha(128),
+                          );
+                        },
+                      )
+                    : Icon(
                         Icons.catching_pokemon,
                         size: 200,
                         color: colorScheme.onSurface.withAlpha(128),
-                      );
-                    },
-                  )
-                : Icon(
-                    Icons.catching_pokemon,
-                    size: 200,
-                    color: colorScheme.onSurface.withAlpha(128),
-                  ),
+                      ),
+              ),
+            ),
           ),
 
           // Botones de navegación (deben estar AL FINAL para que estén en el frente)
@@ -95,7 +116,7 @@ class PokemonHeader extends StatelessWidget {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: onBack,
+                      onTap: widget.onBack,
                       borderRadius: BorderRadius.circular(30),
                       child: Container(
                         width: 44,
@@ -124,7 +145,7 @@ class PokemonHeader extends StatelessWidget {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: onFavoriteToggle,
+                      onTap: widget.onFavoriteToggle,
                       borderRadius: BorderRadius.circular(30),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -132,7 +153,7 @@ class PokemonHeader extends StatelessWidget {
                         height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isFavorite
+                          color: widget.isFavorite
                               ? Colors.red.withAlpha(230)
                               : colorScheme.onSurface.withAlpha(128),
                           boxShadow: [
@@ -144,8 +165,8 @@ class PokemonHeader extends StatelessWidget {
                           ],
                         ),
                         child: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? Colors.white : colorScheme.surface,
+                          widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: widget.isFavorite ? Colors.white : colorScheme.surface,
                           size: 24,
                         ),
                       ),

@@ -20,6 +20,7 @@ class PokemonMapperService {
       id: id,
       name: name,
       spriteUrl: spriteUrl,
+      cryUrl: _generateCryUrl(id),
       types: types,
       categories: speciesData['categories'],
       isLegendary: speciesData['isLegendary'],
@@ -55,6 +56,7 @@ class PokemonMapperService {
       id: id,
       name: name,
       spriteUrl: spriteUrl,
+      cryUrl: _generateCryUrl(id),
       types: types,
       height: height,
       weight: weight,
@@ -65,6 +67,11 @@ class PokemonMapperService {
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
     );
+  }
+
+  /// Genera la URL del cry basada en el ID del Pokémon
+  static String _generateCryUrl(int id) {
+    return 'https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/$id.ogg';
   }
 
   /// Extrae la URL del sprite desde los datos GraphQL

@@ -48,6 +48,9 @@ dependencies:
   equatable: ^2.0.5
   bloc_concurrency: ^0.3.0
 
+  # Audio playback for Pokemon cries
+  audioplayers: ^5.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

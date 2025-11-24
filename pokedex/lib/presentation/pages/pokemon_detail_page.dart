@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
+import '../../data/services/audio_service.dart';
 import '../widgets/detail_components/pokemon_header.dart';
 import '../widgets/detail_components/pokemon_info_card.dart';
 import '../widgets/detail_components/pokemon_abilities_section.dart';
@@ -17,7 +18,7 @@ import '../bloc/favorites/favorites_bloc.dart';
 import '../bloc/favorites/favorites_event.dart';
 import '../bloc/favorites/favorites_state.dart';
 
-class PokemonDetailPage extends StatelessWidget {
+class PokemonDetailPage extends StatefulWidget {
   final int id;
   final PokemonRepository repository;
 
@@ -27,15 +28,34 @@ class PokemonDetailPage extends StatelessWidget {
     required this.repository,
   });
 
+  @override
+  State<PokemonDetailPage> createState() => _PokemonDetailPageState();
+}
+
+class _PokemonDetailPageState extends State<PokemonDetailPage> {
+  late final AudioService _audioService;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioService = AudioService();
+  }
+
+  @override
+  void dispose() {
+    _audioService.stopCry();
+    super.dispose();
+  }
+
   void _navigateToEvolution(BuildContext context, int evolutionId) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (_) => PokemonDetailBloc(repository: repository)
+          create: (_) => PokemonDetailBloc(repository: widget.repository)
             ..add(LoadPokemonDetail(evolutionId)),
           child: PokemonDetailPage(
             id: evolutionId,
-            repository: repository,
+            repository: widget.repository,
           ),
         ),
       ),
@@ -83,7 +103,13 @@ class PokemonDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BlocBuilder<PokemonDetailBloc, PokemonDetailState>(
+      body: BlocConsumer<PokemonDetailBloc, PokemonDetailState>(
+        listener: (context, state) {
+          // Reproducir cry automáticamente cuando se carga el Pokemon
+          if (state is PokemonDetailLoaded) {
+            _audioService.playCry(state.pokemon.id);
+          }
+        },
         builder: (context, state) {
           if (state is PokemonDetailLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -117,6 +143,7 @@ class PokemonDetailPage extends StatelessWidget {
                 onBack: () => Navigator.of(context).pop(),
                 onFavoriteToggle: () => _handleFavoriteToggle(context, pokemon),
                 isFavorite: isFavorite,
+                onSpriteTap: () => _audioService.playCry(pokemon.id),
               );
             },
           ),
@@ -154,7 +181,7 @@ class PokemonDetailPage extends StatelessWidget {
           const SizedBox(height: 24),
           PokemonMovesetSection(
             pokemon: pokemon,
-            repository: repository,
+            repository: widget.repository,
           ),
           const SizedBox(height: 24),
           PokemonFormsSection(pokemon: pokemon),
