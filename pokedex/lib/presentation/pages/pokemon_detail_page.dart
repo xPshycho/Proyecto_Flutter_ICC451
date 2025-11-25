@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
@@ -34,6 +35,7 @@ class PokemonDetailPage extends StatefulWidget {
 
 class _PokemonDetailPageState extends State<PokemonDetailPage> {
   late final AudioService _audioService;
+  bool _isShiny = false;
 
   @override
   void initState() {
@@ -69,6 +71,40 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
       context.read<FavoritesBloc>().state is FavoritesLoaded &&
           (context.read<FavoritesBloc>().state as FavoritesLoaded).isFavorite(pokemon.id),
       pokemon.name,
+    );
+  }
+
+  void _handleSoundTap(Pokemon pokemon) {
+    _audioService.playCry(pokemon.id);
+  }
+
+  void _handleShinyToggle() {
+    setState(() {
+      _isShiny = !_isShiny;
+    });
+    // TODO: Implementar cambio de sprite a versión shiny
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              _isShiny ? Icons.auto_awesome : Icons.catching_pokemon,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _isShiny ? 'Modo Shiny activado ✨' : 'Modo Normal activado',
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+        backgroundColor: _isShiny ? Colors.amber : Colors.grey[700],
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
     );
   }
 
@@ -144,6 +180,9 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 onFavoriteToggle: () => _handleFavoriteToggle(context, pokemon),
                 isFavorite: isFavorite,
                 onSpriteTap: () => _audioService.playCry(pokemon.id),
+                onSoundTap: () => _handleSoundTap(pokemon),
+                onShinyToggle: _handleShinyToggle,
+                isShiny: _isShiny,
               );
             },
           ),
