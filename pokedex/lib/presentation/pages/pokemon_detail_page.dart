@@ -18,6 +18,7 @@ import '../bloc/pokemon_detail/pokemon_detail_state.dart';
 import '../bloc/favorites/favorites_bloc.dart';
 import '../bloc/favorites/favorites_event.dart';
 import '../bloc/favorites/favorites_state.dart';
+import '../../data/services/pokemon_card_share_service.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -183,7 +184,12 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 onSoundTap: () => _handleSoundTap(pokemon),
                 onShinyToggle: _handleShinyToggle,
                 isShiny: _isShiny,
+                onShareTap: () async {
+                  final shareService = PokemonCardShareService();
+                  await shareService.sharePokemonCard(context, pokemon);
+                },
               );
+
             },
           ),
         ),
