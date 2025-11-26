@@ -89,37 +89,40 @@ class _PokemonHeaderState extends State<PokemonHeader> {
 
           // Pokémon sprite (center)
           Center(
-            child: GestureDetector(
-              onTapDown: widget.onSpriteTap != null ? (_) => setState(() => _isPressed = true) : null,
-              onTapUp: widget.onSpriteTap != null
-                  ? (_) {
-                      setState(() => _isPressed = false);
-                      widget.onSpriteTap?.call();
-                    }
-                  : null,
-              onTapCancel: widget.onSpriteTap != null ? () => setState(() => _isPressed = false) : null,
-              child: AnimatedScale(
-                scale: _isPressed ? 0.95 : 1.0,
-                duration: const Duration(milliseconds: 100),
-                child: widget.pokemon.spriteUrl != null
-                    ? Image.network(
-                        widget.pokemon.spriteUrl!,
-                        width: 200,
-                        height: 200,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.catching_pokemon,
-                            size: 200,
-                            color: colorScheme.onSurface.withAlpha(128),
-                          );
-                        },
-                      )
-                    : Icon(
-                        Icons.catching_pokemon,
-                        size: 200,
-                        color: colorScheme.onSurface.withAlpha(128),
-                      ),
+            child: Hero(
+              tag: 'pokemon_${widget.pokemon.id}',
+              child: GestureDetector(
+                onTapDown: widget.onSpriteTap != null ? (_) => setState(() => _isPressed = true) : null,
+                onTapUp: widget.onSpriteTap != null
+                    ? (_) {
+                        setState(() => _isPressed = false);
+                        widget.onSpriteTap?.call();
+                      }
+                    : null,
+                onTapCancel: widget.onSpriteTap != null ? () => setState(() => _isPressed = false) : null,
+                child: AnimatedScale(
+                  scale: _isPressed ? 0.95 : 1.0,
+                  duration: const Duration(milliseconds: 100),
+                  child: widget.pokemon.spriteUrl != null
+                      ? Image.network(
+                          widget.pokemon.spriteUrl!,
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.catching_pokemon,
+                              size: 200,
+                              color: colorScheme.onSurface.withAlpha(128),
+                            );
+                          },
+                        )
+                      : Icon(
+                          Icons.catching_pokemon,
+                          size: 200,
+                          color: colorScheme.onSurface.withAlpha(128),
+                        ),
+                ),
               ),
             ),
           ),

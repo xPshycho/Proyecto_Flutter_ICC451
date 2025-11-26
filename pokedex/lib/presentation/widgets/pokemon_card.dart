@@ -59,35 +59,38 @@ class PokemonCard extends StatelessWidget {
                   SizedBox(
                     width: 91,
                     height: 91,
-                    child: pokemon.spriteUrl != null
-                        ? Image.network(
-                            pokemon.spriteUrl!,
-                            width: 91,
-                            height: 91,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 91,
-                                height: 91,
-                                color: colorScheme.onSurface.withAlpha(25),
-                                child: Icon(
-                                  Icons.catching_pokemon,
-                                  size: 40,
-                                  color: colorScheme.onSurface.withAlpha(128),
-                                ),
-                              );
-                            },
-                          )
-                        : Container(
-                            width: 91,
-                            height: 91,
-                            color: colorScheme.onSurface.withAlpha(25),
-                            child: Icon(
-                              Icons.catching_pokemon,
-                              size: 40,
-                              color: colorScheme.onSurface.withAlpha(128),
+                    child: Hero(
+                      tag: 'pokemon_${pokemon.id}',
+                      child: pokemon.spriteUrl != null
+                          ? Image.network(
+                              pokemon.spriteUrl!,
+                              width: 91,
+                              height: 91,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 91,
+                                  height: 91,
+                                  color: colorScheme.onSurface.withAlpha(25),
+                                  child: Icon(
+                                    Icons.catching_pokemon,
+                                    size: 40,
+                                    color: colorScheme.onSurface.withAlpha(128),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              width: 91,
+                              height: 91,
+                              color: colorScheme.onSurface.withAlpha(25),
+                              child: Icon(
+                                Icons.catching_pokemon,
+                                size: 40,
+                                color: colorScheme.onSurface.withAlpha(128),
+                              ),
                             ),
-                          ),
+                    ),
                   ),
 
                   const SizedBox(width: 12),
