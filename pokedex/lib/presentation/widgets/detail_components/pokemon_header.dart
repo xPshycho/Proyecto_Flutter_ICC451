@@ -32,9 +32,68 @@ class PokemonHeader extends StatefulWidget {
   State<PokemonHeader> createState() => _PokemonHeaderState();
 }
 
-class _PokemonHeaderState extends State<PokemonHeader> {
+class _PokemonHeaderState extends State<PokemonHeader> with TickerProviderStateMixin {
   bool _isPressed = false;
   bool _isSoundPressed = false;
+  late AnimationController _favoriteAnimationController;
+  late Animation<double> _favoriteScaleAnimation;
+  late Animation<double> _favoriteRotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _favoriteAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _favoriteScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.1)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.1, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(_favoriteAnimationController);
+
+    _favoriteRotationAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.05, end: -0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -0.05, end: 0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.05, end: 0.0),
+        weight: 25,
+      ),
+    ]).animate(_favoriteAnimationController);
+  }
+
+  @override
+  void dispose() {
+    _favoriteAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(PokemonHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Animar cuando cambia el estado de favorito
+    if (oldWidget.isFavorite != widget.isFavorite) {
+      _favoriteAnimationController.forward(from: 0.0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -191,10 +250,16 @@ class _PokemonHeaderState extends State<PokemonHeader> {
                                       ? Colors.red.withAlpha(220)
                                       : Colors.transparent,
                                 ),
-                                child: Icon(
-                                  widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                  color: widget.isFavorite ? Colors.white : defaultIconColor,
-                                  size: 22,
+                                child: ScaleTransition(
+                                  scale: _favoriteScaleAnimation,
+                                  child: RotationTransition(
+                                    turns: _favoriteRotationAnimation,
+                                    child: Icon(
+                                      widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                                      color: widget.isFavorite ? Colors.white : defaultIconColor,
+                                      size: 22,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

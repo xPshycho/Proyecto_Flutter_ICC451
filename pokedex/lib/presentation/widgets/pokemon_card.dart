@@ -7,16 +7,72 @@ import '../bloc/favorites/favorites_bloc.dart';
 import '../bloc/favorites/favorites_event.dart';
 import '../bloc/favorites/favorites_state.dart';
 
-class PokemonCard extends StatelessWidget {
+class PokemonCard extends StatefulWidget {
   final Pokemon pokemon;
   final VoidCallback? onTap;
   const PokemonCard({super.key, required this.pokemon, this.onTap});
+
+  @override
+  State<PokemonCard> createState() => _PokemonCardState();
+}
+
+class _PokemonCardState extends State<PokemonCard> with SingleTickerProviderStateMixin {
+  late AnimationController _favoriteAnimationController;
+  late Animation<double> _favoriteScaleAnimation;
+  late Animation<double> _favoriteRotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _favoriteAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _favoriteScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.1)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.1, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(_favoriteAnimationController);
+
+    _favoriteRotationAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.05, end: -0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -0.05, end: 0.05),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.05, end: 0.0),
+        weight: 25,
+      ),
+    ]).animate(_favoriteAnimationController);
+  }
+
+  @override
+  void dispose() {
+    _favoriteAnimationController.dispose();
+    super.dispose();
+  }
 
   // Extrae etiquetas simples a partir de `pokemon.forms`.
   // Busca flags explícitos (`is_mega`) y keywords en `name`/`form_name`.
   List<String> _extractFormLabels() {
     final labels = <String>{};
-    final forms = pokemon.forms;
+    final forms = widget.pokemon.forms;
     if (forms == null) return [];
     for (final f in forms) {
       try {
@@ -43,7 +99,7 @@ class PokemonCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(12),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -60,10 +116,10 @@ class PokemonCard extends StatelessWidget {
                     width: 91,
                     height: 91,
                     child: Hero(
-                      tag: 'pokemon_${pokemon.id}',
-                      child: pokemon.spriteUrl != null
+                      tag: 'pokemon_${widget.pokemon.id}',
+                      child: widget.pokemon.spriteUrl != null
                           ? Image.network(
-                              pokemon.spriteUrl!,
+                              widget.pokemon.spriteUrl!,
                               width: 91,
                               height: 91,
                               fit: BoxFit.contain,
@@ -109,7 +165,7 @@ class PokemonCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '#${pokemon.id.toString().padLeft(3, '0')}',
+                                '#${widget.pokemon.id.toString().padLeft(3, '0')}',
                                 style: TextStyle(
                                   color: colorScheme.onSurface.withAlpha(140),
                                   fontSize: 11,
@@ -160,7 +216,7 @@ class PokemonCard extends StatelessWidget {
                             const SizedBox(height: 6),
                           // Nombre
                           Text(
-                            pokemon.name[0].toUpperCase() + pokemon.name.substring(1),
+                            widget.pokemon.name[0].toUpperCase() + widget.pokemon.name.substring(1),
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -174,7 +230,7 @@ class PokemonCard extends StatelessWidget {
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
-                                children: pokemon.types.map((t) {
+                                children: widget.pokemon.types.map((t) {
                                   final spanishType = PokemonConstants.toSpanishType(t);
                                   final typeColor = PokemonConstants.getTypeColor(spanishType);
                                   final icon = PokemonConstants.getTypeIcon(spanishType);
@@ -236,7 +292,7 @@ class PokemonCard extends StatelessWidget {
               right: 4,
               child: BlocBuilder<FavoritesBloc, FavoritesState>(
                 builder: (context, state) {
-                  final isFavorite = state is FavoritesLoaded && state.isFavorite(pokemon.id);
+                  final isFavorite = state is FavoritesLoaded && state.isFavorite(widget.pokemon.id);
 
                   return SizedBox(
                     width: 30,
@@ -245,12 +301,19 @@ class PokemonCard extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       iconSize: 18,
-                      icon: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: isFavorite ? Colors.red : colorScheme.onSurface,
+                      icon: ScaleTransition(
+                        scale: _favoriteScaleAnimation,
+                        child: RotationTransition(
+                          turns: _favoriteRotationAnimation,
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : colorScheme.onSurface,
+                          ),
+                        ),
                       ),
                       onPressed: () {
-                        context.read<FavoritesBloc>().add(ToggleFavorite(pokemon));
+                        _favoriteAnimationController.forward(from: 0.0);
+                        context.read<FavoritesBloc>().add(ToggleFavorite(widget.pokemon));
                       },
                     ),
                   );
