@@ -8,6 +8,7 @@ import '../widgets/search_box.dart';
 import '../widgets/bottom_filter_menu.dart';
 import '../widgets/floating_sort_menu.dart';
 import '../widgets/bottom_menu.dart';
+import '../widgets/error_view.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../widgets/pokemon_card.dart';
 import '../../data/models/pokemon.dart';
@@ -419,35 +420,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildErrorView(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
-            const SizedBox(height: 12),
-            const Text(
-              'No se pudieron cargar los Pokémon',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
-              },
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
+    return ErrorView(
+      title: 'No se pudieron cargar los Pokémon',
+      message: message,
+      onRetry: () {
+        context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
+      },
+      showAppBar: false,
     );
   }
 

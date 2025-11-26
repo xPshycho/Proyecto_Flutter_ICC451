@@ -19,6 +19,7 @@ import '../bloc/favorites/favorites_bloc.dart';
 import '../bloc/favorites/favorites_event.dart';
 import '../bloc/favorites/favorites_state.dart';
 import '../../data/services/pokemon_card_share_service.dart';
+import '../widgets/error_view.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
@@ -244,88 +245,22 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   }
 
   Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
-    final title = state.isRegionalForm
-        ? 'Error al cargar la forma regional'
-        : 'Error al cargar el Pokémon';
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Error'),
-        backgroundColor: Colors.redAccent,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.redAccent,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (state.isRegionalForm)
-                const Text(
-                  'Las formas regionales pueden tener problemas de caché.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.orange),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                state.message.length > 100
-                    ? '${state.message.substring(0, 100)}...'
-                    : state.message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              _buildErrorButtons(context, state),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorButtons(BuildContext context, PokemonDetailError state) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back),
-          label: const Text('Regresar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey[600],
-            foregroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: () {
-            context.read<PokemonDetailBloc>().add(
-              RetryLoadPokemonDetail(state.pokemonId),
-            );
-          },
-          icon: const Icon(Icons.refresh),
-          label: const Text('Reintentar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
+    final title = state.isRegionalForm;
+    return ErrorView(
+      onRetry: () {
+        context.read<PokemonDetailBloc>().add(
+          RetryLoadPokemonDetail(state.pokemonId),
+        );
+      },
+      onBack: () => Navigator.of(context).pop(),
     );
   }
 }
+
+
+
+
+
+
+
+
