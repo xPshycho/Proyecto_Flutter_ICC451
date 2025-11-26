@@ -1,4 +1,7 @@
+// TODO: Si da tiempo podemos usar las cartas reales https://tcgdex.dev/rest/filtering-sorting-pagination
+
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/models/pokemon.dart';
 import '../../core/constants/pokemon_constants.dart';
 
@@ -18,10 +21,10 @@ class PokemonCardWidget extends StatelessWidget {
         ? PokemonConstants.toSpanishType(pokemon.types.first)
         : 'Normal';
     final typeColor = PokemonConstants.getTypeColor(primaryType);
+    final typeIcon = PokemonConstants.getTypeIcon(primaryType);
 
-    // Variables de tamaño para la imagen de fondo
-    const double backgroundImageWidth = 287;
-    const double backgroundImageHeight = 237;
+    final double bgWidth = 287;
+    final double bgHeight = 237;
 
     return Container(
       width: 319,
@@ -32,17 +35,17 @@ class PokemonCardWidget extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
+            Color(0xFFFFFFFF),
+            Color(0xFF92959A),
             Color(0xFFE8E8E8),
-            Color(0xFFBDBDBD),
-            Color(0xFFE8E8E8),
-            Color(0xFFBDBDBD),
+            Color(0xFF5B5B5B),
           ],
-          stops: [0.0, 0.3, 0.7, 1.0],
+          stops: [0.0, 0.3, 0.6, 1.0],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: const Color.fromRGBO(0, 0, 0, 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -68,7 +71,7 @@ class PokemonCardWidget extends StatelessWidget {
                     Text(
                       capitalizedName,
                       style: const TextStyle(
-                        fontSize: 28,
+                        fontSize: 20,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                         shadows: [
@@ -85,19 +88,38 @@ class PokemonCardWidget extends StatelessWidget {
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2,
+                        gradient: RadialGradient(
+                          center: Alignment(-0.3, -0.3),
+                          radius: 0.8,
+                          colors: [
+                            Color(0xFFFFFFFF),
+                            Color(0xFFC4C4C4),
+                            Color(0xFF818181),
+                            Color(0xFF565656),
+                          ],
+                          stops: [0.0, 0.3, 0.8, 1.0],
                         ),
+                        shape: BoxShape.circle,
                       ),
                       child: Center(
-                        child: Icon(
-                          Icons.catching_pokemon,
-                          color: typeColor,
-                          size: 16,
-                        ),
+                        child: typeIcon != null
+                            ? (typeIcon.toLowerCase().endsWith('.svg')
+                                ? SvgPicture.asset(
+                                    typeIcon,
+                                    width: 14,
+                                    height: 14,
+                                    colorFilter: ColorFilter.mode(
+                                      typeColor,
+                                      BlendMode.srcIn,
+                                    ),
+                                  )
+                                : Image.asset(
+                                    typeIcon,
+                                    width: 16,
+                                    height: 16,
+                                    fit: BoxFit.contain,
+                                  ))
+                            : const SizedBox.shrink(),
                       ),
                     ),
                   ],
@@ -115,10 +137,12 @@ class PokemonCardWidget extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
+                        Color(0xFF5B5B5B),
                         Color(0xFFE8E8E8),
-                        Color(0xFFBDBDBD),
+                        Color(0xFF545454),
                         Color(0xFFE8E8E8),
                       ],
+                      stops: [0.0, 0.3, 0.7, 1.0],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -135,17 +159,17 @@ class PokemonCardWidget extends StatelessWidget {
                                 // Fondo de la imagen con tamaño fijo
                                 Center(
                                   child: SizedBox(
-                                    width: backgroundImageWidth,
-                                    height: backgroundImageHeight,
+                                    width: bgWidth,
+                                    height: bgHeight,
                                     child: Image.asset(
                                       'assets/images/backgrounds/card/default.png',
-                                      width: backgroundImageWidth,
-                                      height: backgroundImageHeight,
+                                      width: bgWidth,
+                                      height: bgHeight,
                                       fit: BoxFit.fill,
                                       errorBuilder: (context, error, stackTrace) {
                                         return Container(
-                                          width: backgroundImageWidth,
-                                          height: backgroundImageHeight,
+                                          width: bgWidth,
+                                          height: bgHeight,
                                           decoration: BoxDecoration(
                                             gradient: LinearGradient(
                                               begin: Alignment.topCenter,
@@ -245,14 +269,14 @@ class PokemonCardWidget extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Text(
-                        pokemon.description ?? 'Este Pokémon es único y especial en su especie. Se caracteriza por su lealtad y fuerza, siendo un compañero ideal para cualquier entrenador.',
+                        pokemon.description ?? 'Lorem Ipsum dolor sit amet',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: Colors.white,
                           height: 1.3,
                         ),
-                        textAlign: TextAlign.justify,
+                        textAlign: TextAlign.left,
                       ),
                     ),
                   ),
@@ -265,4 +289,3 @@ class PokemonCardWidget extends StatelessWidget {
     );
   }
 }
-

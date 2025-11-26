@@ -50,8 +50,8 @@ class _PokemonHeaderState extends State<PokemonHeader> {
     final bool isDark = theme.brightness == Brightness.dark;
     final Color defaultIconColor = isDark ? Colors.white : Colors.black;
     final Color blurBgColor = isDark
-        ? Colors.white.withAlpha(25) // Slightly lighter for dark mode
-        : Colors.black.withAlpha(15); // Subtle for light mode
+        ? Colors.white.withAlpha(25)
+        : Colors.black.withAlpha(15);
 
     return Container(
       height: 350,

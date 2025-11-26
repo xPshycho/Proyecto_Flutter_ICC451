@@ -27,97 +27,221 @@ class _PokemonCardPreviewPageState extends State<PokemonCardPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final capitalizedName = '${widget.pokemon.name[0].toUpperCase()}${widget.pokemon.name.substring(1)}';
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.grey[200],
-      appBar: AppBar(
-        title: Text('Carta de $capitalizedName'),
-        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-        foregroundColor: isDark ? Colors.white : Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Vista previa de la carta
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+      // Usar el fondo universal del tema
+      backgroundColor: Theme.of(context).cardColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header con título y botón de volver
+            _buildHeader(context, isDark),
+
+            // Contenido con la carta centrada
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                   child: Screenshot(
                     controller: _screenshotController,
-                    child: PokemonCardWidget(pokemon: widget.pokemon),
+                    child: PokemonCardWidget(
+                      pokemon: widget.pokemon,
+                    ),
                   ),
                 ),
               ),
             ),
+
+            // Botones de acción en la parte inferior
+            _buildActionButtons(context, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construye el header con título y botón de volver
+  Widget _buildHeader(BuildContext context, bool isDark) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color blurBgColor = isDark
+        ? Colors.white.withAlpha(25)
+        : Colors.black.withAlpha(15);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        children: [
+          // Botón de volver
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: blurBgColor,
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
 
-          // Botones de acción
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey[900] : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(25),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  // Botón de cancelar
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSharing ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('Cancelar'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(
-                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
+          const SizedBox(width: 16),
 
-                  // Botón de compartir
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: _isSharing ? null : _handleShare,
-                      icon: _isSharing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Icon(Icons.share),
-                      label: Text(_isSharing ? 'Generando...' : 'Compartir'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: isDark ? Colors.blue[700] : Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+          // Título
+          Expanded(
+            child: Text(
+              'Compartir Carta',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+                fontFamily: 'Pixelated',
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Construye los botones de acción (Cancelar y Compartir)
+  Widget _buildActionButtons(BuildContext context, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF4A4A4A) : const Color(0xFFE8E8E8),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            // Botón Cancelar (Rojo) - más pequeño
+            Expanded(
+              child: _buildCancelButton(isDark),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Botón Compartir (Verde) - más pequeño
+            Expanded(
+              child: _buildShareButton(isDark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construye el botón de cancelar con estilo gaming
+  Widget _buildCancelButton(bool isDark) {
+    return Container(
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFC54747),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFC54747).withAlpha(76),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isSharing ? null : () => Navigator.of(context).pop(),
+          borderRadius: BorderRadius.circular(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(
+                Icons.close_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              SizedBox(width: 6), // Reducir de 8 a 6
+              Text(
+                'Cancelar',
+                style: TextStyle(
+                  fontSize: 14, // Reducir de 18 a 16
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontFamily: 'Pixelated',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Construye el botón de compartir con estilo gaming
+  Widget _buildShareButton(bool isDark) {
+    return Container(
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: _isSharing ? const Color(0xFF9E9E9E) : const Color(0xFF55C547),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: _isSharing
+            ? []
+            : [
+                BoxShadow(
+                  color: const Color(0xFF55C547).withAlpha(76),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isSharing ? null : _handleShare,
+          borderRadius: BorderRadius.circular(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (!_isSharing) ...[
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.ios_share_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+              if (_isSharing)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              else
+                const Text(
+                  'Compartir',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontFamily: 'Pixelated',
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -145,8 +269,7 @@ class _PokemonCardPreviewPageState extends State<PokemonCardPreviewPage> {
       final capitalizedName = '${widget.pokemon.name[0].toUpperCase()}${widget.pokemon.name.substring(1)}';
       await Share.shareXFiles(
         [XFile(tempFile.path)],
-        text: '¡Mira la carta de $capitalizedName! 🎴\n\n'
-            'Generada desde Pokédex',
+        text: '¡Mira la carta de $capitalizedName! 🎴\n\nGenerada desde Pokédex',
         subject: 'Carta Pokémon - $capitalizedName',
       );
 
@@ -207,18 +330,17 @@ class _PokemonCardPreviewPageState extends State<PokemonCardPreviewPage> {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(fontSize: 14),
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.red[700],
+        backgroundColor: const Color(0xFFC54747),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ),
     );
   }
 }
-
