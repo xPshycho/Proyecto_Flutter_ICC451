@@ -24,11 +24,15 @@ import '../widgets/error_view.dart';
 class PokemonDetailPage extends StatefulWidget {
   final int id;
   final PokemonRepository repository;
+  final bool initialShinyState;
+  final bool shouldPlayCry;
 
   const PokemonDetailPage({
     super.key,
     required this.id,
     required this.repository,
+    this.initialShinyState = false,
+    this.shouldPlayCry = false,
   });
 
   @override
@@ -37,12 +41,24 @@ class PokemonDetailPage extends StatefulWidget {
 
 class _PokemonDetailPageState extends State<PokemonDetailPage> {
   late final AudioService _audioService;
-  bool _isShiny = false;
+  late bool _isShiny;
+  bool _hasPlayedInitialCry = false;
 
   @override
   void initState() {
     super.initState();
     _audioService = AudioService();
+    _isShiny = widget.initialShinyState; // Inicializar con el estado recibido
+
+    // Si se debe reproducir el cry al cargar (navegación desde evolución)
+    if (widget.shouldPlayCry) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _audioService.playCry(widget.id);
+          _hasPlayedInitialCry = true;
+        }
+      });
+    }
   }
 
   @override
@@ -60,6 +76,8 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           child: PokemonDetailPage(
             id: evolutionId,
             repository: widget.repository,
+            initialShinyState: _isShiny, // Mantener estado shiny
+            shouldPlayCry: true, // Reproducir cry al navegar desde evolución
           ),
         ),
       ),
@@ -80,11 +98,39 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     _audioService.playCry(pokemon.id);
   }
 
-  void _handleShinyToggle() {
+  void _handleShinyToggle(Pokemon pokemon) {
+    // Check if shiny sprite is available
+    if (pokemon.shinySpriteUrl == null && !_isShiny) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'No hay sprite shiny disponible para ${pokemon.name}',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange[700],
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isShiny = !_isShiny;
     });
-    // TODO: Implementar cambio de sprite a versión shiny
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -144,8 +190,10 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
       body: BlocConsumer<PokemonDetailBloc, PokemonDetailState>(
         listener: (context, state) {
           // Reproducir cry automáticamente cuando se carga el Pokemon
-          if (state is PokemonDetailLoaded) {
+          // Solo si no se ha reproducido ya en initState
+          if (state is PokemonDetailLoaded && !_hasPlayedInitialCry) {
             _audioService.playCry(state.pokemon.id);
+            _hasPlayedInitialCry = true;
           }
         },
         builder: (context, state) {
@@ -183,7 +231,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
                 isFavorite: isFavorite,
                 onSpriteTap: () => _audioService.playCry(pokemon.id),
                 onSoundTap: () => _handleSoundTap(pokemon),
-                onShinyToggle: _handleShinyToggle,
+                onShinyToggle: () => _handleShinyToggle(pokemon),
                 isShiny: _isShiny,
                 onShareTap: () async {
                   final shareService = PokemonCardShareService();
@@ -225,19 +273,15 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           const SizedBox(height: 24),
           PokemonStatsSection(pokemon: pokemon),
           const SizedBox(height: 24),
-          PokemonMovesetSection(
-            pokemon: pokemon,
-            repository: widget.repository,
-          ),
-          const SizedBox(height: 24),
-          PokemonFormsSection(pokemon: pokemon),
-          const SizedBox(height: 24),
           Builder(
             builder: (context) => PokemonEvolutionSection(
               pokemon: pokemon,
               onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+              isShiny: _isShiny,
             ),
           ),
+          const SizedBox(height: 24),
+          PokemonFormsSection(pokemon: pokemon),
           const SizedBox(height: 32),
         ],
       ),

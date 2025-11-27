@@ -11,6 +11,7 @@ class Pokemon {
   final int id;
   final String name;
   final String? spriteUrl;
+  final String? shinySpriteUrl;
   final String? cryUrl;
   final List<String> types;
   final double? height;
@@ -34,6 +35,7 @@ class Pokemon {
     required this.id,
     required this.name,
     this.spriteUrl,
+    this.shinySpriteUrl,
     this.cryUrl,
     this.types = const [],
     this.height,
@@ -60,6 +62,7 @@ class Pokemon {
       id: id,
       name: name,
       spriteUrl: spriteUrl,
+      shinySpriteUrl: shinySpriteUrl,
       cryUrl: cryUrl,
       types: types,
       height: height,
@@ -83,6 +86,7 @@ class Pokemon {
       id: json['id'] as int,
       name: json['name'] as String,
       spriteUrl: json['spriteUrl'] as String?,
+      shinySpriteUrl: json['shinySpriteUrl'] as String?,
       cryUrl: json['cryUrl'] as String?,
       types: (json['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       height: (json['height'] as num?)?.toDouble(),

@@ -5,15 +5,47 @@ import '../../../core/constants/pokemon_constants.dart';
 class PokemonEvolutionSection extends StatelessWidget {
   final Pokemon pokemon;
   final Function(int)? onEvolutionTap;
+  final bool isShiny;
 
   const PokemonEvolutionSection({
     super.key,
     required this.pokemon,
     this.onEvolutionTap,
+    this.isShiny = false,
   });
 
   String _formatPokemonName(String name) {
     return name[0].toUpperCase() + name.substring(1);
+  }
+
+  Widget _buildEvolutionSprite(Pokemon evolution, Color typeColor) {
+    // Determine which sprite URL to use based on shiny state
+    String? spriteUrl;
+    if (isShiny && evolution.shinySpriteUrl != null) {
+      spriteUrl = evolution.shinySpriteUrl;
+    } else {
+      spriteUrl = evolution.spriteUrl;
+    }
+
+    if (spriteUrl != null) {
+      return Image.network(
+        spriteUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.catching_pokemon,
+            size: 40,
+            color: typeColor,
+          );
+        },
+      );
+    } else {
+      return Icon(
+        Icons.catching_pokemon,
+        size: 40,
+        color: typeColor,
+      );
+    }
   }
 
   // Extrae etiquetas de forms a partir de `pokemon.forms` (misma heurística que en la tarjeta)
@@ -141,23 +173,7 @@ class PokemonEvolutionSection extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: typeColor.withAlpha(76),
               ),
-              child: evolution.spriteUrl != null
-                  ? Image.network(
-                      evolution.spriteUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.catching_pokemon,
-                          size: 40,
-                          color: typeColor,
-                        );
-                      },
-                    )
-                  : Icon(
-                      Icons.catching_pokemon,
-                      size: 40,
-                      color: typeColor,
-                    ),
+              child: _buildEvolutionSprite(evolution, typeColor),
             ),
             const SizedBox(height: 8),
             // Nombre

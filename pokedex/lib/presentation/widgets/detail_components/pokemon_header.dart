@@ -95,6 +95,40 @@ class _PokemonHeaderState extends State<PokemonHeader> with TickerProviderStateM
     }
   }
 
+  Widget _buildSpriteImage(bool isShiny, ColorScheme colorScheme) {
+    // Determine which sprite URL to use
+    String? spriteUrl;
+    if (isShiny && widget.pokemon.shinySpriteUrl != null) {
+      spriteUrl = widget.pokemon.shinySpriteUrl;
+    } else {
+      spriteUrl = widget.pokemon.spriteUrl;
+    }
+
+    // Add key to AnimatedSwitcher so it recognizes sprite changes
+    return Container(
+      key: ValueKey<String>('${widget.pokemon.id}_${isShiny ? 'shiny' : 'normal'}'),
+      child: spriteUrl != null
+          ? Image.network(
+              spriteUrl,
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.catching_pokemon,
+                  size: 200,
+                  color: colorScheme.onSurface.withAlpha(128),
+                );
+              },
+            )
+          : Icon(
+              Icons.catching_pokemon,
+              size: 200,
+              color: colorScheme.onSurface.withAlpha(128),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryType = widget.pokemon.types.isNotEmpty
@@ -162,25 +196,19 @@ class _PokemonHeaderState extends State<PokemonHeader> with TickerProviderStateM
                 child: AnimatedScale(
                   scale: _isPressed ? 0.95 : 1.0,
                   duration: const Duration(milliseconds: 100),
-                  child: widget.pokemon.spriteUrl != null
-                      ? Image.network(
-                          widget.pokemon.spriteUrl!,
-                          width: 200,
-                          height: 200,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.catching_pokemon,
-                              size: 200,
-                              color: colorScheme.onSurface.withAlpha(128),
-                            );
-                          },
-                        )
-                      : Icon(
-                          Icons.catching_pokemon,
-                          size: 200,
-                          color: colorScheme.onSurface.withAlpha(128),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: animation,
+                          child: child,
                         ),
+                      );
+                    },
+                    child: _buildSpriteImage(widget.isShiny, colorScheme),
+                  ),
                 ),
               ),
             ),

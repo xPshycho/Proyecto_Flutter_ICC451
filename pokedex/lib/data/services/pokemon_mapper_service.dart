@@ -13,6 +13,7 @@ class PokemonMapperService {
     final id = item['id'] as int;
     final name = item['name'] as String;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
+    final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
     final speciesData = _extractSpeciesData(item['pokemon_v2_pokemonspecy']);
 
@@ -20,6 +21,7 @@ class PokemonMapperService {
       id: id,
       name: name,
       spriteUrl: spriteUrl,
+      shinySpriteUrl: shinySpriteUrl,
       cryUrl: _generateCryUrl(id),
       types: types,
       categories: speciesData['categories'],
@@ -39,6 +41,7 @@ class PokemonMapperService {
     final id = item['id'] as int;
     final name = item['name'] as String;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
+    final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
     final height = (item['height'] as num?)?.toDouble();
     final weight = (item['weight'] as num?)?.toDouble();
@@ -56,6 +59,7 @@ class PokemonMapperService {
       id: id,
       name: name,
       spriteUrl: spriteUrl,
+      shinySpriteUrl: shinySpriteUrl,
       cryUrl: _generateCryUrl(id),
       types: types,
       height: height,
@@ -82,6 +86,20 @@ class PokemonMapperService {
 
     for (var sprite in spritesList) {
       final url = sprite['sprites']['front_default'];
+      if (url != null && url is String) return url;
+    }
+
+    return null;
+  }
+
+  /// Extrae la URL del sprite shiny desde los datos GraphQL
+  static String? _extractShinySpriteUrl(dynamic spritesData) {
+    if (spritesData == null) return null;
+
+    final spritesList = spritesData is List ? spritesData : [spritesData];
+
+    for (var sprite in spritesList) {
+      final url = sprite['sprites']['front_shiny'];
       if (url != null && url is String) return url;
     }
 
