@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../data/models/pokemon.dart';
 import '../../../core/constants/pokemon_constants.dart';
+import 'section_card.dart';
 
 class PokemonWeaknessesSection extends StatelessWidget {
   final Pokemon pokemon;
@@ -11,39 +12,18 @@ class PokemonWeaknessesSection extends StatelessWidget {
     required this.pokemon,
   });
 
+  static const _multipliers = [4.0, 2.0, 1.0, 0.5, 0.25, 0.0];
+
   @override
   Widget build(BuildContext context) {
     final effectiveness = pokemon.typeEffectiveness;
-    final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
+    return SectionCard(
+      title: 'DAÑO',
+      icon: Icons.shield_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.shield_outlined, size: 20, color: Colors.grey[700]),
-              const SizedBox(width: 8),
-              const Text(
-                'DAÑO',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           _buildMultiplierBadges(),
           const SizedBox(height: 16),
           _buildTypeEffectivenessGrid(effectiveness),
@@ -53,101 +33,74 @@ class PokemonWeaknessesSection extends StatelessWidget {
   }
 
   Widget _buildMultiplierBadges() {
-    final multipliers = [4.0, 2.0, 1.0, 0.5, 0.25, 0.0];
-
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: multipliers.map((multiplier) {
-        String label;
-        if (multiplier == 4.0) {
-          label = '×4';
-        } else if (multiplier == 2.0) {
-          label = '×2';
-        } else if (multiplier == 1.0) {
-          label = '×1';
-        } else if (multiplier == 0.5) {
-          label = '×½';
-        } else if (multiplier == 0.25) {
-          label = '×¼';
-        } else {
-          label = '×0';
-        }
+      children: _multipliers
+          .map((m) => _buildBadge(_getMultiplierLabel(m)))
+          .toList(),
+    );
+  }
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[800],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.white70,
-            ),
-          ),
-        );
-      }).toList(),
+  Widget _buildBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[800],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: Colors.white70,
+        ),
+      ),
     );
   }
 
   Widget _buildTypeEffectivenessGrid(dynamic effectiveness) {
-    final typeMultipliers = <String, double>{};
-
-    for (final type in effectiveness.superEffectiveTypes) {
-      typeMultipliers[type] = 4.0;
-    }
-    for (final type in effectiveness.veryEffectiveTypes) {
-      typeMultipliers[type] = 2.0;
-    }
-    for (final type in effectiveness.resistantTypes) {
-      typeMultipliers[type] = 0.5;
-    }
-    for (final type in effectiveness.veryResistantTypes) {
-      typeMultipliers[type] = 0.25;
-    }
-    for (final type in effectiveness.immuneTypes) {
-      typeMultipliers[type] = 0.0;
-    }
+    final typeMultipliers = _collectTypeMultipliers(effectiveness);
 
     if (typeMultipliers.isEmpty) return const SizedBox.shrink();
 
-    final sortedEntries = typeMultipliers.entries.toList()
-      ..sort((a, b) {
-        final multiplierCompare = b.value.compareTo(a.value);
-        if (multiplierCompare != 0) return multiplierCompare;
-        return a.key.compareTo(b.key);
-      });
+    final sortedEntries = _sortByMultiplier(typeMultipliers);
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: sortedEntries.map((entry) {
-        return _buildTypeChipWithMultiplier(entry.key, entry.value);
-      }).toList(),
+      children: sortedEntries
+          .map((e) => _buildTypeChip(e.key, e.value))
+          .toList(),
     );
   }
 
-  Widget _buildTypeChipWithMultiplier(String type, double multiplier) {
+  Map<String, double> _collectTypeMultipliers(dynamic effectiveness) {
+    return {
+      for (final type in effectiveness.superEffectiveTypes) type: 4.0,
+      for (final type in effectiveness.veryEffectiveTypes) type: 2.0,
+      for (final type in effectiveness.resistantTypes) type: 0.5,
+      for (final type in effectiveness.veryResistantTypes) type: 0.25,
+      for (final type in effectiveness.immuneTypes) type: 0.0,
+    };
+  }
+
+  List<MapEntry<String, double>> _sortByMultiplier(
+    Map<String, double> typeMultipliers,
+  ) {
+    return typeMultipliers.entries.toList()
+      ..sort((a, b) {
+        final compareMultiplier = b.value.compareTo(a.value);
+        return compareMultiplier != 0
+            ? compareMultiplier
+            : a.key.compareTo(b.key);
+      });
+  }
+
+  Widget _buildTypeChip(String type, double multiplier) {
     final typeColor = PokemonConstants.getTypeColor(type);
     final icon = PokemonConstants.getTypeIcon(type);
-
-    String multiplierText;
-    if (multiplier == 4.0) {
-      multiplierText = '×4';
-    } else if (multiplier == 2.0) {
-      multiplierText = '×2';
-    } else if (multiplier == 0.5) {
-      multiplierText = '×½';
-    } else if (multiplier == 0.25) {
-      multiplierText = '×¼';
-    } else if (multiplier == 0.0) {
-      multiplierText = '×0';
-    } else {
-      multiplierText = '×1';
-    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -179,23 +132,39 @@ class PokemonWeaknessesSection extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              multiplierText,
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
+          _buildMultiplierIndicator(_getMultiplierLabel(multiplier)),
         ],
       ),
     );
+  }
+
+  Widget _buildMultiplierIndicator(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  String _getMultiplierLabel(double multiplier) {
+    return switch (multiplier) {
+      4.0 => '×4',
+      2.0 => '×2',
+      1.0 => '×1',
+      0.5 => '×½',
+      0.25 => '×¼',
+      0.0 => '×0',
+      _ => '×1',
+    };
   }
 }

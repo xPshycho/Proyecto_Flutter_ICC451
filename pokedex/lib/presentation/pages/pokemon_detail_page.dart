@@ -257,12 +257,9 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           const SizedBox(height: 24),
           PokemonStatsSection(pokemon: pokemon),
           const SizedBox(height: 24),
-          Builder(
-            builder: (context) => PokemonEvolutionSection(
-              pokemon: pokemon,
-              onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
-              isShiny: _isShiny,
-            ),
+          PokemonMovesetSection(
+            pokemon: pokemon,
+            repository: widget.repository,
           ),
           const SizedBox(height: 24),
           PokemonFormsSection(pokemon: pokemon),
@@ -271,6 +268,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             builder: (context) => PokemonEvolutionSection(
               pokemon: pokemon,
               onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+              isShiny: _isShiny,
             ),
           ),
           const SizedBox(height: 32),

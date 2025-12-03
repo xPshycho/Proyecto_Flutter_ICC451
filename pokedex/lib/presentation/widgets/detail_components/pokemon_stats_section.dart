@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../data/models/pokemon.dart';
+import 'section_card.dart';
 
 class PokemonStatsSection extends StatefulWidget {
   final Pokemon pokemon;
@@ -64,79 +65,47 @@ class _PokemonStatsSectionState extends State<PokemonStatsSection> {
   Widget build(BuildContext context) {
     if (widget.pokemon.stats.isEmpty) return const SizedBox.shrink();
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.analytics_outlined,
-              size: 20,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'ESTADÍSTICAS BASE',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 400,
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: (page) {
-              setState(() {
-                _currentPage = page;
-              });
-            },
-            children: [
-              _buildRadarChart(),
-              _buildBarChart(),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildPageIndicator(0),
-            const SizedBox(width: 8),
-            _buildPageIndicator(1),
-          ],
-        ),
+    return SectionCard(
+      title: 'ESTADÍSTICAS',
+      icon: Icons.analytics_outlined,
+      actions: [
+        _buildPageIndicator(0),
+        const SizedBox(width: 4),
+        _buildPageIndicator(1),
       ],
+      child: SizedBox(
+        height: 350,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (page) {
+            setState(() {
+              _currentPage = page;
+            });
+          },
+          children: [
+            _buildRadarChart(),
+            _buildBarChart(),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildPageIndicator(int index) {
     final isActive = _currentPage == index;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      onTap: () {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      },
+      onTap: () => _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ),
       child: Container(
-        width: isActive ? 24 : 8,
+        width: 8,
         height: 8,
         decoration: BoxDecoration(
-          color: isActive
-              ? (isDarkMode ? Colors.blue[400] : Colors.blue)
-              : (isDarkMode ? Colors.grey[700] : Colors.grey[300]),
-          borderRadius: BorderRadius.circular(4),
+          color: isActive ? Colors.blue : Colors.grey[600],
+          shape: BoxShape.circle,
         ),
       ),
     );
