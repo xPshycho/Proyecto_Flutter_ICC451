@@ -11,111 +11,191 @@ class PokemonWeaknessesSection extends StatelessWidget {
     required this.pokemon,
   });
 
-  List<String> _getWeaknesses() {
-    // Mapa simplificado de debilidades por tipo
-    final Map<String, List<String>> typeWeaknesses = {
-      'Fuego': ['Agua', 'Tierra', 'Roca'],
-      'Agua': ['Eléctrico', 'Planta'],
-      'Planta': ['Fuego', 'Hielo', 'Veneno', 'Volador', 'Bicho'],
-      'Eléctrico': ['Tierra'],
-      'Hielo': ['Fuego', 'Lucha', 'Roca', 'Acero'],
-      'Lucha': ['Volador', 'Psíquico', 'Hada'],
-      'Veneno': ['Tierra', 'Psíquico'],
-      'Tierra': ['Agua', 'Planta', 'Hielo'],
-      'Volador': ['Eléctrico', 'Hielo', 'Roca'],
-      'Psíquico': ['Bicho', 'Fantasma', 'Siniestro'],
-      'Bicho': ['Fuego', 'Volador', 'Roca'],
-      'Roca': ['Agua', 'Planta', 'Lucha', 'Tierra', 'Acero'],
-      'Fantasma': ['Fantasma', 'Siniestro'],
-      'Dragón': ['Hielo', 'Dragón', 'Hada'],
-      'Siniestro': ['Lucha', 'Bicho', 'Hada'],
-      'Acero': ['Fuego', 'Lucha', 'Tierra'],
-      'Hada': ['Veneno', 'Acero'],
-      'Normal': ['Lucha'],
-    };
-
-    final Set<String> weaknesses = {};
-
-    for (final type in pokemon.types) {
-      final spanishType = PokemonConstants.toSpanishType(type);
-      final typeWeaks = typeWeaknesses[spanishType] ?? [];
-      weaknesses.addAll(typeWeaks);
-    }
-
-    return weaknesses.toList()..sort();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final weaknesses = _getWeaknesses();
+    final effectiveness = pokemon.typeEffectiveness;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    if (weaknesses.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.shield_outlined, size: 20, color: Colors.grey[700]),
-            const SizedBox(width: 8),
-            const Text(
-              'DEBILIDADES',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.2),
+          width: 1,
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: weaknesses.map((weakness) {
-            final typeColor = PokemonConstants.getTypeColor(weakness);
-            final icon = PokemonConstants.getTypeIcon(weakness);
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: typeColor.withAlpha(51),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: typeColor.withAlpha(128),
-                  width: 1.5,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 20, color: Colors.grey[700]),
+              const SizedBox(width: 8),
+              const Text(
+                'DAÑO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    SvgPicture.asset(
-                      icon,
-                      width: 14,
-                      height: 14,
-                      colorFilter: ColorFilter.mode(
-                        typeColor,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    weakness,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: typeColor,
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildMultiplierBadges(),
+          const SizedBox(height: 16),
+          _buildTypeEffectivenessGrid(effectiveness),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiplierBadges() {
+    final multipliers = [4.0, 2.0, 1.0, 0.5, 0.25, 0.0];
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: multipliers.map((multiplier) {
+        String label;
+        if (multiplier == 4.0) {
+          label = '×4';
+        } else if (multiplier == 2.0) {
+          label = '×2';
+        } else if (multiplier == 1.0) {
+          label = '×1';
+        } else if (multiplier == 0.5) {
+          label = '×½';
+        } else if (multiplier == 0.25) {
+          label = '×¼';
+        } else {
+          label = '×0';
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTypeEffectivenessGrid(dynamic effectiveness) {
+    final typeMultipliers = <String, double>{};
+
+    for (final type in effectiveness.superEffectiveTypes) {
+      typeMultipliers[type] = 4.0;
+    }
+    for (final type in effectiveness.veryEffectiveTypes) {
+      typeMultipliers[type] = 2.0;
+    }
+    for (final type in effectiveness.resistantTypes) {
+      typeMultipliers[type] = 0.5;
+    }
+    for (final type in effectiveness.veryResistantTypes) {
+      typeMultipliers[type] = 0.25;
+    }
+    for (final type in effectiveness.immuneTypes) {
+      typeMultipliers[type] = 0.0;
+    }
+
+    if (typeMultipliers.isEmpty) return const SizedBox.shrink();
+
+    final sortedEntries = typeMultipliers.entries.toList()
+      ..sort((a, b) {
+        final multiplierCompare = b.value.compareTo(a.value);
+        if (multiplierCompare != 0) return multiplierCompare;
+        return a.key.compareTo(b.key);
+      });
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: sortedEntries.map((entry) {
+        return _buildTypeChipWithMultiplier(entry.key, entry.value);
+      }).toList(),
+    );
+  }
+
+  Widget _buildTypeChipWithMultiplier(String type, double multiplier) {
+    final typeColor = PokemonConstants.getTypeColor(type);
+    final icon = PokemonConstants.getTypeIcon(type);
+
+    String multiplierText;
+    if (multiplier == 4.0) {
+      multiplierText = '×4';
+    } else if (multiplier == 2.0) {
+      multiplierText = '×2';
+    } else if (multiplier == 0.5) {
+      multiplierText = '×½';
+    } else if (multiplier == 0.25) {
+      multiplierText = '×¼';
+    } else if (multiplier == 0.0) {
+      multiplierText = '×0';
+    } else {
+      multiplierText = '×1';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: typeColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            SvgPicture.asset(
+              icon,
+              width: 14,
+              height: 14,
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
               ),
-            );
-          }).toList(),
-        ),
-      ],
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            type,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              multiplierText,
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
-

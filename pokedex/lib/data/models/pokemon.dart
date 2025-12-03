@@ -1,3 +1,7 @@
+import '../../domain/models/type_effectiveness.dart';
+import '../../domain/services/type_effectiveness_service.dart';
+import '../../core/constants/pokemon_constants.dart';
+
 /// Modelo principal de Pokémon. Representa la entidad "base" del pokémon con sus
 /// atributos principales (id, nombre, tipos, stats, etc.).
 ///
@@ -51,6 +55,12 @@ class Pokemon {
     this.generationId,
     this.forms,
   });
+
+  /// Calcula la efectividad de tipos para este Pokémon
+  PokemonTypeEffectiveness get typeEffectiveness {
+    final spanishTypes = types.map(PokemonConstants.toSpanishType).toList();
+    return TypeEffectivenessService.calculateEffectiveness(spanishTypes);
+  }
 
   Pokemon copyWith({
     List<dynamic>? forms,
