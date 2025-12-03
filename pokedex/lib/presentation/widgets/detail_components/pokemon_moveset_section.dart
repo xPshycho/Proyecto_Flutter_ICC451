@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../data/models/pokemon.dart';
 import '../../../data/models/pokemon_move.dart';
 import '../../../data/repositories/pokemon_repository.dart';
 import '../../../core/constants/pokemon_constants.dart';
-import 'section_card.dart';
+import '../../bloc/moves/moves_bloc.dart';
+import '../../bloc/moves/moves_event.dart';
+import '../../bloc/moves/moves_state.dart';
+import '../moves_filters_widget.dart';
+import '../moves_sort_widget.dart';
 
 enum MoveSortOption { nombre, poder, precision, pp }
 
-class PokemonMovesetSection extends StatefulWidget {
+class PokemonMovesetSection extends StatelessWidget {
   final Pokemon pokemon;
   final PokemonRepository repository;
 
@@ -19,27 +24,36 @@ class PokemonMovesetSection extends StatefulWidget {
   });
 
   @override
-  State<PokemonMovesetSection> createState() => _PokemonMovesetSectionState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => MovesBloc(repository),
+      child: PokemonMovesetContent(pokemon: pokemon),
+    );
+  }
 }
 
-class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
-  List<PokemonMove>? _moves;
-  bool _isLoading = false;
-  String? _error;
-  bool _showFilters = false;
-  MoveSortOption _sortOption = MoveSortOption.nombre;
-  bool _ascending = true;
+class PokemonMovesetContent extends StatefulWidget {
+  final Pokemon pokemon;
 
-  // Para optimización de scroll
-  static const int _itemsPerBatch = 20;
-  int _displayedItemsCount = _itemsPerBatch;
-  final ScrollController _scrollController = ScrollController();
+  const PokemonMovesetContent({
+    super.key,
+    required this.pokemon,
+  });
+
+  @override
+  State<PokemonMovesetContent> createState() => _PokemonMovesetContentState();
+}
+
+class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
+  bool _isExpanded = false;
+  bool _showFilters = false;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _loadMoves();
-    _setupScrollListener();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -48,208 +62,94 @@ class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
     super.dispose();
   }
 
-  void _setupScrollListener() {
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 50) {
-        _loadMoreItems();
-      }
-    });
-  }
-
-  void _loadMoreItems() {
-    if (_moves == null) return;
-
-    final totalItems = _getSortedMoves().length;
-    if (_displayedItemsCount < totalItems) {
-      setState(() {
-        _displayedItemsCount = (_displayedItemsCount + _itemsPerBatch).clamp(0, totalItems);
-      });
+  void _onScroll() {
+    if (_isScrolledToEnd) {
+      context.read<MovesBloc>().add(const LoadMoreMoves());
     }
   }
 
-  void _resetDisplayedItems() {
+  bool get _isScrolledToEnd {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    return currentScroll >= (maxScroll * 0.9);
+  }
+
+  void _toggleExpanded() {
     setState(() {
-      _displayedItemsCount = _itemsPerBatch;
+      _isExpanded = !_isExpanded;
     });
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+
+    if (_isExpanded) {
+      context.read<MovesBloc>().add(LoadMoves(widget.pokemon.id));
     }
   }
 
-  Future<void> _loadMoves() async {
+  void _toggleFilters() {
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _showFilters = !_showFilters;
     });
-
-    try {
-      final moves = await widget.repository.fetchPokemonMoves(widget.pokemon.id);
-      setState(() {
-        _moves = moves;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Error al cargar movimientos';
-        _isLoading = false;
-      });
-    }
   }
-
-  List<PokemonMove> _getSortedMoves() {
-    if (_moves == null) return [];
-
-    final sortedMoves = List<PokemonMove>.from(_moves!);
-
-    sortedMoves.sort((a, b) {
-      final comparison = switch (_sortOption) {
-        MoveSortOption.nombre => a.displayName.compareTo(b.displayName),
-        MoveSortOption.poder => (a.power ?? 0).compareTo(b.power ?? 0),
-        MoveSortOption.precision => (a.accuracy ?? 0).compareTo(b.accuracy ?? 0),
-        MoveSortOption.pp => (a.pp ?? 0).compareTo(b.pp ?? 0),
-      };
-
-      return _ascending ? comparison : -comparison;
-    });
-
-    return sortedMoves;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
-      title: 'MOVIMIENTOS',
-      icon: Icons.sports_martial_arts,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, size: 20),
-          onPressed: () {
-            // Future implementation
-          },
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: Icon(
-            _showFilters ? Icons.filter_alt : Icons.filter_alt_outlined,
-            size: 20,
-          ),
-          onPressed: () => setState(() => _showFilters = !_showFilters),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_showFilters) ...[
-            _buildFilterSection(),
-            const SizedBox(height: 16),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(),
+        if (_isExpanded) ...[
+          const SizedBox(height: 16),
           _buildContent(),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildFilterSection() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.close, size: 16),
-              const SizedBox(width: 8),
-              const Text(
-                'Filtros',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildFilterChip('Nombre', MoveSortOption.nombre, Colors.grey[700]!),
-              _buildFilterChip('Poder', MoveSortOption.poder, Colors.grey[700]!),
-              _buildFilterChip('PP', MoveSortOption.pp, Colors.grey[700]!),
-              _buildFilterChip('Precisión', MoveSortOption.precision, Colors.grey[700]!),
-              _buildSortOrderChip(),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, MoveSortOption option, Color color) {
-    final isSelected = _sortOption == option;
-
-    return GestureDetector(
-      onTap: () => _changeSortOption(option),
+  Widget _buildHeader() {
+    return InkWell(
+      onTap: _toggleExpanded,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : color,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey,
+            width: 1,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSortOrderChip() {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _ascending = !_ascending);
-        _resetDisplayedItems();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.red[600],
-          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              _ascending ? 'ASC' : 'DESC',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: const Text(
+                      'Lista de movimientos',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_isExpanded) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+                      onPressed: _toggleFilters,
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(width: 6),
             Icon(
-              _ascending ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              size: 16,
-              color: Colors.white,
+              _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              size: 24,
             ),
           ],
         ),
@@ -258,223 +158,242 @@ class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
   }
 
   Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+    return BlocConsumer<MovesBloc, MovesState>(
+      listener: (context, state) {
+        if (state is MovesError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is MovesLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(),
             ),
+          );
+        }
+
+        if (state is MovesError) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    state.message,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (state is! MovesLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          children: [
+            if (_showFilters) ...[
+              MovesFiltersWidget(
+                selectedTypes: state.appliedTypes,
+                selectedLearnMethods: state.appliedLearnMethods,
+                selectedVersionGroups: state.appliedVersionGroups,
+                searchQuery: state.currentSearchQuery,
+                onFiltersChanged: (types, methods, versions) {
+                  context.read<MovesBloc>().add(ApplyMovesFilters(
+                    types: types,
+                    learnMethods: methods,
+                    versionGroups: versions,
+                  ));
+                },
+                onSearchChanged: (query) {
+                  context.read<MovesBloc>().add(SearchMoves(query));
+                },
+                onClearFilters: () {
+                  context.read<MovesBloc>().add(const ClearMovesFilters());
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (state.hasActiveFilters || state.currentSortBy != null) ...[
+              MovesSortWidget(
+                currentSortBy: state.currentSortBy,
+                currentAscending: state.currentAscending,
+                onSortChanged: (sortBy, ascending) {
+                  context.read<MovesBloc>().add(SortMoves(sortBy, ascending));
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+            _buildMovesList(state),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMovesList(MovesLoaded state) {
+    if (state.filteredMoves.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text('No se encontraron movimientos'),
         ),
       );
     }
 
-    final sortedMoves = _getSortedMoves();
-
-    if (sortedMoves.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: Text('No se encontraron movimientos')),
-      );
-    }
-
-    final displayedMoves = sortedMoves.take(_displayedItemsCount).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Fixed the overflow issue here
-        if (sortedMoves.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'Total: ${sortedMoves.length} movimientos',
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Total: ${state.totalMoves} movimientos',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (state.hasActiveFilters)
+            Text(
+              'Mostrando: ${state.filteredMoves.length}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: Colors.blue[600],
                 fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxHeight: 250, // Increased height to show more moves like in the image
-          ),
-          child: Scrollbar(
-            controller: _scrollController,
-            thumbVisibility: true,
-            child: ListView.separated(
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: Scrollbar(
               controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              itemCount: displayedMoves.length +
-                         (displayedMoves.length < sortedMoves.length ? 1 : 0),
-              separatorBuilder: (context, index) => const SizedBox(height: 4),
-              itemBuilder: (context, index) {
-                if (index >= displayedMoves.length) {
-                  return _buildLoadingIndicator();
-                }
-
-                return _buildMoveItem(displayedMoves[index], index);
-              },
+              thumbVisibility: true,
+              child: ListView.separated(
+                controller: _scrollController,
+                itemCount: state.filteredMoves.length +
+                    (state is MovesLoadingMore ? 1 : 0),
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  if (index >= state.filteredMoves.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
+                  return _buildMoveChip(state.filteredMoves[index]);
+                },
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // Redesigned to match the reference images exactly
-  Widget _buildMoveItem(PokemonMove move, int index) {
+  Widget _buildMoveChip(PokemonMove move) {
     final typeColor = PokemonConstants.getTypeColor(move.typeNameSpanish);
     final icon = PokemonConstants.getTypeIcon(move.typeNameSpanish);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: typeColor,
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Row(
-        children: [
-          // Type icon
-          if (icon != null) ...[
-            SvgPicture.asset(
-              icon,
-              width: 16,
-              height: 16,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
+    return Tooltip(
+      message: _buildMoveTooltip(move),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: typeColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              SvgPicture.asset(
+                icon,
+                width: 12,
+                height: 12,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+
+            // Learn method indicator
+            if (move.level != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Nv.${move.level}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            else if (move.learnMethod != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  move.learnMethodSpanish,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+            Flexible(
+              child: Text(
+                move.displayName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
           ],
-
-          // Level/Learn info (like "Lvl. 1", "Lvl. 33", "HUEVO", "TM. 133")
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              _getMoveLearnMethod(move, index),
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Move name
-          Expanded(
-            child: Text(
-              move.displayName,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
-          // Move category icon (Physical/Special/Status)
-          _buildMoveTypeIcon(move),
-        ],
-      ),
-    );
-  }
-
-  String _getMoveLearnMethod(PokemonMove move, int index) {
-    // Simulate different learn methods like in the reference
-    final methods = ['Lvl. 1', 'Lvl. 15', 'Lvl. 33', 'HUEVO', 'TM. 133', 'MT. 163'];
-    return methods[index % methods.length];
-  }
-
-  Widget _buildMoveTypeIcon(PokemonMove move) {
-    // Physical, Special, or Status move icons
-    if (move.damageClass == 'physical') {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.3),
-          shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.flash_on, // Physical attack icon
-          size: 16,
-          color: Colors.white,
-        ),
-      );
-    } else if (move.damageClass == 'special') {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.3),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.auto_awesome, // Special attack icon
-          size: 16,
-          color: Colors.white,
-        ),
-      );
-    } else {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.3),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.visibility, // Status move icon
-          size: 16,
-          color: Colors.white,
-        ),
-      );
-    }
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Cargando más movimientos...',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -486,19 +405,10 @@ class _PokemonMovesetSectionState extends State<PokemonMovesetSection> {
       if (move.accuracy != null) 'Precisión: ${move.accuracy}%',
       if (move.pp != null) 'PP: ${move.pp}',
       if (move.damageClass != null) 'Clase: ${move.damageClass}',
+      if (move.learnMethod != null) 'Método: ${move.learnMethodSpanish}',
+      if (move.level != null) 'Nivel: ${move.level}',
+      if (move.versionGroup != null) 'Versión: ${move.versionGroupSpanish}',
     ];
     return parts.join('\n');
-  }
-
-  void _changeSortOption(MoveSortOption option) {
-    setState(() {
-      if (_sortOption == option) {
-        _ascending = !_ascending;
-      } else {
-        _sortOption = option;
-        _ascending = true;
-      }
-    });
-    _resetDisplayedItems();
   }
 }

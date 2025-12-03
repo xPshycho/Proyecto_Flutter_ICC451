@@ -271,6 +271,13 @@ class GraphQLQueryService {
     query getMovesByPokemonId($pokemonId: Int!) {
       pokemon_v2_pokemonmove(where: {pokemon_id: {_eq: $pokemonId}}) {
         move_id
+        level
+        pokemon_v2_movelearnmethod {
+          name
+        }
+        pokemon_v2_versiongroup {
+          name
+        }
         pokemon_v2_move {
           name
           power

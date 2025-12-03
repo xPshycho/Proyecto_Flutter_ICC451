@@ -8,6 +8,9 @@ class PokemonMove {
   final int? pp;
   final String typeName;
   final String? damageClass;
+  final int? level;
+  final String? learnMethod;
+  final String? versionGroup;
 
   PokemonMove({
     required this.moveId,
@@ -18,6 +21,9 @@ class PokemonMove {
     this.pp,
     required this.typeName,
     this.damageClass,
+    this.level,
+    this.learnMethod,
+    this.versionGroup,
   });
 
   factory PokemonMove.fromGraphQL(Map<String, dynamic> json) {
@@ -40,6 +46,11 @@ class PokemonMove {
       // Si hay error obteniendo nombre español, usar nombre en inglés
     }
 
+    // Obtener datos de aprendizaje
+    final level = json['level'] as int?;
+    final learnMethodData = json['pokemon_v2_movelearnmethod'] as Map<String, dynamic>?;
+    final versionGroupData = json['pokemon_v2_versiongroup'] as Map<String, dynamic>?;
+
     return PokemonMove(
       moveId: json['move_id'] as int,
       name: move['name'] as String,
@@ -49,6 +60,9 @@ class PokemonMove {
       pp: move['pp'] as int?,
       typeName: move['pokemon_v2_type']?['name'] as String? ?? 'normal',
       damageClass: move['pokemon_v2_movedamageclass']?['name'] as String?,
+      level: level,
+      learnMethod: learnMethodData?['name'] as String?,
+      versionGroup: versionGroupData?['name'] as String?,
     );
   }
 
@@ -80,5 +94,50 @@ class PokemonMove {
       'fairy': 'Hada',
     };
     return typeMap[typeName.toLowerCase()] ?? typeName;
+  }
+
+  /// Obtiene el método de aprendizaje en español
+  String get learnMethodSpanish {
+    if (learnMethod == null) return 'Desconocido';
+
+    const methodMap = {
+      'level-up': 'Por nivel',
+      'machine': 'MT/MO',
+      'tutor': 'Tutor',
+      'egg': 'Por herencia',
+      'light-ball-egg': 'Herencia especial',
+      'colosseum-purification': 'Purificación',
+      'xd-shadow': 'Pokémon Sombra',
+      'xd-purification': 'Purificación XD',
+      'form-change': 'Cambio de forma',
+    };
+    return methodMap[learnMethod!.toLowerCase()] ?? learnMethod!;
+  }
+
+  /// Obtiene el grupo de versión en español
+  String get versionGroupSpanish {
+    if (versionGroup == null) return 'Todas las versiones';
+
+    const versionMap = {
+      'red-blue': 'Rojo/Azul',
+      'yellow': 'Amarillo',
+      'gold-silver': 'Oro/Plata',
+      'crystal': 'Cristal',
+      'ruby-sapphire': 'Rubí/Zafiro',
+      'emerald': 'Esmeralda',
+      'firered-leafgreen': 'Rojo Fuego/Verde Hoja',
+      'diamond-pearl': 'Diamante/Perla',
+      'platinum': 'Platino',
+      'heartgold-soulsilver': 'Oro HeartGold/Plata SoulSilver',
+      'black-white': 'Negro/Blanco',
+      'black-2-white-2': 'Negro 2/Blanco 2',
+      'x-y': 'X/Y',
+      'omega-ruby-alpha-sapphire': 'Rubí Omega/Zafiro Alfa',
+      'sun-moon': 'Sol/Luna',
+      'ultra-sun-ultra-moon': 'Ultra Sol/Ultra Luna',
+      'sword-shield': 'Espada/Escudo',
+      'scarlet-violet': 'Escarlata/Púrpura',
+    };
+    return versionMap[versionGroup!.toLowerCase()] ?? versionGroup!;
   }
 }

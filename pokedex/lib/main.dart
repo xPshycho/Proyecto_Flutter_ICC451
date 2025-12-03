@@ -11,6 +11,7 @@ import 'data/favorites_service.dart';
 import 'presentation/bloc/pokemon/pokemon_bloc.dart';
 import 'presentation/bloc/pokemon/pokemon_event.dart';
 import 'presentation/bloc/favorites/favorites_bloc.dart';
+import 'presentation/bloc/moves/moves_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
