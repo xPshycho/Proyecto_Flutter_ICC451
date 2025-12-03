@@ -239,8 +239,8 @@ class _PokemonStatsSectionState extends State<PokemonStatsSection> {
                   enabled: false,
                 ),
               ),
-              swapAnimationDuration: const Duration(milliseconds: 400),
-              swapAnimationCurve: Curves.easeInOut,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
             ),
           ),
         ),
@@ -268,78 +268,85 @@ class _PokemonStatsSectionState extends State<PokemonStatsSection> {
       'speed',
     ];
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final barWidth = screenWidth * 0.45;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          ...orderedStats
-              .where((stat) => widget.pokemon.stats.containsKey(stat))
-              .map((stat) {
-            final value = widget.pokemon.stats[stat]!;
-            final percentage = (value / 255).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            ...orderedStats
+                .where((stat) => widget.pokemon.stats.containsKey(stat))
+                .map((stat) {
+              final value = widget.pokemon.stats[stat]!;
+              final percentage = (value / 255).clamp(0.0, 1.0);
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: Text(
-                      _translateStatName(stat),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      value.toString(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black87,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: barWidth,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: percentage,
-                        backgroundColor: isDarkMode
-                            ? Colors.grey[800]!.withValues(alpha: 0.5)
-                            : Colors.grey.withAlpha(51),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _getStatColor(stat),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      // Stat name - flexible width with minimum
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          _translateStatName(stat),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        minHeight: 8,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      // Value - fixed small width
+                      SizedBox(
+                        width: 45,
+                        child: Text(
+                          value.toString(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Progress bar - takes remaining space
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: percentage,
+                            backgroundColor: isDarkMode
+                                ? Colors.grey[800]!.withValues(alpha: 0.5)
+                                : Colors.grey.withAlpha(51),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _getStatColor(stat),
+                            ),
+                            minHeight: 8,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            Text(
+              'Total: ${widget.pokemon.stats.values.reduce((a, b) => a + b)}',
+              style: TextStyle(
+                fontSize: 10,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                fontWeight: FontWeight.w500,
               ),
-            );
-          }),
-          const SizedBox(height: 8),
-          Text(
-            'Total: ${widget.pokemon.stats.values.reduce((a, b) => a + b)}',
-            style: TextStyle(
-              fontSize: 10,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-              fontWeight: FontWeight.w500,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
