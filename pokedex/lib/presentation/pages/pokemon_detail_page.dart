@@ -25,14 +25,12 @@ class PokemonDetailPage extends StatefulWidget {
   final int id;
   final PokemonRepository repository;
   final bool initialShinyState;
-  final bool shouldPlayCry;
 
   const PokemonDetailPage({
     super.key,
     required this.id,
     required this.repository,
     this.initialShinyState = false,
-    this.shouldPlayCry = false,
   });
 
   @override
@@ -42,23 +40,12 @@ class PokemonDetailPage extends StatefulWidget {
 class _PokemonDetailPageState extends State<PokemonDetailPage> {
   late final AudioService _audioService;
   late bool _isShiny;
-  bool _hasPlayedInitialCry = false;
 
   @override
   void initState() {
     super.initState();
     _audioService = AudioService();
     _isShiny = widget.initialShinyState; // Inicializar con el estado recibido
-
-    // Si se debe reproducir el cry al cargar (navegación desde evolución)
-    if (widget.shouldPlayCry) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) {
-          _audioService.playCry(widget.id);
-          _hasPlayedInitialCry = true;
-        }
-      });
-    }
   }
 
   @override
@@ -77,7 +64,6 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             id: evolutionId,
             repository: widget.repository,
             initialShinyState: _isShiny, // Mantener estado shiny
-            shouldPlayCry: true, // Reproducir cry al navegar desde evolución
           ),
         ),
       ),
@@ -190,10 +176,8 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
       body: BlocConsumer<PokemonDetailBloc, PokemonDetailState>(
         listener: (context, state) {
           // Reproducir cry automáticamente cuando se carga el Pokemon
-          // Solo si no se ha reproducido ya en initState
-          if (state is PokemonDetailLoaded && !_hasPlayedInitialCry) {
+          if (state is PokemonDetailLoaded) {
             _audioService.playCry(state.pokemon.id);
-            _hasPlayedInitialCry = true;
           }
         },
         builder: (context, state) {
@@ -282,6 +266,13 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
           ),
           const SizedBox(height: 24),
           PokemonFormsSection(pokemon: pokemon),
+          const SizedBox(height: 24),
+          Builder(
+            builder: (context) => PokemonEvolutionSection(
+              pokemon: pokemon,
+              onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+            ),
+          ),
           const SizedBox(height: 32),
         ],
       ),
