@@ -7,6 +7,7 @@ class ErrorView extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback? onBack;
   final bool showAppBar;
+  final bool hideRetry;
 
   const ErrorView({
     super.key,
@@ -15,6 +16,7 @@ class ErrorView extends StatelessWidget {
     required this.onRetry,
     this.onBack,
     this.showAppBar = true,
+    this.hideRetry = false,
   });
 
   @override
@@ -68,30 +70,31 @@ class ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 40),
 
-            // Botón de reintentar
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 20),
-              label: const Text(
-                'Reintentar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+            // Botón de reintentar (condicional)
+            if (!hideRetry)
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 20),
+                label: const Text(
+                  'Reintentar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-            ),
           ],
         ),
       ),

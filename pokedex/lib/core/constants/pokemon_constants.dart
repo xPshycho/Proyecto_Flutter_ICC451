@@ -8,6 +8,10 @@ class PokemonConstants {
   static const int ultraBeastRangeStart = 793;
   static const int ultraBeastRangeEnd = 807;
 
+  // Rango de Pokémon por defecto (válidos)
+  static const int minDefaultPokemonId = 1;
+  static const int maxDefaultPokemonId = 1025;
+
   // Rangos por región (IDs)
   static const Map<String, List<int>> regionRanges = {
     'Kanto': [1, 151],
@@ -213,6 +217,11 @@ class PokemonConstants {
   /// Verifica si un ID es una Ultra Bestia
   static bool isUltraBeast(int id) {
     return id >= ultraBeastRangeStart && id <= ultraBeastRangeEnd;
+  }
+
+  /// Verifica si un ID es un Pokémon por defecto (1-1025)
+  static bool isDefaultPokemon(int id) {
+    return id >= minDefaultPokemonId && id <= maxDefaultPokemonId;
   }
 
   /// Convierte región a número de generación (compatibilidad)

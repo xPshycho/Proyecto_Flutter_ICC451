@@ -280,14 +280,57 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   }
 
   Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
-    final title = state.isRegionalForm;
+    // Determinar el tipo de error y mostrar UI apropiada
+    if (state.isInvalidId) {
+      return _buildValidationErrorView(context, state);
+    }
+
+    // Error de conexión u otro tipo
     return ErrorView(
+      title: state.isRegionalForm
+        ? 'Error al cargar la forma regional'
+        : 'Error al cargar el Pokémon',
+      message: state.message.contains('conexión') || state.message.contains('network')
+        ? 'Verifica tu conexión a internet y presiona el botón de reintentar'
+        : state.message,
       onRetry: () {
         context.read<PokemonDetailBloc>().add(
           RetryLoadPokemonDetail(state.pokemonId),
         );
       },
       onBack: () => Navigator.of(context).pop(),
+      showAppBar: false,
+    );
+  }
+
+  /// Vista específica para errores de validación
+  Widget _buildValidationErrorView(BuildContext context, PokemonDetailError state) {
+    final isRegionalForm = state.isRegionalForm;
+    final isTooHigh = state.pokemonId > 1025;
+
+    String title;
+    String message;
+
+    if (isRegionalForm) {
+      title = 'Forma Regional Detectada';
+      message = 'Este ID (${state.pokemonId}) corresponde a una forma regional o especial. '
+                'La Pokédex solo muestra Pokémon por defecto del 1 al 1025.';
+    } else if (isTooHigh) {
+      title = 'ID Fuera de Rango';
+      message = 'El ID ${state.pokemonId} está fuera del rango de Pokémon por defecto (1-1025). '
+                'Intenta con un ID entre 1 y 1025.';
+    } else {
+      title = 'ID Inválido';
+      message = state.message;
+    }
+
+    return ErrorView(
+      title: title,
+      message: message,
+      onRetry: () {}, // No se puede reintentar un ID inválido
+      onBack: () => Navigator.of(context).pop(),
+      showAppBar: false,
+      hideRetry: true, // Ocultar botón de reintentar para errores de validación
     );
   }
 }

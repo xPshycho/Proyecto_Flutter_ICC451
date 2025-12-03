@@ -8,6 +8,7 @@ import '../services/pokemon_mapper_service.dart';
 import '../services/data_services.dart';
 import '../../core/constants/pokemon_constants.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/pokemon_validation_utils.dart';
 
 class PokemonRepository {
   final GraphQLClient client;
@@ -88,6 +89,9 @@ class PokemonRepository {
   /// Obtiene detalles completos de un Pokémon
   Future<Pokemon> fetchPokemonDetail(int id) async {
     await _ensureTestsRun();
+
+    // Validación adicional en repository como safety layer
+    PokemonValidationUtils.validateDefaultPokemon(id);
 
     // Verificar caché
     final cached = _detailsCache.get(id);

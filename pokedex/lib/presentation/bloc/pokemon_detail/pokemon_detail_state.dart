@@ -34,14 +34,16 @@ class PokemonDetailError extends PokemonDetailState {
   final String message;
   final int pokemonId;
   final bool isRegionalForm;
+  final bool isInvalidId;
 
   const PokemonDetailError({
     required this.message,
     required this.pokemonId,
     this.isRegionalForm = false,
+    this.isInvalidId = false,
   });
 
   @override
-  List<Object?> get props => [message, pokemonId, isRegionalForm];
+  List<Object?> get props => [message, pokemonId, isRegionalForm, isInvalidId];
 }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/repositories/pokemon_repository.dart';
+import '../../../core/utils/pokemon_validation_utils.dart';
+import '../../../core/exceptions/invalid_pokemon_id_exception.dart';
 import 'pokemon_detail_event.dart';
 import 'pokemon_detail_state.dart';
 
@@ -23,9 +25,21 @@ class PokemonDetailBloc extends Bloc<PokemonDetailEvent, PokemonDetailState> {
     try {
       emit(const PokemonDetailLoading());
 
+      // Validar que el ID sea un Pokémon por defecto
+      PokemonValidationUtils.validateDefaultPokemon(event.pokemonId);
+
       final pokemon = await repository.fetchPokemonDetail(event.pokemonId);
 
       emit(PokemonDetailLoaded(pokemon));
+    } on InvalidPokemonIdException catch (e) {
+      debugPrint('Invalid Pokemon ID: ${e.toString()}');
+
+      emit(PokemonDetailError(
+        message: e.reason,
+        pokemonId: event.pokemonId,
+        isRegionalForm: e.isRegionalForm,
+        isInvalidId: true,
+      ));
     } catch (e) {
       debugPrint('Error loading pokemon detail: $e');
 
@@ -55,12 +69,24 @@ class PokemonDetailBloc extends Bloc<PokemonDetailEvent, PokemonDetailState> {
     try {
       emit(const PokemonDetailLoading());
 
+      // Validar que el ID sea un Pokémon por defecto antes de limpiar caché
+      PokemonValidationUtils.validateDefaultPokemon(event.pokemonId);
+
       // Limpiar caché antes de reintentar
       await repository.clearGraphQLCache();
 
       final pokemon = await repository.fetchPokemonDetail(event.pokemonId);
 
       emit(PokemonDetailLoaded(pokemon));
+    } on InvalidPokemonIdException catch (e) {
+      debugPrint('Invalid Pokemon ID on retry: ${e.toString()}');
+
+      emit(PokemonDetailError(
+        message: e.reason,
+        pokemonId: event.pokemonId,
+        isRegionalForm: e.isRegionalForm,
+        isInvalidId: true,
+      ));
     } catch (e) {
       debugPrint('Error retrying pokemon detail: $e');
 
