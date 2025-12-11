@@ -39,7 +39,7 @@ class HomePage extends StatelessWidget {
                 // Botón Pokedex (rojo)
                 RetroMenuButton(
                   label: 'Pokedex',
-                  iconAsset: 'assets/icons/pokeaball.svg',
+                  iconAsset: 'assets/icons/pokeball.svg',
                   iconSize: 400,
                   iconRotation: -10,
                   iconOffsetX: 140,

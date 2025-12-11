@@ -268,7 +268,7 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
                   BlendMode.srcIn,
                 ),
                 child: SvgPicture.asset(
-                  'assets/icons/pokeaball.svg',
+                  'assets/icons/pokeball.svg',
                   width: AppConstants.pokeballSize,
                   height: AppConstants.pokeballSize,
                   fit: BoxFit.contain,
