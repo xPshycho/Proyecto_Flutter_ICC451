@@ -111,6 +111,7 @@ flutter:
     - assets/images/starters/
     - assets/images/backgrounds/
     - assets/images/backgrounds/card/
+    - assets/images/trophies/
     - assets/lottie/
 
   #   - images/a_dot_burr.jpeg
