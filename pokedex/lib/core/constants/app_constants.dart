@@ -24,6 +24,10 @@ class AppConstants {
   static const double pokeballSize = 240.0;
   static const double pokeballOpacity = 1;
 
+  // Tamaño / opacidad del pikachu de fondo
+  static const double pikachuSize = 290.0;
+  static const double pikachuOpacity = 0.25;
+
   // Botón Pokedex
   static const double pokedexButtonIconSize = 20.0;
   static const double pokedexButtonFontSize = 16.0;

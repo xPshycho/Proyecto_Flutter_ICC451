@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../core/constants/app_constants.dart';
+import 'home_page.dart';
 
-/// Página del Quiz de Pokémon
-/// Juego de adivinar Pokémon con sistema de modos y logros
+/// Página del Quiz de Pokémon - Juego de adivinar Pokémon
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
 
@@ -10,54 +12,120 @@ class QuizPage extends StatefulWidget {
 }
 
 class _QuizPageState extends State<QuizPage> {
-  // Modalidad seleccionada por el usuario
   String _selectedMode = 'Silueta';
+
+  void _onHomePressed() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomePage()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1F1F1F),
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.home_rounded, color: Colors.white70, size: 28),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text(
-          "Poke Quiz",
-          style: TextStyle(
-            fontFamily: 'Pixelated',
-            fontSize: 20,
-            color: Color(0xFF46FC2A),
-            letterSpacing: 2.0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          _buildPikachuBackground(),
+          _buildMainContent(),
+        ],
+      ),
+    );
+  }
+
+  /// Pikachu silueta estática de fondo
+  Widget _buildPikachuBackground() {
+    return Positioned(
+      top: -AppConstants.pikachuSize / 2 + 80,
+      left: MediaQuery.of(context).size.width - AppConstants.pikachuSize / 2 - 50,
+      child: Opacity(
+        opacity: 0.25,
+        child: ColorFiltered(
+          colorFilter: const ColorFilter.mode(
+            Color(0xFF424242),
+            BlendMode.srcIn,
+          ),
+          child: SvgPicture.asset(
+            'assets/icons/pikachu_2d.svg',
+            width: AppConstants.pikachuSize,
+            height: AppConstants.pikachuSize,
+            fit: BoxFit.contain,
           ),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                _buildHallOfFame(),
-                const SizedBox(height: 16),
-                _buildAchievementsButton(),
-                const SizedBox(height: 16),
-                _buildModeSelection(),
-                const SizedBox(height: 24),
-                _buildPlayButton(),
-                const SizedBox(height: 20),
-              ],
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildQuizButton(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildHallOfFame(),
+                    const SizedBox(height: 16),
+                    _buildAchievementsButton(),
+                    const SizedBox(height: 16),
+                    _buildModeSelection(),
+                    const SizedBox(height: 24),
+                    _buildPlayButton(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Botón superior estilo pokedex_page
+  Widget _buildQuizButton() {
+    return Row(
+      children: [
+        IconButton(
+          onPressed: _onHomePressed,
+          icon: const Icon(Icons.home_rounded),
+          iconSize: AppConstants.pokedexButtonIconSize,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+        ),
+        Expanded(
+          child: Center(
+            child: TextButton.icon(
+              onPressed: () {
+                // Futuro: menú de opciones del quiz
+              },
+              icon: const Icon(
+                Icons.quiz_outlined,
+                size: AppConstants.pokedexButtonIconSize,
+                color: Color(0xFF4FC43C),
+              ),
+              label: const Text(
+                'Poke Quiz',
+                style: TextStyle(
+                    fontSize: AppConstants.pokedexButtonFontSize,
+                    color: Color(0xFF4FC43C),
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              ),
             ),
           ),
         ),
-      ),
+        const SizedBox(width: AppConstants.pokedexButtonIconSize),
+      ],
     );
   }
 
@@ -214,7 +282,6 @@ class _QuizPageState extends State<QuizPage> {
   Widget _buildAchievementsButton() {
     return InkWell(
       onTap: () {
-        // Navegación futura a página de logros
         print("Abriendo logros...");
       },
       borderRadius: BorderRadius.circular(14),
@@ -383,7 +450,6 @@ class _QuizPageState extends State<QuizPage> {
         ),
         onPressed: () {
           print("Iniciando juego en modo: $_selectedMode");
-          // Lógica para iniciar el juego
         },
         child: Ink(
           decoration: BoxDecoration(
