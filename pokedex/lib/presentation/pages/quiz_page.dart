@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Página del Quiz de Pokémon
-/// Permite al usuario seleccionar modalidad de juego y ver el salón de la fama
+/// Juego de adivinar Pokémon con sistema de modos y logros
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
 
@@ -16,37 +16,45 @@ class _QuizPageState extends State<QuizPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF1F1F1F),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.home_rounded, color: Colors.white70, size: 28),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: const Text(
           "Poke Quiz",
           style: TextStyle(
             fontFamily: 'Pixelated',
             fontSize: 20,
             color: Color(0xFF46FC2A),
-            shadows: [
-              Shadow(color: Colors.black, blurRadius: 4, offset: Offset(2, 2))
-            ],
+            letterSpacing: 2.0,
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
-          child: Column(
-            children: [
-              _buildHallOfFame(),
-              const SizedBox(height: 20),
-              _buildAchievementsButton(),
-              const SizedBox(height: 20),
-              _buildModeSelection(),
-              const SizedBox(height: 30),
-              _buildPlayButton(),
-              const SizedBox(height: 30),
-            ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                _buildHallOfFame(),
+                const SizedBox(height: 16),
+                _buildAchievementsButton(),
+                const SizedBox(height: 16),
+                _buildModeSelection(),
+                const SizedBox(height: 24),
+                _buildPlayButton(),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -57,9 +65,9 @@ class _QuizPageState extends State<QuizPage> {
   Widget _buildHallOfFame() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -76,12 +84,13 @@ class _QuizPageState extends State<QuizPage> {
             "Salón de la Fama",
             style: TextStyle(
               fontFamily: 'Pixelated',
-              fontSize: 20  ,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black,
+              letterSpacing: 1.5,
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 12),
           _buildRankRow(
               rank: 1,
               name: "Ash",
@@ -129,47 +138,48 @@ class _QuizPageState extends State<QuizPage> {
     }
 
     final decoration = BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       gradient: LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
         colors: [
           gradientColor,
-          Color(0xFF323232),
+          const Color(0xFF323232),
         ],
-        stops: [0.0, 0.25],
+        stops: const [0.0, 0.25],
       ),
     );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      height: 45,
+      margin: const EdgeInsets.only(bottom: 7),
+      height: 40,
       decoration: decoration,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 10.0),
         child: Row(
           children: [
             SizedBox(
-              width: 30,
+              width: 28,
               child: trophyAsset != null
-                  ? Image.asset(trophyAsset, width: 24, height: 24)
+                  ? Image.asset(trophyAsset, width: 22, height: 22)
                   : Text(
                 "$rank.",
                 style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 16,
                 ),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 80,
               child: Text(
                 name,
                 style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -178,12 +188,11 @@ class _QuizPageState extends State<QuizPage> {
               style: const TextStyle(
                 fontFamily: 'Pixelated',
                 color: Colors.white70,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(width: 15),
-            SizedBox(
-              width: 60,
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
                 score,
                 textAlign: TextAlign.right,
@@ -191,7 +200,7 @@ class _QuizPageState extends State<QuizPage> {
                   fontFamily: 'Pixelated',
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -203,47 +212,56 @@ class _QuizPageState extends State<QuizPage> {
 
   /// Construye el botón de logros con contador
   Widget _buildAchievementsButton() {
-    return Container(
-      width: double.infinity,
-      height: 70,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7D64B7), Color(0xFF40335E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return InkWell(
+      onTap: () {
+        // Navegación futura a página de logros
+        print("Abriendo logros...");
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B71C7), Color(0xFF4D3E71)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-      ),
-      child: Stack(
-        children: const [
-          Align(
-            alignment: Alignment.center,
-            child: Padding(
-              padding: EdgeInsets.only(left: 20.0),
-              child: Text(
-                "Logros",
-                style: TextStyle(
-                    fontFamily: 'Pixelated',
-                    fontSize: 22,
-                    color: Colors.white,
-                    shadows: [Shadow(offset: Offset(2, 2), color: Colors.black26)]
+        child: Stack(
+          children: const [
+            Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: EdgeInsets.only(left: 16.0),
+                child: Text(
+                  "Logros",
+                  style: TextStyle(
+                      fontFamily: 'Pixelated',
+                      fontSize: 19,
+                      color: Colors.white,
+                      letterSpacing: 2.0,
+                      shadows: [Shadow(offset: Offset(4, 4), color: Colors.black26)]
+                  ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            top: 8,
-            right: 12,
-            child: Text(
-              "0/99",
-              style: TextStyle(
-                fontFamily: 'Pixelated',
-                fontSize: 16,
-                color: Colors.white,
+            Positioned(
+              top: 6,
+              right: 10,
+              child: Text(
+                "0/99",
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  fontSize: 14,
+                  color: Colors.white70,
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -252,33 +270,32 @@ class _QuizPageState extends State<QuizPage> {
   Widget _buildModeSelection() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF7D64B7),
-            Color(0xFF5F4D8C),
-            Color(0xFF4E3E71),
-            Color(0xFF40335E),
-            Color(0xFF372C51)
+            Color(0xFF8B71C7),
+            Color(0xFF6B5799),
+            Color(0xFF574684),
+            Color(0xFF4D3E71),
+            Color(0xFF3E3260)
           ],
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Align(
-            child: Text(
-              "Modalidad",
-              style: TextStyle(
-                fontFamily: 'Pixelated',
-                fontSize: 24,
-                color: Color(0xFFFF9B47),
-                shadows: [Shadow(offset: Offset(2, 2), color: Colors.black38)]
-              ),
+          const Text(
+            "Modalidad",
+            style: TextStyle(
+              fontFamily: 'Pixelated',
+              fontSize: 20,
+              color: Color(0xFFFF9B47),
+              letterSpacing: 2.0,
+              shadows: [Shadow(offset: Offset(4, 4), color: Colors.black38)]
             ),
           ),
           const SizedBox(height: 10),
@@ -302,21 +319,25 @@ class _QuizPageState extends State<QuizPage> {
         });
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        color: Colors.transparent,
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+        ),
         child: Row(
           children: [
             Container(
-              width: 20,
-              height: 20,
+              width: 18,
+              height: 18,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
               child: Center(
                 child: Container(
-                  width: 10,
-                  height: 10,
+                  width: 9,
+                  height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isSelected ? Colors.white : Colors.transparent,
@@ -327,10 +348,11 @@ class _QuizPageState extends State<QuizPage> {
             const SizedBox(width: 12),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Pixelated',
-                color: Colors.white,
-                fontSize: 18,
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             const Spacer(),
@@ -338,8 +360,8 @@ class _QuizPageState extends State<QuizPage> {
               multiplier,
               style: const TextStyle(
                 fontFamily: 'Pixelated',
-                color: Colors.white70,
-                fontSize: 16,
+                color: Colors.white60,
+                fontSize: 14,
               ),
             ),
           ],
@@ -352,22 +374,29 @@ class _QuizPageState extends State<QuizPage> {
   Widget _buildPlayButton() {
     return SizedBox(
       width: double.infinity,
-      height: 60,
+      height: 56,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          elevation: 8,
         ),
         onPressed: () {
           print("Iniciando juego en modo: $_selectedMode");
+          // Lógica para iniciar el juego
         },
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             gradient: const LinearGradient(
-              colors: [Color(0xFF46FC2A), Color(0xFF256215)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight  ,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF63BC5A),
+                Color(0xFF2C7125),
+                Color(0xFF175311),
+              ],
+              stops: [0.0, 0.5, 1.0],
             ),
           ),
           child: const Center(
@@ -375,9 +404,12 @@ class _QuizPageState extends State<QuizPage> {
               "Jugar",
               style: TextStyle(
                   fontFamily: 'Pixelated',
-                  fontSize: 28,
+                  fontSize: 24,
                   color: Colors.white,
-                  shadows: [Shadow(offset: Offset(2,2), color: Colors.black54)]
+                  letterSpacing: 3.0,
+                  shadows: [
+                    Shadow(offset: Offset(4, 4), color: Colors.black45),
+                  ]
               ),
             ),
           ),
@@ -386,4 +418,3 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 }
-
