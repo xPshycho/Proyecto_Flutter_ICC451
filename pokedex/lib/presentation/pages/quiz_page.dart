@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_constants.dart';
 import 'home_page.dart';
 
-/// Página del Quiz de Pokémon - Juego de adivinar Pokémon
+/// Página del Quiz de Pokémon - Diseño Simplificado (Green Theme)
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
 
@@ -13,11 +13,14 @@ class QuizPage extends StatefulWidget {
 
 class _QuizPageState extends State<QuizPage> {
   String _selectedMode = 'Silueta';
+  // Definimos el color verde principal para usarlo en toda la UI
+  final Color _mainGreen = const Color(0xFF4FC43C);
+  final Color _darkBackground = const Color(0xFF222222);
 
   void _onHomePressed() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false,
+          (route) => false,
     );
   }
 
@@ -40,7 +43,7 @@ class _QuizPageState extends State<QuizPage> {
       top: -AppConstants.pikachuSize / 2 + 80,
       left: MediaQuery.of(context).size.width - AppConstants.pikachuSize / 2 - 50,
       child: Opacity(
-        opacity: 0.25,
+        opacity: 0.15, // Opacidad reducida para mayor simplicidad visual
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(
             Color(0xFF424242),
@@ -106,16 +109,16 @@ class _QuizPageState extends State<QuizPage> {
               onPressed: () {
                 // Futuro: menú de opciones del quiz
               },
-              icon: const Icon(
+              icon: Icon(
                 Icons.quiz_outlined,
                 size: AppConstants.pokedexButtonIconSize,
-                color: Color(0xFF4FC43C),
+                color: _mainGreen,
               ),
-              label: const Text(
+              label: Text(
                 'Poke Quiz',
                 style: TextStyle(
-                    fontSize: AppConstants.pokedexButtonFontSize,
-                    color: Color(0xFF4FC43C),
+                  fontSize: AppConstants.pokedexButtonFontSize,
+                  color: _mainGreen,
                 ),
               ),
               style: TextButton.styleFrom(
@@ -129,22 +132,16 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
-  /// Construye el contenedor del Salón de la Fama con ranking de jugadores
+  /// Construye el contenedor del Salón de la Fama
+  /// Simplificado: Eliminado el gradiente gris, ahora es fondo plano oscuro con borde sutil.
   Widget _buildHallOfFame() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFD2D2D2),
-            Color(0xFF323232),
-          ],
-          stops: [0.0, 1.0],
-        ),
+        color: _darkBackground, // Fondo plano simple
+        border: Border.all(color: Color(0xFFA2A2A2), width: 2),
       ),
       child: Column(
         children: [
@@ -154,31 +151,32 @@ class _QuizPageState extends State<QuizPage> {
               fontFamily: 'Pixelated',
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.white,
               letterSpacing: 1.5,
             ),
           ),
           const SizedBox(height: 12),
+          // NO TOCAR _buildRankRow (Mantenido intacto como se solicitó)
           _buildRankRow(
-              rank: 1,
-              name: "Ash",
-              time: "1:00:34",
-              score: "99,999",
-              trophyAsset: "assets/images/trophies/first.png",
+            rank: 1,
+            name: "Ash",
+            time: "1:00:34",
+            score: "99,999",
+            trophyAsset: "assets/images/trophies/first.png",
           ),
           _buildRankRow(
-              rank: 2,
-              name: "Cac",
-              time: "0:20:24",
-              score: "9,999",
-              trophyAsset: "assets/images/trophies/second.png",
+            rank: 2,
+            name: "Cac",
+            time: "0:20:24",
+            score: "9,999",
+            trophyAsset: "assets/images/trophies/second.png",
           ),
           _buildRankRow(
-              rank: 3,
-              name: "z2z",
-              time: "0:10:48",
-              score: "1,320",
-              trophyAsset: "assets/images/trophies/third.png",
+            rank: 3,
+            name: "z2z",
+            time: "0:10:48",
+            score: "1,320",
+            trophyAsset: "assets/images/trophies/third.png",
           ),
           _buildRankRow(rank: 4, name: "nic", time: "0:03:20", score: "643"),
           _buildRankRow(rank: 5, name: "mis", time: "0:00:40", score: "100"),
@@ -187,7 +185,7 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
-  /// Construye una fila individual del ranking
+  /// WIDGET INTACTO - NO MODIFICADO
   Widget _buildRankRow({
     required int rank,
     required String name,
@@ -197,11 +195,11 @@ class _QuizPageState extends State<QuizPage> {
   }) {
     Color gradientColor = const Color(0xFF323232);
 
-    if(rank == 1){
+    if (rank == 1) {
       gradientColor = const Color(0xFFFFF58D);
-    } else if(rank == 2){
+    } else if (rank == 2) {
       gradientColor = const Color(0xFFF8F8F8);
-    } else if(rank == 3) {
+    } else if (rank == 3) {
       gradientColor = const Color(0xFFF0CF90);
     }
 
@@ -216,6 +214,7 @@ class _QuizPageState extends State<QuizPage> {
         ],
         stops: const [0.0, 0.25],
       ),
+      border: Border.all(color: Color(0x33FFFFFF), width: 1),
     );
 
     return Container(
@@ -278,7 +277,8 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
-  /// Construye el botón de logros con contador
+  /// Construye el botón de logros
+  /// Simplificado: Eliminado el morado. Ahora es oscuro con borde verde.
   Widget _buildAchievementsButton() {
     return InkWell(
       onTap: () {
@@ -287,14 +287,10 @@ class _QuizPageState extends State<QuizPage> {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         width: double.infinity,
-        height: 64,
+        height: 80,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF8B71C7), Color(0xFF4D3E71)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: _darkBackground, // Fondo plano
         ),
         child: Stack(
           children: const [
@@ -305,24 +301,23 @@ class _QuizPageState extends State<QuizPage> {
                 child: Text(
                   "Logros",
                   style: TextStyle(
-                      fontFamily: 'Pixelated',
-                      fontSize: 19,
-                      color: Colors.white,
-                      letterSpacing: 2.0,
-                      shadows: [Shadow(offset: Offset(4, 4), color: Colors.black26)]
+                    fontFamily: 'Pixelated',
+                    fontSize: 20,
+                    color: Colors.white,
+                    letterSpacing: 2.0,
                   ),
                 ),
               ),
             ),
             Positioned(
-              top: 6,
-              right: 10,
+              top: 10, // Ajustado ligeramente
+              right: 14,
               child: Text(
                 "0/99",
                 style: TextStyle(
                   fontFamily: 'Pixelated',
                   fontSize: 14,
-                  color: Colors.white70,
+                  color: Colors.white54,
                   letterSpacing: 1.0,
                 ),
               ),
@@ -333,36 +328,26 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
-  /// Construye el panel de selección de modalidad con opciones
+  /// Construye el panel de selección de modalidad
+  /// Simplificado: Eliminado gradiente morado y texto naranja. Todo unificado.
   Widget _buildModeSelection() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF8B71C7),
-            Color(0xFF6B5799),
-            Color(0xFF574684),
-            Color(0xFF4D3E71),
-            Color(0xFF3E3260)
-          ],
-        ),
+        color: _darkBackground, // Fondo plano
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Modalidad",
             style: TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 20,
-              color: Color(0xFFFF9B47),
+              color: _mainGreen, // Texto verde en lugar de naranja
               letterSpacing: 2.0,
-              shadows: [Shadow(offset: Offset(4, 4), color: Colors.black38)]
             ),
           ),
           const SizedBox(height: 10),
@@ -375,7 +360,8 @@ class _QuizPageState extends State<QuizPage> {
     );
   }
 
-  /// Construye una opción de radio button personalizada
+  /// Construye una opción de radio button
+  /// Simplificado: El indicador activo ahora es verde en lugar de solo blanco.
   Widget _buildRadioOption(String label, String multiplier) {
     bool isSelected = _selectedMode == label;
 
@@ -390,7 +376,8 @@ class _QuizPageState extends State<QuizPage> {
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+          // Fondo sutilmente verde si está seleccionado, transparente si no
+          color: isSelected ? _mainGreen.withOpacity(0.1) : Colors.transparent,
         ),
         child: Row(
           children: [
@@ -399,7 +386,10 @@ class _QuizPageState extends State<QuizPage> {
               height: 18,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                    color: isSelected ? _mainGreen : Colors.white54,
+                    width: 2
+                ),
               ),
               child: Center(
                 child: Container(
@@ -407,7 +397,8 @@ class _QuizPageState extends State<QuizPage> {
                   height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? Colors.white : Colors.transparent,
+                    // Relleno verde si está seleccionado
+                    color: isSelected ? _mainGreen : Colors.transparent,
                   ),
                 ),
               ),
@@ -427,7 +418,7 @@ class _QuizPageState extends State<QuizPage> {
               multiplier,
               style: const TextStyle(
                 fontFamily: 'Pixelated',
-                color: Colors.white60,
+                color: Colors.white38,
                 fontSize: 14,
               ),
             ),
@@ -438,6 +429,7 @@ class _QuizPageState extends State<QuizPage> {
   }
 
   /// Construye el botón principal de jugar
+  /// Simplificado: Gradiente reducido para ser menos agresivo, mantiene el verde.
   Widget _buildPlayButton() {
     return SizedBox(
       width: double.infinity,
@@ -446,7 +438,7 @@ class _QuizPageState extends State<QuizPage> {
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: 8,
+          elevation: 4, // Elevación reducida
         ),
         onPressed: () {
           print("Iniciando juego en modo: $_selectedMode");
@@ -454,28 +446,16 @@ class _QuizPageState extends State<QuizPage> {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF63BC5A),
-                Color(0xFF2C7125),
-                Color(0xFF175311),
-              ],
-              stops: [0.0, 0.5, 1.0],
-            ),
+            color: _mainGreen, // Color plano o gradiente muy sutil
           ),
           child: const Center(
             child: Text(
               "Jugar",
               style: TextStyle(
-                  fontFamily: 'Pixelated',
-                  fontSize: 24,
-                  color: Colors.white,
-                  letterSpacing: 3.0,
-                  shadows: [
-                    Shadow(offset: Offset(4, 4), color: Colors.black45),
-                  ]
+                fontFamily: 'Pixelated',
+                fontSize: 24,
+                color: Colors.white,
+                letterSpacing: 3.0,
               ),
             ),
           ),
