@@ -4,14 +4,14 @@ import '../../core/constants/app_constants.dart';
 import 'home_page.dart';
 
 /// Página del Quiz de Pokémon - Diseño Simplificado (Green Theme)
-class QuizPage extends StatefulWidget {
-  const QuizPage({super.key});
+class QuizHomePage extends StatefulWidget {
+  const QuizHomePage({super.key});
 
   @override
-  State<QuizPage> createState() => _QuizPageState();
+  State<QuizHomePage> createState() => _QuizHomePageState();
 }
 
-class _QuizPageState extends State<QuizPage> {
+class _QuizHomePageState extends State<QuizHomePage> {
   String _selectedMode = 'Silueta';
   // Definimos el color verde principal para usarlo en toda la UI
   final Color _mainGreen = const Color(0xFF4FC43C);

@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'pokedex_page.dart';
 import 'map_page.dart';
-import 'quiz_page.dart';
+import 'quiz_home_page.dart';
 
 /// Página principal con menú de navegación
 ///
@@ -89,7 +89,7 @@ class HomePage extends StatelessWidget {
                   shadowColor: const Color(0xFF256215),
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const QuizPage()),
+                      MaterialPageRoute(builder: (_) => const QuizHomePage()),
                     );
                   },
                 ),
