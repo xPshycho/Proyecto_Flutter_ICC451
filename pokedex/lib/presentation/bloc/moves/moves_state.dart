@@ -132,3 +132,4 @@ class MovesError extends MovesState {
   @override
   List<Object?> get props => [message];
 }
+

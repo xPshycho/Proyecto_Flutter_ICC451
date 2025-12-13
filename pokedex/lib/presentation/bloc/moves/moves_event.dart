@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../../data/models/pokemon_move.dart';
 
 abstract class MovesEvent extends Equatable {
   const MovesEvent();

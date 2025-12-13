@@ -119,37 +119,30 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
           ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: const Text(
-                      'Lista de movimientos',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (_isExpanded) ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
-                      onPressed: _toggleFilters,
-                      iconSize: 18,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    ),
-                  ],
-                ],
+              child: Text(
+                'Lista de movimientos',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (_isExpanded) ...[
+              IconButton(
+                icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+                onPressed: _toggleFilters,
+                iconSize: 16,
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                tooltip: _showFilters ? 'Ocultar filtros' : 'Mostrar filtros',
+              ),
+            ],
             Icon(
               _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              size: 24,
+              size: 20,
             ),
           ],
         ),
@@ -351,7 +344,7 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -368,7 +361,7 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
