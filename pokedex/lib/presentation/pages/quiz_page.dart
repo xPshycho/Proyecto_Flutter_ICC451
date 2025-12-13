@@ -1,0 +1,287 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../data/models/quiz_mode.dart';
+import '../../data/repositories/pokemon_repository.dart';
+import '../../data/services/quiz_ranking_service.dart';
+import '../../data/services/audio_service.dart';
+import '../bloc/quiz/quiz_bloc.dart';
+import '../bloc/quiz/quiz_event.dart';
+import '../bloc/quiz/quiz_state.dart';
+import '../widgets/quiz_components/quiz_display_area.dart';
+import '../widgets/quiz_components/quiz_answer_options.dart';
+import '../widgets/quiz_components/quiz_stats_bar.dart';
+import '../widgets/quiz_components/quiz_game_over_dialog.dart';
+
+/// Página principal del quiz de Pokémon
+class QuizPage extends StatefulWidget {
+  final QuizMode mode;
+
+  const QuizPage({
+    super.key,
+    required this.mode,
+  });
+
+  @override
+  State<QuizPage> createState() => _QuizPageState();
+}
+
+class _QuizPageState extends State<QuizPage> {
+  final AudioService _audioService = AudioService();
+
+  @override
+  void dispose() {
+    _audioService.stopCry();
+    super.dispose();
+  }
+
+  void _showExitConfirmation() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF4FC43C), width: 2),
+          ),
+          title: const Text(
+            '¿Salir del Quiz?',
+            style: TextStyle(
+              fontFamily: 'Pixelated',
+              color: Colors.white,
+              fontSize: 18,
+            ),
+          ),
+          content: const Text(
+            'Perderás todo tu progreso',
+            style: TextStyle(
+              fontFamily: 'Pixelated',
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4FC43C),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Salir',
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => QuizBloc(
+        repository: RepositoryProvider.of<PokemonRepository>(context),
+        rankingService: QuizRankingService(),
+      )..add(StartQuiz(widget.mode)),
+      child: BlocConsumer<QuizBloc, QuizState>(
+        listener: (context, state) {
+          if (state is QuizFinished) {
+            _showGameOverDialog(context, state);
+          } else if (state is QuizPlaying && widget.mode == QuizMode.sound) {
+            // Reproducir cry automáticamente en modo sonido
+            _audioService.playCry(state.currentPokemon.id);
+          }
+        },
+        builder: (context, state) {
+          return PopScope(
+            canPop: state is! QuizPlaying,
+            onPopInvokedWithResult: (didPop, result) {
+              if (!didPop && state is QuizPlaying) {
+                _showExitConfirmation();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: SafeArea(
+                child: _buildBody(context, state),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, QuizState state) {
+    if (state is QuizLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4FC43C)),
+        ),
+      );
+    }
+
+    if (state is QuizError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Error',
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  fontSize: 24,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Pixelated',
+                  fontSize: 14,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4FC43C),
+                ),
+                child: const Text(
+                  'Volver',
+                  style: TextStyle(
+                    fontFamily: 'Pixelated',
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (state is QuizPlaying || state is QuizCorrectAnswer || state is QuizIncorrectAnswer) {
+      final playingState = state is QuizPlaying
+          ? state
+          : state is QuizCorrectAnswer
+              ? state.previousState
+              : (state as QuizIncorrectAnswer).previousState;
+
+      return Column(
+        children: [
+          // Barra superior con estadísticas
+          QuizStatsBar(
+            score: playingState.score,
+            multiplier: playingState.currentMultiplier,
+            remainingTime: playingState.remainingTime,
+            consecutiveCorrect: playingState.consecutiveCorrect,
+            onExitPressed: _showExitConfirmation,
+          ),
+
+          const SizedBox(height: 16),
+
+          // Área de visualización del atributo
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: QuizDisplayArea(
+                mode: widget.mode,
+                pokemon: playingState.currentPokemon,
+                onSoundPlay: () => _audioService.playCry(playingState.currentPokemon.id),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Opciones de respuesta
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: QuizAnswerOptions(
+                options: playingState.options,
+                correctPokemonId: playingState.currentPokemon.id,
+                showResult: state is QuizCorrectAnswer || state is QuizIncorrectAnswer,
+                selectedPokemonId: state is QuizCorrectAnswer || state is QuizIncorrectAnswer
+                    ? playingState.currentPokemon.id
+                    : null,
+                onAnswerSelected: (pokemonId) {
+                  context.read<QuizBloc>().add(AnswerSelected(pokemonId));
+                },
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  void _showGameOverDialog(BuildContext context, QuizFinished state) {
+    _audioService.stopCry();
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => QuizGameOverDialog(
+          mode: state.mode,
+          finalScore: state.finalScore,
+          totalTime: state.totalTime,
+          totalQuestions: state.totalQuestions,
+          correctAnswers: state.correctAnswers,
+          incorrectAnswers: state.incorrectAnswers,
+          enteredTop5: state.enteredTop5,
+          onSaveResult: (playerName) {
+            context.read<QuizBloc>().add(SaveQuizResult(playerName));
+          },
+          onClose: () {
+            Navigator.pop(dialogContext);
+            Navigator.pop(context);
+          },
+        ),
+      );
+    });
+  }
+}

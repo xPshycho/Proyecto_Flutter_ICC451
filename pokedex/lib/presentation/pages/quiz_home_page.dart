@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/models/quiz_mode.dart';
+import '../../data/models/quiz_ranking.dart';
+import '../../data/services/quiz_ranking_service.dart';
 import 'home_page.dart';
+import 'quiz_page.dart';
 
 /// Página del Quiz de Pokémon - Diseño Simplificado (Green Theme)
 class QuizHomePage extends StatefulWidget {
@@ -13,15 +17,43 @@ class QuizHomePage extends StatefulWidget {
 
 class _QuizHomePageState extends State<QuizHomePage> {
   String _selectedMode = 'Silueta';
-  // Definimos el color verde principal para usarlo en toda la UI
   final Color _mainGreen = const Color(0xFF4FC43C);
   final Color _darkBackground = const Color(0xFF222222);
+  final QuizRankingService _rankingService = QuizRankingService();
+  List<QuizRankingEntry> _rankings = [];
+  bool _isLoadingRankings = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRankings();
+  }
+
+  Future<void> _loadRankings() async {
+    final rankings = await _rankingService.getTop5();
+    setState(() {
+      _rankings = rankings;
+      _isLoadingRankings = false;
+    });
+  }
 
   void _onHomePressed() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomePage()),
-          (route) => false,
+      (route) => false,
     );
+  }
+
+  void _onPlayPressed() {
+    final mode = QuizMode.fromString(_selectedMode);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => QuizPage(mode: mode),
+      ),
+    ).then((_) {
+      // Recargar rankings cuando vuelva de la partida
+      _loadRankings();
+    });
   }
 
   @override
@@ -156,30 +188,44 @@ class _QuizHomePageState extends State<QuizHomePage> {
             ),
           ),
           const SizedBox(height: 12),
-          // NO TOCAR _buildRankRow (Mantenido intacto como se solicitó)
-          _buildRankRow(
-            rank: 1,
-            name: "Ash",
-            time: "1:00:34",
-            score: "99,999",
-            trophyAsset: "assets/images/trophies/first.png",
-          ),
-          _buildRankRow(
-            rank: 2,
-            name: "Cac",
-            time: "0:20:24",
-            score: "9,999",
-            trophyAsset: "assets/images/trophies/second.png",
-          ),
-          _buildRankRow(
-            rank: 3,
-            name: "z2z",
-            time: "0:10:48",
-            score: "1,320",
-            trophyAsset: "assets/images/trophies/third.png",
-          ),
-          _buildRankRow(rank: 4, name: "nic", time: "0:03:20", score: "643"),
-          _buildRankRow(rank: 5, name: "mis", time: "0:00:40", score: "100"),
+          if (_isLoadingRankings)
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4FC43C)),
+              ),
+            )
+          else if (_rankings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                'No hay registros aún.\n¡Sé el primero en jugar!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+            )
+          else
+            ..._rankings.asMap().entries.map((entry) {
+              final index = entry.key;
+              final ranking = entry.value;
+              return _buildRankRow(
+                rank: index + 1,
+                name: ranking.playerName,
+                time: ranking.formattedTime,
+                score: ranking.formattedScore,
+                trophyAsset: index == 0
+                    ? "assets/images/trophies/first.png"
+                    : index == 1
+                        ? "assets/images/trophies/second.png"
+                        : index == 2
+                            ? "assets/images/trophies/third.png"
+                            : null,
+              );
+            }),
         ],
       ),
     );
@@ -351,75 +397,68 @@ class _QuizHomePageState extends State<QuizHomePage> {
             ),
           ),
           const SizedBox(height: 10),
-          _buildRadioOption("Silueta", "x 1"),
-          _buildRadioOption("Descripción", "x 1.5"),
-          _buildRadioOption("Numero", "x 2"),
-          _buildRadioOption("Sonido", "x 3"),
+          _buildModeOption("Silueta", "x1.0", Icons.catching_pokemon),
+          _buildModeOption("Descripción", "x1.5", Icons.description),
+          _buildModeOption("Número", "x2.0", Icons.pin),
+          _buildModeOption("Sonido", "x3.0", Icons.volume_up),
         ],
       ),
     );
   }
 
-  /// Construye una opción de radio button
-  /// Simplificado: El indicador activo ahora es verde en lugar de solo blanco.
-  Widget _buildRadioOption(String label, String multiplier) {
-    bool isSelected = _selectedMode == label;
-
+  Widget _buildModeOption(String mode, String multiplier, IconData icon) {
+    final bool isSelected = _selectedMode == mode;
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedMode = label;
+          _selectedMode = mode;
         });
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          // Fondo sutilmente verde si está seleccionado, transparente si no
-          color: isSelected ? _mainGreen.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          color: isSelected ? _mainGreen : Colors.grey.shade800,
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.transparent,
+            width: 2,
+          ),
         ),
         child: Row(
           children: [
-            Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: isSelected ? _mainGreen : Colors.white54,
-                    width: 2
-                ),
-              ),
-              child: Center(
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // Relleno verde si está seleccionado
-                    color: isSelected ? _mainGreen : Colors.transparent,
-                  ),
-                ),
-              ),
+            Icon(
+              icon,
+              color: isSelected ? Colors.black : Colors.white70,
+              size: 20,
             ),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Pixelated',
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 16,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            Expanded(
+              child: Text(
+                mode,
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  fontSize: 16,
+                  color: isSelected ? Colors.black : Colors.white,
+                ),
               ),
             ),
-            const Spacer(),
-            Text(
-              multiplier,
-              style: const TextStyle(
-                fontFamily: 'Pixelated',
-                color: Colors.white38,
-                fontSize: 14,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : _mainGreen.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                multiplier,
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  fontSize: 14,
+                  color: isSelected ? Colors.black : _mainGreen,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -433,32 +472,32 @@ class _QuizHomePageState extends State<QuizHomePage> {
   Widget _buildPlayButton() {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: 60,
       child: ElevatedButton(
+        onPressed: _onPlayPressed,
         style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: 4, // Elevación reducida
-        ),
-        onPressed: () {
-          print("Iniciando juego en modo: $_selectedMode");
-        },
-        child: Ink(
-          decoration: BoxDecoration(
+          backgroundColor: _mainGreen,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            color: _mainGreen, // Color plano o gradiente muy sutil
           ),
-          child: const Center(
-            child: Text(
-              "Jugar",
+          elevation: 8,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.play_arrow_rounded, size: 32, color: Colors.black),
+            SizedBox(width: 8),
+            Text(
+              "JUGAR",
               style: TextStyle(
                 fontFamily: 'Pixelated',
                 fontSize: 24,
-                color: Colors.white,
-                letterSpacing: 3.0,
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2.0,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
