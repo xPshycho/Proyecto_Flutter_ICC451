@@ -8,7 +8,7 @@ import '../../../core/constants/pokemon_constants.dart';
 import '../../bloc/moves/moves_bloc.dart';
 import '../../bloc/moves/moves_event.dart';
 import '../../bloc/moves/moves_state.dart';
-import '../moves_filters_widget.dart';
+import '../inline_moves_filter_panel.dart';
 import '../moves_sort_widget.dart';
 
 enum MoveSortOption { nombre, poder, precision, pp }
@@ -90,6 +90,47 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
       _showFilters = !_showFilters;
     });
   }
+
+  void _applyFiltersFromMap(Map<String, dynamic> filterMap) {
+    final tipos = filterMap['tipos'] as List<String>?;
+    final metodos = filterMap['metodos'] as List<String>?;
+    // final categorias = filterMap['categorias'] as List<String>?; // TODO: Implementar filtrado por categoría de daño
+    // final soloConPoder = filterMap['soloConPoder'] as bool? ?? false; // TODO: Implementar filtrado por poder
+    // final soloSinPoder = filterMap['soloSinPoder'] as bool? ?? false; // TODO: Implementar filtrado sin poder
+
+    // Aplicar filtros al BLoC
+    context.read<MovesBloc>().add(ApplyMovesFilters(
+      types: tipos,
+      learnMethods: metodos,
+      versionGroups: null, // Por ahora no filtramos por versión
+    ));
+
+    // Cerrar el panel de filtros
+    setState(() {
+      _showFilters = false;
+    });
+  }
+
+  Map<String, dynamic> _buildInitialFilters() {
+    final state = context.read<MovesBloc>().state;
+    if (state is MovesLoaded) {
+      return {
+        'tipos': state.appliedTypes ?? [],
+        'metodos': state.appliedLearnMethods ?? [],
+        'categorias': [],
+        'soloConPoder': false,
+        'soloSinPoder': false,
+      };
+    }
+    return {
+      'tipos': [],
+      'metodos': [],
+      'categorias': [],
+      'soloConPoder': false,
+      'soloSinPoder': false,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -132,13 +173,14 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
             ),
             if (_isExpanded) ...[
               IconButton(
-                icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+                icon: const Icon(Icons.filter_alt_outlined),
                 onPressed: _toggleFilters,
-                iconSize: 16,
+                iconSize: 20,
                 padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                tooltip: _showFilters ? 'Ocultar filtros' : 'Mostrar filtros',
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                tooltip: 'Filtrar movimientos',
               ),
+              const SizedBox(width: 4),
             ],
             Icon(
               _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
@@ -197,28 +239,12 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
 
         return Column(
           children: [
+            // Panel de filtros ANTES de la lista
             if (_showFilters) ...[
-              MovesFiltersWidget(
-                selectedTypes: state.appliedTypes,
-                selectedLearnMethods: state.appliedLearnMethods,
-                selectedVersionGroups: state.appliedVersionGroups,
-                searchQuery: state.currentSearchQuery,
-                onFiltersChanged: (types, methods, versions) {
-                  context.read<MovesBloc>().add(ApplyMovesFilters(
-                    types: types,
-                    learnMethods: methods,
-                    versionGroups: versions,
-                  ));
-                },
-                onSearchChanged: (query) {
-                  context.read<MovesBloc>().add(SearchMoves(query));
-                },
-                onClearFilters: () {
-                  context.read<MovesBloc>().add(const ClearMovesFilters());
-                },
-              ),
+              _buildFiltersPanel(),
               const SizedBox(height: 16),
             ],
+            // Sort widget
             if (state.hasActiveFilters || state.currentSortBy != null) ...[
               MovesSortWidget(
                 currentSortBy: state.currentSortBy,
@@ -229,6 +255,7 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
               ),
               const SizedBox(height: 8),
             ],
+            // Lista de movimientos DESPUÉS del panel de filtros
             _buildMovesList(state),
           ],
         );
@@ -403,5 +430,14 @@ class _PokemonMovesetContentState extends State<PokemonMovesetContent> {
       if (move.versionGroup != null) 'Versión: ${move.versionGroupSpanish}',
     ];
     return parts.join('\n');
+  }
+
+  Widget _buildFiltersPanel() {
+    final initialFilters = _buildInitialFilters();
+
+    return InlineMovesFilterPanel(
+      onApplyFilters: (filters) => _applyFiltersFromMap(filters),
+      initialFilters: initialFilters,
+    );
   }
 }
