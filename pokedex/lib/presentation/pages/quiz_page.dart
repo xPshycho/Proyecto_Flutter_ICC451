@@ -159,6 +159,14 @@ class _QuizPageState extends State<QuizPage> {
 
       final showResult = state is QuizCorrectAnswer || state is QuizIncorrectAnswer;
 
+      // Determinar el cambio de tiempo para la animación
+      int? timeChange;
+      if (state is QuizCorrectAnswer) {
+        timeChange = 5; // +5 segundos
+      } else if (state is QuizIncorrectAnswer) {
+        timeChange = -5; // -5 segundos
+      }
+
       return Column(
         children: [
           // Barra superior con estadísticas
@@ -168,6 +176,7 @@ class _QuizPageState extends State<QuizPage> {
             remainingTime: playingState.remainingTime,
             consecutiveCorrect: playingState.consecutiveCorrect,
             onExitPressed: _showExitConfirmation,
+            timeChange: timeChange,
           ),
 
           const SizedBox(height: 16),
