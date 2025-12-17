@@ -360,6 +360,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
   @override
   Future<void> close() {
+
     _stopGameTimer();
     _loaderService.reset();
     return super.close();
