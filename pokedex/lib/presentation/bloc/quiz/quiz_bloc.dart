@@ -4,9 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/repositories/pokemon_repository.dart';
 import '../../../data/services/quiz_ranking_service.dart';
 import '../../../data/services/quiz_pokemon_loader_service.dart';
-import '../../../data/models/quiz_mode.dart';
+import '../../../data/services/achievement_service.dart';
 import '../../../data/models/quiz_ranking.dart';
-import '../../../data/models/pokemon.dart';
 import 'quiz_event.dart';
 import 'quiz_state.dart';
 
@@ -14,11 +13,16 @@ import 'quiz_state.dart';
 class QuizBloc extends Bloc<QuizEvent, QuizState> {
   final PokemonRepository repository;
   final QuizRankingService rankingService;
+  final AchievementService achievementService;
   late final QuizPokemonLoaderService _loaderService;
 
   Timer? _gameTimer;
   DateTime? _startTime;
   String? _playerName;
+
+  // Para tracking de logros
+  final List<int> _correctPokemonIdsThisGame = [];
+  int _maxStreakThisGame = 0;
 
   // Constantes del juego
   static const int initialTime = 30;
@@ -30,6 +34,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   QuizBloc({
     required this.repository,
     required this.rankingService,
+    required this.achievementService,
   }) : super(const QuizInitial()) {
     _loaderService = QuizPokemonLoaderService(repository);
 
@@ -158,6 +163,12 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         pointsEarned: pointsEarned,
       ));
 
+      // Tracking de logros - agregar ID y actualizar racha
+      _correctPokemonIdsThisGame.add(currentState.currentPokemon.id);
+      if (newConsecutive > _maxStreakThisGame) {
+        _maxStreakThisGame = newConsecutive;
+      }
+
       // Pequeña pausa antes de cargar la siguiente pregunta
       await Future.delayed(const Duration(milliseconds: 500));
 
@@ -239,6 +250,15 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     final totalTime = _startTime != null
         ? DateTime.now().difference(_startTime!)
         : Duration.zero;
+
+    // Actualizar logros
+    await achievementService.updateAfterGame(
+      correctAnswers: currentState.correctAnswers,
+      totalTime: totalTime.inSeconds,
+      maxStreak: _maxStreakThisGame,
+      mode: currentState.mode.displayName,
+      correctPokemonIds: _correctPokemonIdsThisGame,
+    );
 
     // Verificar si entra en el top 5
     final enteredTop5 = await rankingService.wouldEnterTop5(

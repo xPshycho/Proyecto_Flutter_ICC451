@@ -6,12 +6,14 @@ import '../../core/constants/app_constants.dart';
 import '../../data/models/quiz_mode.dart';
 import '../../data/models/quiz_ranking.dart';
 import '../../data/services/quiz_ranking_service.dart';
+import '../../data/services/achievement_service.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../bloc/quiz/quiz_bloc.dart';
 import '../bloc/quiz/quiz_event.dart';
 import '../bloc/quiz/quiz_state.dart';
 import 'home_page.dart';
 import 'quiz_page.dart';
+import 'achievements_page.dart';
 
 /// Página del Quiz de Pokémon - Diseño Simplificado (Green Theme)
 class QuizHomePage extends StatefulWidget {
@@ -26,6 +28,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
   final Color _mainGreen = const Color(0xFF4FC43C);
   final Color _darkBackground = const Color(0xFF222222);
   final QuizRankingService _rankingService = QuizRankingService();
+  final AchievementService _achievementService = AchievementService();
   List<QuizRankingEntry> _rankings = [];
   bool _isLoadingRankings = true;
 
@@ -33,6 +36,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
   void initState() {
     super.initState();
     _loadRankings();
+    _achievementService.initialize();
   }
 
   Future<void> _loadRankings() async {
@@ -84,16 +88,6 @@ class _QuizHomePageState extends State<QuizHomePage> {
                   size: 48,
                 ),
                 const SizedBox(height: 16),
-                // const Text(
-                //   '¿LISTO PARA JUGAR?',
-                //   style: TextStyle(
-                //     fontFamily: 'Pixelated',
-                //     fontSize: 20,
-                //     color: Color(0xFF4FC43C),
-                //     fontWeight: FontWeight.bold,
-                //   ),
-                // ),
-                // const SizedBox(height: 8),
                 const Text(
                   'Ingresa tu nombre de entrenador',
                   style: TextStyle(
@@ -124,7 +118,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
                     counterText: '',
                     hintText: 'ASH',
                     hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                     ),
                     filled: true,
                     fillColor: const Color(0xFF2A2A2A),
@@ -226,6 +220,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
           create: (context) => QuizBloc(
             repository: RepositoryProvider.of<PokemonRepository>(context),
             rankingService: _rankingService,
+            achievementService: _achievementService,
           )..add(InitializeQuiz(mode: mode, playerName: playerName)),
           child: QuizPage(mode: mode),
         ),
@@ -233,6 +228,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
     ).then((_) {
       // Recargar rankings cuando vuelva de la partida
       _loadRankings();
+      setState(() {}); // Refresh para actualizar el contador de logros
     });
   }
 
@@ -504,11 +500,18 @@ class _QuizHomePageState extends State<QuizHomePage> {
   }
 
   /// Construye el botón de logros
-  /// Simplificado: Eliminado el morado. Ahora es oscuro con borde verde.
   Widget _buildAchievementsButton() {
+    final stats = _achievementService.getStats();
+    final totalAchievements = 27;
+    final unlockedCount = stats['totalGamesPlayed']! > 0 ? 1 : 0;
+
     return InkWell(
       onTap: () {
-        print("Abriendo logros...");
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const AchievementsPage(),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(14),
       child: Container(
@@ -516,31 +519,42 @@ class _QuizHomePageState extends State<QuizHomePage> {
         height: 80,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: _darkBackground, // Fondo plano
+          color: _darkBackground,
+          border: Border.all(color: _mainGreen, width: 2),
         ),
         child: Stack(
-          children: const [
-            Align(
-              alignment: Alignment.center,
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
               child: Padding(
                 padding: EdgeInsets.only(left: 16.0),
-                child: Text(
-                  "Logros",
-                  style: TextStyle(
-                    fontFamily: 'Pixelated',
-                    fontSize: 20,
-                    color: Colors.white,
-                    letterSpacing: 2.0,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.emoji_events,
+                      color: Color(0xFF4FC43C),
+                      size: 24,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      "Logros",
+                      style: TextStyle(
+                        fontFamily: 'Pixelated',
+                        fontSize: 20,
+                        color: Colors.white,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
             Positioned(
-              top: 10, // Ajustado ligeramente
+              top: 10,
               right: 14,
               child: Text(
-                "0/99",
-                style: TextStyle(
+                "$unlockedCount/$totalAchievements",
+                style: const TextStyle(
                   fontFamily: 'Pixelated',
                   fontSize: 14,
                   color: Colors.white54,

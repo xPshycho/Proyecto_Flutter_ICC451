@@ -1,6 +1,6 @@
 # Poke Quiz - Implementación Completa y Optimizada
 
-## Optimizaciones Implementadas ✨
+## Optimizaciones Implementadas 
 
 ### Sistema de Precarga Optimizado
 - **Carga en Lotes:** Los Pokémon se cargan en grupos de 10 para evitar sobrecarga de memoria
