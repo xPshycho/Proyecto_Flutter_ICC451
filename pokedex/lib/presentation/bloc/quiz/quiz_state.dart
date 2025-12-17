@@ -20,16 +20,30 @@ class QuizLoading extends QuizState {
   const QuizLoading();
 }
 
+/// Estado listo para iniciar (después de precargar)
+class QuizReadyToStart extends QuizState {
+  final QuizMode mode;
+  final String playerName;
+
+  const QuizReadyToStart({
+    required this.mode,
+    required this.playerName,
+  });
+
+  @override
+  List<Object?> get props => [mode, playerName];
+}
+
 /// Estado de juego activo
 class QuizPlaying extends QuizState {
   final QuizMode mode;
+  final String playerName;
   final Pokemon currentPokemon;
   final List<Pokemon> options; // 4 opciones (1 correcta + 3 incorrectas)
   final int score;
   final int consecutiveCorrect;
   final double currentMultiplier;
   final int remainingTime; // en segundos
-  final Set<int> usedPokemonIds;
 
   // Estadísticas para futuros logros
   final int totalQuestions;
@@ -38,13 +52,13 @@ class QuizPlaying extends QuizState {
 
   const QuizPlaying({
     required this.mode,
+    required this.playerName,
     required this.currentPokemon,
     required this.options,
     required this.score,
     required this.consecutiveCorrect,
     required this.currentMultiplier,
     required this.remainingTime,
-    required this.usedPokemonIds,
     this.totalQuestions = 0,
     this.correctAnswers = 0,
     this.incorrectAnswers = 0,
@@ -57,20 +71,19 @@ class QuizPlaying extends QuizState {
     int? consecutiveCorrect,
     double? currentMultiplier,
     int? remainingTime,
-    Set<int>? usedPokemonIds,
     int? totalQuestions,
     int? correctAnswers,
     int? incorrectAnswers,
   }) {
     return QuizPlaying(
       mode: mode,
+      playerName: playerName,
       currentPokemon: currentPokemon ?? this.currentPokemon,
       options: options ?? this.options,
       score: score ?? this.score,
       consecutiveCorrect: consecutiveCorrect ?? this.consecutiveCorrect,
       currentMultiplier: currentMultiplier ?? this.currentMultiplier,
       remainingTime: remainingTime ?? this.remainingTime,
-      usedPokemonIds: usedPokemonIds ?? this.usedPokemonIds,
       totalQuestions: totalQuestions ?? this.totalQuestions,
       correctAnswers: correctAnswers ?? this.correctAnswers,
       incorrectAnswers: incorrectAnswers ?? this.incorrectAnswers,
@@ -80,13 +93,13 @@ class QuizPlaying extends QuizState {
   @override
   List<Object?> get props => [
         mode,
+        playerName,
         currentPokemon,
         options,
         score,
         consecutiveCorrect,
         currentMultiplier,
         remainingTime,
-        usedPokemonIds,
         totalQuestions,
         correctAnswers,
         incorrectAnswers,
@@ -124,6 +137,7 @@ class QuizIncorrectAnswer extends QuizState {
 /// Estado de finalización del quiz
 class QuizFinished extends QuizState {
   final QuizMode mode;
+  final String playerName;
   final int finalScore;
   final Duration totalTime;
   final int totalQuestions;
@@ -133,6 +147,7 @@ class QuizFinished extends QuizState {
 
   const QuizFinished({
     required this.mode,
+    required this.playerName,
     required this.finalScore,
     required this.totalTime,
     required this.totalQuestions,
@@ -144,6 +159,7 @@ class QuizFinished extends QuizState {
   @override
   List<Object?> get props => [
         mode,
+        playerName,
         finalScore,
         totalTime,
         totalQuestions,
@@ -162,4 +178,3 @@ class QuizError extends QuizState {
   @override
   List<Object?> get props => [message];
 }
-

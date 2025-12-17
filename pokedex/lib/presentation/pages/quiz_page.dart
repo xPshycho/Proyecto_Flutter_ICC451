@@ -2,8 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/quiz_mode.dart';
-import '../../data/repositories/pokemon_repository.dart';
-import '../../data/services/quiz_ranking_service.dart';
 import '../../data/services/audio_service.dart';
 import '../bloc/quiz/quiz_bloc.dart';
 import '../bloc/quiz/quiz_event.dart';
@@ -100,98 +98,48 @@ class _QuizPageState extends State<QuizPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => QuizBloc(
-        repository: RepositoryProvider.of<PokemonRepository>(context),
-        rankingService: QuizRankingService(),
-      )..add(StartQuiz(widget.mode)),
-      child: BlocConsumer<QuizBloc, QuizState>(
-        listener: (context, state) {
-          if (state is QuizFinished) {
-            _showGameOverDialog(context, state);
-          } else if (state is QuizPlaying && widget.mode == QuizMode.sound) {
-            // Reproducir cry automáticamente en modo sonido
-            _audioService.playCry(state.currentPokemon.id);
-          }
-        },
-        builder: (context, state) {
-          return PopScope(
-            canPop: state is! QuizPlaying,
-            onPopInvokedWithResult: (didPop, result) {
-              if (!didPop && state is QuizPlaying) {
-                _showExitConfirmation();
-              }
-            },
-            child: Scaffold(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: SafeArea(
-                child: _buildBody(context, state),
-              ),
+    return BlocConsumer<QuizBloc, QuizState>(
+      listener: (context, state) {
+        if (state is QuizFinished) {
+          _showGameOverDialog(context, state);
+        } else if (state is QuizPlaying && widget.mode == QuizMode.sound) {
+          // Reproducir cry automáticamente en modo sonido
+          _audioService.playCry(state.currentPokemon.id);
+        } else if (state is QuizReadyToStart) {
+          // Auto-iniciar cuando esté listo
+          context.read<QuizBloc>().add(StartQuiz(widget.mode));
+        }
+      },
+      builder: (context, state) {
+        return PopScope(
+          canPop: state is! QuizPlaying,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && state is QuizPlaying) {
+              _showExitConfirmation();
+            }
+          },
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SafeArea(
+              child: _buildBody(context, state),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildBody(BuildContext context, QuizState state) {
     if (state is QuizLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4FC43C)),
-        ),
-      );
+      return _buildLoadingScreen();
+    }
+
+    if (state is QuizReadyToStart) {
+      return _buildLoadingScreen(message: 'Preparando el quiz...');
     }
 
     if (state is QuizError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Error',
-                style: TextStyle(
-                  fontFamily: 'Pixelated',
-                  fontSize: 24,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                state.message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Pixelated',
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4FC43C),
-                ),
-                child: const Text(
-                  'Volver',
-                  style: TextStyle(
-                    fontFamily: 'Pixelated',
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorScreen(state);
     }
 
     if (state is QuizPlaying || state is QuizCorrectAnswer || state is QuizIncorrectAnswer) {
@@ -254,6 +202,88 @@ class _QuizPageState extends State<QuizPage> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildLoadingScreen({String? message}) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4FC43C)),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            message ?? 'Cargando Pokémon...',
+            style: const TextStyle(
+              fontFamily: 'Pixelated',
+              fontSize: 16,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Por favor espera',
+            style: TextStyle(
+              fontFamily: 'Pixelated',
+              fontSize: 12,
+              color: Colors.white54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorScreen(QuizError state) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Error',
+              style: TextStyle(
+                fontFamily: 'Pixelated',
+                fontSize: 24,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Pixelated',
+                fontSize: 14,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4FC43C),
+              ),
+              child: const Text(
+                'Volver',
+                style: TextStyle(
+                  fontFamily: 'Pixelated',
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showGameOverDialog(BuildContext context, QuizFinished state) {

@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/repositories/pokemon_repository.dart';
 import '../../../data/services/quiz_ranking_service.dart';
+import '../../../data/services/quiz_pokemon_loader_service.dart';
 import '../../../data/models/quiz_mode.dart';
 import '../../../data/models/quiz_ranking.dart';
 import '../../../data/models/pokemon.dart';
@@ -14,21 +14,25 @@ import 'quiz_state.dart';
 class QuizBloc extends Bloc<QuizEvent, QuizState> {
   final PokemonRepository repository;
   final QuizRankingService rankingService;
+  late final QuizPokemonLoaderService _loaderService;
 
   Timer? _gameTimer;
   DateTime? _startTime;
+  String? _playerName;
 
   // Constantes del juego
   static const int initialTime = 30;
   static const int timeBonus = 5;
   static const int basePoints = 10;
-  static const int maxPokemonId = 1025;
   static const int streakForBonus = 10;
 
   QuizBloc({
     required this.repository,
     required this.rankingService,
   }) : super(const QuizInitial()) {
+    _loaderService = QuizPokemonLoaderService(repository);
+
+    on<InitializeQuiz>(_onInitializeQuiz);
     on<StartQuiz>(_onStartQuiz);
     on<LoadNextQuestion>(_onLoadNextQuestion);
     on<AnswerSelected>(_onAnswerSelected);
@@ -38,12 +42,39 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     on<ResetQuiz>(_onResetQuiz);
   }
 
-  Future<void> _onStartQuiz(StartQuiz event, Emitter<QuizState> emit) async {
+  Future<void> _onInitializeQuiz(InitializeQuiz event, Emitter<QuizState> emit) async {
     try {
       emit(const QuizLoading());
 
+      // Guardar nombre del jugador
+      _playerName = event.playerName;
+
+      // Inicializar el servicio de carga
+      await _loaderService.initialize();
+
+      // Precargar el primer lote
+      await _loaderService.preloadInitialBatch();
+
+      emit(QuizReadyToStart(
+        mode: event.mode,
+        playerName: _playerName!,
+      ));
+    } catch (e) {
+      debugPrint('Error initializing quiz: $e');
+      emit(QuizError('Error al inicializar el quiz: $e'));
+    }
+  }
+
+  Future<void> _onStartQuiz(StartQuiz event, Emitter<QuizState> emit) async {
+    try {
+      final currentState = state;
+      if (currentState is! QuizReadyToStart) {
+        emit(const QuizError('El quiz no está listo para iniciar'));
+        return;
+      }
+
       _startTime = DateTime.now();
-      final questionData = await _loadQuestion(<int>{});
+      final questionData = await _loadQuestion();
 
       if (questionData == null) {
         emit(const QuizError('No se pudo cargar la pregunta inicial'));
@@ -52,13 +83,16 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
       emit(QuizPlaying(
         mode: event.mode,
+        playerName: _playerName!,
         currentPokemon: questionData['correct'],
         options: questionData['options'],
         score: 0,
         consecutiveCorrect: 0,
         currentMultiplier: event.mode.baseMultiplier,
         remainingTime: initialTime,
-        usedPokemonIds: {questionData['correct'].id},
+        totalQuestions: 0,
+        correctAnswers: 0,
+        incorrectAnswers: 0,
       ));
 
       // Iniciar el timer
@@ -77,20 +111,16 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     if (currentState is! QuizPlaying) return;
 
     try {
-      final questionData = await _loadQuestion(currentState.usedPokemonIds);
+      final questionData = await _loadQuestion();
 
       if (questionData == null) {
         emit(const QuizError('No se pudo cargar la siguiente pregunta'));
         return;
       }
 
-      final updatedUsedIds = Set<int>.from(currentState.usedPokemonIds)
-        ..add(questionData['correct'].id);
-
       emit(currentState.copyWith(
         currentPokemon: questionData['correct'],
         options: questionData['options'],
-        usedPokemonIds: updatedUsedIds,
       ));
     } catch (e) {
       debugPrint('Error loading next question: $e');
@@ -131,25 +161,22 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Cargar siguiente pregunta
-      final questionData = await _loadQuestion(currentState.usedPokemonIds);
+      final questionData = await _loadQuestion();
 
       if (questionData == null) {
         add(const EndQuiz());
         return;
       }
 
-      final updatedUsedIds = Set<int>.from(currentState.usedPokemonIds)
-        ..add(questionData['correct'].id);
-
       emit(QuizPlaying(
         mode: currentState.mode,
+        playerName: currentState.playerName,
         currentPokemon: questionData['correct'],
         options: questionData['options'],
         score: newScore,
         consecutiveCorrect: newConsecutive,
         currentMultiplier: newMultiplier,
         remainingTime: newTime,
-        usedPokemonIds: updatedUsedIds,
         totalQuestions: currentState.totalQuestions + 1,
         correctAnswers: currentState.correctAnswers + 1,
         incorrectAnswers: currentState.incorrectAnswers,
@@ -164,25 +191,22 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Resetear racha pero continuar
-      final questionData = await _loadQuestion(currentState.usedPokemonIds);
+      final questionData = await _loadQuestion();
 
       if (questionData == null) {
         add(const EndQuiz());
         return;
       }
 
-      final updatedUsedIds = Set<int>.from(currentState.usedPokemonIds)
-        ..add(questionData['correct'].id);
-
       emit(QuizPlaying(
         mode: currentState.mode,
+        playerName: currentState.playerName,
         currentPokemon: questionData['correct'],
         options: questionData['options'],
         score: currentState.score,
         consecutiveCorrect: 0, // Reset streak
         currentMultiplier: currentState.mode.baseMultiplier, // Reset to base
         remainingTime: currentState.remainingTime,
-        usedPokemonIds: updatedUsedIds,
         totalQuestions: currentState.totalQuestions + 1,
         correctAnswers: currentState.correctAnswers,
         incorrectAnswers: currentState.incorrectAnswers + 1,
@@ -220,8 +244,13 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       totalTime,
     );
 
+    // Obtener estadísticas del loader
+    final stats = _loaderService.getStats();
+    debugPrint('QuizBloc: Game ended - Stats: $stats');
+
     emit(QuizFinished(
       mode: currentState.mode,
+      playerName: currentState.playerName,
       finalScore: currentState.score,
       totalTime: totalTime,
       totalQuestions: currentState.totalQuestions,
@@ -238,11 +267,8 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     final currentState = state;
     if (currentState is! QuizFinished) return;
 
-    // Validar nombre (máximo 3 caracteres, mayúsculas)
-    String playerName = event.playerName.trim().toUpperCase();
-    if (playerName.isEmpty || playerName.length > 3) {
-      playerName = 'ASH'; // Valor por defecto
-    }
+    // Usar el nombre guardado o el del evento
+    final playerName = event.playerName ?? currentState.playerName;
 
     final entry = QuizRankingEntry(
       playerName: playerName,
@@ -258,42 +284,31 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   void _onResetQuiz(ResetQuiz event, Emitter<QuizState> emit) {
     _stopGameTimer();
     _startTime = null;
+    _playerName = null;
+    _loaderService.reset();
     emit(const QuizInitial());
   }
 
-  /// Carga una pregunta con el pokémon correcto y 3 opciones incorrectas
-  Future<Map<String, dynamic>?> _loadQuestion(Set<int> usedIds) async {
+  /// Carga una pregunta usando el servicio optimizado
+  Future<Map<String, dynamic>?> _loadQuestion() async {
     try {
-      // Generar ID aleatorio que no haya sido usado
-      int correctId;
-      int attempts = 0;
-      do {
-        correctId = Random().nextInt(maxPokemonId) + 1;
-        attempts++;
-        if (attempts > 100) {
-          // Si hemos usado casi todos los pokémon, permitir repetición
-          usedIds.clear();
-          correctId = Random().nextInt(maxPokemonId) + 1;
-          break;
-        }
-      } while (usedIds.contains(correctId));
+      // Obtener el siguiente Pokémon del servicio de precarga
+      final correctPokemon = await _loaderService.getNextPokemon();
 
-      // Obtener el pokémon correcto
-      final correctPokemon = await repository.fetchPokemonDetail(correctId);
-
-      // Generar 3 IDs incorrectos
-      final incorrectIds = <int>[];
-      while (incorrectIds.length < 3) {
-        final id = Random().nextInt(maxPokemonId) + 1;
-        if (id != correctId && !incorrectIds.contains(id)) {
-          incorrectIds.add(id);
-        }
+      if (correctPokemon == null) {
+        debugPrint('QuizBloc: No more Pokémon available');
+        return null;
       }
 
-      // Obtener pokémon incorrectos
-      final incorrectPokemons = await Future.wait(
-        incorrectIds.map((id) => repository.fetchPokemonDetail(id)),
+      // Generar opciones incorrectas
+      final incorrectPokemons = await _loaderService.generateIncorrectOptions(
+        correctPokemon.id,
       );
+
+      if (incorrectPokemons.length < 3) {
+        debugPrint('QuizBloc: Failed to load enough incorrect options');
+        return null;
+      }
 
       // Crear lista de opciones y mezclar
       final options = [correctPokemon, ...incorrectPokemons];
@@ -304,7 +319,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         'options': options,
       };
     } catch (e) {
-      debugPrint('Error loading question: $e');
+      debugPrint('QuizBloc: Error loading question: $e');
       return null;
     }
   }
@@ -324,7 +339,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   @override
   Future<void> close() {
     _stopGameTimer();
+    _loaderService.reset();
     return super.close();
   }
 }
-

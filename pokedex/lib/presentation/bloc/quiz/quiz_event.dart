@@ -9,6 +9,20 @@ abstract class QuizEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+/// Inicializa el quiz con el nombre del jugador y precarga Pokémon
+class InitializeQuiz extends QuizEvent {
+  final QuizMode mode;
+  final String playerName;
+
+  const InitializeQuiz({
+    required this.mode,
+    required this.playerName,
+  });
+
+  @override
+  List<Object?> get props => [mode, playerName];
+}
+
 /// Inicia una nueva partida de quiz
 class StartQuiz extends QuizEvent {
   final QuizMode mode;
@@ -46,9 +60,9 @@ class EndQuiz extends QuizEvent {
 
 /// Guarda el resultado en el ranking
 class SaveQuizResult extends QuizEvent {
-  final String playerName;
+  final String? playerName;
 
-  const SaveQuizResult(this.playerName);
+  const SaveQuizResult([this.playerName]);
 
   @override
   List<Object?> get props => [playerName];
@@ -58,4 +72,3 @@ class SaveQuizResult extends QuizEvent {
 class ResetQuiz extends QuizEvent {
   const ResetQuiz();
 }
-

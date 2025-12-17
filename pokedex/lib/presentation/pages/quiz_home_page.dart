@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/quiz_mode.dart';
 import '../../data/models/quiz_ranking.dart';
 import '../../data/services/quiz_ranking_service.dart';
+import '../../data/repositories/pokemon_repository.dart';
+import '../bloc/quiz/quiz_bloc.dart';
+import '../bloc/quiz/quiz_event.dart';
+import '../bloc/quiz/quiz_state.dart';
 import 'home_page.dart';
 import 'quiz_page.dart';
 
@@ -45,10 +51,184 @@ class _QuizHomePageState extends State<QuizHomePage> {
   }
 
   void _onPlayPressed() {
+    _showPlayerNameDialog();
+  }
+
+  /// Muestra el modal para ingresar el nombre del jugador
+  void _showPlayerNameDialog() {
+    final TextEditingController nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 350),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _mainGreen,
+              width: 3,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.catching_pokemon,
+                  color: Color(0xFF4FC43C),
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                // const Text(
+                //   '¿LISTO PARA JUGAR?',
+                //   style: TextStyle(
+                //     fontFamily: 'Pixelated',
+                //     fontSize: 20,
+                //     color: Color(0xFF4FC43C),
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+                // const SizedBox(height: 8),
+                const Text(
+                  'Ingresa tu nombre de entrenador',
+                  style: TextStyle(
+                    fontFamily: 'Pixelated',
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: nameController,
+                  textAlign: TextAlign.center,
+                  maxLength: 3,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
+                    UpperCaseTextFormatter(),
+                  ],
+                  style: const TextStyle(
+                    fontFamily: 'Pixelated',
+                    fontSize: 24,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 12,
+                  ),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'ASH',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.2),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF2A2A2A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _mainGreen,
+                        width: 2,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _mainGreen,
+                        width: 2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _mainGreen,
+                        width: 3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(
+                              color: Colors.white30,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          'CANCELAR',
+                          style: TextStyle(
+                            fontFamily: 'Pixelated',
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          String playerName = nameController.text.trim().toUpperCase();
+                          if (playerName.isEmpty) {
+                            playerName = 'ASH';
+                          }
+                          Navigator.pop(dialogContext);
+                          _startQuiz(playerName);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _mainGreen,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'COMENZAR',
+                          style: TextStyle(
+                            fontFamily: 'Pixelated',
+                            fontSize: 12,
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Inicia el quiz con el nombre del jugador
+  void _startQuiz(String playerName) {
     final mode = QuizMode.fromString(_selectedMode);
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => QuizPage(mode: mode),
+        builder: (_) => BlocProvider(
+          create: (context) => QuizBloc(
+            repository: RepositoryProvider.of<PokemonRepository>(context),
+            rankingService: _rankingService,
+          )..add(InitializeQuiz(mode: mode, playerName: playerName)),
+          child: QuizPage(mode: mode),
+        ),
       ),
     ).then((_) {
       // Recargar rankings cuando vuelva de la partida
@@ -500,6 +680,18 @@ class _QuizHomePageState extends State<QuizHomePage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Formateador para convertir el texto a mayúsculas automáticamente
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue,
+      TextEditingValue newValue,) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }
