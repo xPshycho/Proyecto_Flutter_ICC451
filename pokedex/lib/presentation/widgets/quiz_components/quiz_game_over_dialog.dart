@@ -1,10 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../data/models/quiz_mode.dart';
 
 /// Diálogo que se muestra al finalizar el quiz
-class QuizGameOverDialog extends StatefulWidget {
+class QuizGameOverDialog extends StatelessWidget {
   final QuizMode mode;
   final int finalScore;
   final Duration totalTime;
@@ -28,64 +27,23 @@ class QuizGameOverDialog extends StatefulWidget {
     required this.onClose,
   });
 
-  @override
-  State<QuizGameOverDialog> createState() => _QuizGameOverDialogState();
-}
-
-class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _nameSaved = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
   String get _formattedScore {
-    return widget.finalScore.toString().replaceAllMapped(
+    return finalScore.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
   }
 
   String get _formattedTime {
-    final hours = widget.totalTime.inHours;
-    final minutes = widget.totalTime.inMinutes.remainder(60);
-    final seconds = widget.totalTime.inSeconds.remainder(60);
+    final hours = totalTime.inHours;
+    final minutes = totalTime.inMinutes.remainder(60);
+    final seconds = totalTime.inSeconds.remainder(60);
     return '${hours.toString().padLeft(1, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   double get _accuracy {
-    if (widget.totalQuestions == 0) return 0;
-    return (widget.correctAnswers / widget.totalQuestions) * 100;
-  }
-
-  void _saveName() {
-    if (_nameSaved) return;
-
-    String name = _nameController.text.trim().toUpperCase();
-    if (name.isEmpty) {
-      name = 'ASH';
-    } else if (name.length > 3) {
-      name = name.substring(0, 3);
-    }
-
-    widget.onSaveResult(name);
-    setState(() {
-      _nameSaved = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '¡Resultado guardado como $name!',
-          style: const TextStyle(fontFamily: 'Pixelated'),
-        ),
-        backgroundColor: const Color(0xFF4FC43C),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (totalQuestions == 0) return 0;
+    return (correctAnswers / totalQuestions) * 100;
   }
 
   @override
@@ -124,7 +82,7 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
                   const SizedBox(height: 8),
 
                   Text(
-                    'Modo: ${widget.mode.displayName}',
+                    'Modo: ${mode.displayName}',
                     style: const TextStyle(
                       fontFamily: 'Pixelated',
                       fontSize: 14,
@@ -208,7 +166,7 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
                         child: _buildStatCard(
                           icon: Icons.quiz,
                           label: 'PREGUNTAS',
-                          value: '${widget.totalQuestions}',
+                          value: '$totalQuestions',
                           color: Colors.orange,
                         ),
                       ),
@@ -217,7 +175,7 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
                         child: _buildStatCard(
                           icon: Icons.done_all,
                           label: 'CORRECTAS',
-                          value: '${widget.correctAnswers}',
+                          value: '$correctAnswers',
                           color: Colors.green,
                         ),
                       ),
@@ -226,15 +184,15 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
 
                   const SizedBox(height: 24),
 
-                  // Entrada de nombre si entró al top 5
-                  if (widget.enteredTop5 && !_nameSaved) ...[
+                  // Mensaje de Top 5 si aplica
+                  if (enteredTop5) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4FC43C).withOpacity(0.1),
+                        color: const Color(0xFF4FC43C).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFF4FC43C),
+                          color: const Color(0xFFFFD700),
                           width: 2,
                         ),
                       ),
@@ -243,98 +201,26 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
                           const Icon(
                             Icons.emoji_events,
                             color: Color(0xFFFFD700),
-                            size: 32,
+                            size: 48,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           const Text(
                             '¡ENTRASTE AL TOP 5!',
                             style: TextStyle(
                               fontFamily: 'Pixelated',
-                              fontSize: 16,
-                              color: Color(0xFF4FC43C),
+                              fontSize: 18,
+                              color: Color(0xFFFFD700),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           const Text(
-                            'Ingresa tu nombre (máx 3 letras)',
+                            'Tu puntuación ha sido guardada',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'Pixelated',
                               fontSize: 12,
                               color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _nameController,
-                            textAlign: TextAlign.center,
-                            maxLength: 3,
-                            textCapitalization: TextCapitalization.characters,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[A-Za-z]'),
-                              ),
-                              UpperCaseTextFormatter(),
-                            ],
-                            style: const TextStyle(
-                              fontFamily: 'Pixelated',
-                              fontSize: 24,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 8,
-                            ),
-                            decoration: InputDecoration(
-                              counterText: '',
-                              hintText: 'ASH',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF2A2A2A),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF4FC43C),
-                                  width: 2,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF4FC43C),
-                                  width: 2,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF4FC43C),
-                                  width: 3,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _saveName,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4FC43C),
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'GUARDAR',
-                              style: TextStyle(
-                                fontFamily: 'Pixelated',
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
                             ),
                           ),
                         ],
@@ -347,17 +233,13 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: widget.onClose,
+                      onPressed: onClose,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2A2A2A),
-                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF4FC43C),
+                        foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(
-                            color: Color(0xFF4FC43C),
-                            width: 2,
-                          ),
                         ),
                       ),
                       child: const Text(
@@ -416,20 +298,6 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Formateador para convertir el texto a mayúsculas automáticamente
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }

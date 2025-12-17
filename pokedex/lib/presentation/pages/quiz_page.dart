@@ -289,6 +289,9 @@ class _QuizPageState extends State<QuizPage> {
   void _showGameOverDialog(BuildContext context, QuizFinished state) {
     _audioService.stopCry();
 
+    // Guardar automáticamente el resultado ANTES de mostrar el diálogo
+    context.read<QuizBloc>().add(SaveQuizResult(state.playerName));
+
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
 
@@ -304,7 +307,8 @@ class _QuizPageState extends State<QuizPage> {
           incorrectAnswers: state.incorrectAnswers,
           enteredTop5: state.enteredTop5,
           onSaveResult: (playerName) {
-            context.read<QuizBloc>().add(SaveQuizResult(playerName));
+            // Ya se guardó automáticamente, pero mantenemos por compatibilidad
+            // context.read<QuizBloc>().add(SaveQuizResult(playerName));
           },
           onClose: () {
             Navigator.pop(dialogContext);
