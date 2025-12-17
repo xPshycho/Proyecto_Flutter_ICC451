@@ -23,6 +23,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   // Constantes del juego
   static const int initialTime = 30;
   static const int timeBonus = 5;
+  static const int timePenalty = 5; // Penalidad por respuesta incorrecta
   static const int basePoints = 10;
   static const int streakForBonus = 10;
 
@@ -207,7 +208,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         score: currentState.score,
         consecutiveCorrect: 0, // Reset streak
         currentMultiplier: currentState.mode.baseMultiplier, // Reset to base
-        remainingTime: currentState.remainingTime,
+        remainingTime: currentState.remainingTime - timePenalty, // Aplicar penalización
         totalQuestions: currentState.totalQuestions + 1,
         correctAnswers: currentState.correctAnswers,
         incorrectAnswers: currentState.incorrectAnswers + 1,
