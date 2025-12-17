@@ -149,6 +149,16 @@ class _QuizPageState extends State<QuizPage> {
               ? state.previousState
               : (state as QuizIncorrectAnswer).previousState;
 
+      // Determinar el ID seleccionado para mostrar en rojo/verde
+      int? selectedId;
+      if (state is QuizCorrectAnswer) {
+        selectedId = playingState.currentPokemon.id; // Respuesta correcta
+      } else if (state is QuizIncorrectAnswer) {
+        selectedId = state.selectedPokemonId; // Respuesta incorrecta seleccionada
+      }
+
+      final showResult = state is QuizCorrectAnswer || state is QuizIncorrectAnswer;
+
       return Column(
         children: [
           // Barra superior con estadísticas
@@ -171,6 +181,7 @@ class _QuizPageState extends State<QuizPage> {
                 mode: widget.mode,
                 pokemon: playingState.currentPokemon,
                 onSoundPlay: () => _audioService.playCry(playingState.currentPokemon.id),
+                showResult: showResult,
               ),
             ),
           ),
@@ -185,10 +196,8 @@ class _QuizPageState extends State<QuizPage> {
               child: QuizAnswerOptions(
                 options: playingState.options,
                 correctPokemonId: playingState.currentPokemon.id,
-                showResult: state is QuizCorrectAnswer || state is QuizIncorrectAnswer,
-                selectedPokemonId: state is QuizCorrectAnswer || state is QuizIncorrectAnswer
-                    ? playingState.currentPokemon.id
-                    : null,
+                showResult: showResult,
+                selectedPokemonId: selectedId,
                 onAnswerSelected: (pokemonId) {
                   context.read<QuizBloc>().add(AnswerSelected(pokemonId));
                 },

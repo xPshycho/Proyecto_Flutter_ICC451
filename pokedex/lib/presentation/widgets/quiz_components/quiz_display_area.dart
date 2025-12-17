@@ -7,12 +7,14 @@ class QuizDisplayArea extends StatelessWidget {
   final QuizMode mode;
   final Pokemon pokemon;
   final VoidCallback? onSoundPlay;
+  final bool showResult;
 
   const QuizDisplayArea({
     super.key,
     required this.mode,
     required this.pokemon,
     this.onSoundPlay,
+    this.showResult = false,
   });
 
   @override
@@ -47,33 +49,52 @@ class QuizDisplayArea extends StatelessWidget {
     }
   }
 
-  /// Muestra la silueta del Pokémon (sprite en negro)
+  /// Muestra la silueta del Pokémon (sprite en negro) o el sprite a color si ya se respondió
   Widget _buildSilhouette() {
     return Center(
       child: pokemon.spriteUrl != null
-          ? ColorFiltered(
-              colorFilter: const ColorFilter.mode(
-                Colors.black,
-                BlendMode.srcIn,
-              ),
-              child: Image.network(
-                pokemon.spriteUrl!,
-                width: 250,
-                height: 250,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.catching_pokemon,
-                    size: 120,
-                    color: Colors.black,
-                  );
-                },
-              ),
+          ? AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              child: showResult
+                  ? Image.network(
+                      pokemon.spriteUrl!,
+                      key: ValueKey('color_${pokemon.id}'),
+                      width: 250,
+                      height: 250,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.catching_pokemon,
+                          size: 120,
+                          color: Colors.white,
+                        );
+                      },
+                    )
+                  : ColorFiltered(
+                      key: ValueKey('silhouette_${pokemon.id}'),
+                      colorFilter: const ColorFilter.mode(
+                        Colors.black,
+                        BlendMode.srcIn,
+                      ),
+                      child: Image.network(
+                        pokemon.spriteUrl!,
+                        width: 250,
+                        height: 250,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.catching_pokemon,
+                            size: 120,
+                            color: Colors.black,
+                          );
+                        },
+                      ),
+                    ),
             )
-          : const Icon(
+          : Icon(
               Icons.catching_pokemon,
               size: 120,
-              color: Colors.black,
+              color: showResult ? Colors.white : Colors.black,
             ),
     );
   }
@@ -193,4 +214,3 @@ class QuizDisplayArea extends StatelessWidget {
     );
   }
 }
-

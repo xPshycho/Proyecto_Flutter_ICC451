@@ -185,6 +185,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       // Respuesta incorrecta
       emit(QuizIncorrectAnswer(
         previousState: currentState,
+        selectedPokemonId: event.selectedPokemonId,
         correctPokemon: currentState.currentPokemon,
       ));
 

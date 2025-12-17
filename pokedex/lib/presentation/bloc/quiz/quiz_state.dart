@@ -124,14 +124,16 @@ class QuizCorrectAnswer extends QuizState {
 class QuizIncorrectAnswer extends QuizState {
   final QuizPlaying previousState;
   final Pokemon correctPokemon;
+  final int selectedPokemonId; // ID de la opción incorrecta seleccionada
 
   const QuizIncorrectAnswer({
     required this.previousState,
     required this.correctPokemon,
+    required this.selectedPokemonId,
   });
 
   @override
-  List<Object?> get props => [previousState, correctPokemon];
+  List<Object?> get props => [previousState, correctPokemon, selectedPokemonId];
 }
 
 /// Estado de finalización del quiz

@@ -44,18 +44,26 @@ class QuizAnswerOptions extends StatelessWidget {
     Color backgroundColor;
     Color borderColor;
     Color textColor = Colors.white;
+    IconData? icon;
 
     if (showResult) {
       if (isCorrect) {
+        // Opción correcta siempre se muestra en verde
         backgroundColor = const Color(0xFF4FC43C);
         borderColor = const Color(0xFF3DA82E);
         textColor = Colors.black;
-      } else if (isSelected && !isCorrect) {
+        icon = Icons.check_circle;
+      } else if (isSelected) {
+        // Opción incorrecta que fue seleccionada se muestra en rojo
         backgroundColor = Colors.red.shade700;
         borderColor = Colors.red.shade900;
+        textColor = Colors.white;
+        icon = Icons.cancel;
       } else {
+        // Otras opciones se muestran deshabilitadas
         backgroundColor = const Color(0xFF2A2A2A);
         borderColor = const Color(0xFF444444);
+        textColor = Colors.white54;
       }
     } else {
       backgroundColor = const Color(0xFF2A2A2A);
@@ -81,18 +89,10 @@ class QuizAnswerOptions extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (showResult && isCorrect) ...[
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.black,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (showResult && isSelected && !isCorrect) ...[
-                    const Icon(
-                      Icons.cancel,
-                      color: Colors.white,
+                  if (showResult && icon != null) ...[
+                    Icon(
+                      icon,
+                      color: isCorrect ? Colors.black : Colors.white,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -120,4 +120,3 @@ class QuizAnswerOptions extends StatelessWidget {
     );
   }
 }
-
