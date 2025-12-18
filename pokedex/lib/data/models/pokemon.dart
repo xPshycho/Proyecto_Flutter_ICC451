@@ -1,6 +1,7 @@
 import '../../domain/models/type_effectiveness.dart';
 import '../../domain/services/type_effectiveness_service.dart';
 import '../../core/constants/pokemon_constants.dart';
+import 'evolution_detail.dart';
 
 /// Modelo principal de Pokémon. Representa la entidad "base" del pokémon con sus
 /// atributos principales (id, nombre, tipos, stats, etc.).
@@ -22,18 +23,17 @@ class Pokemon {
   final double? weight;
   final String? description;
   final List<Pokemon>? evolutions;
+  final Map<int, EvolutionDetail>? evolutionDetails;
   bool isFavorite;
   final List<String> abilities;
   final Map<String, int> stats;
-  // Categorías derivadas (p.ej. 'legendario', 'mitico', 'mega', etc.)
   final List<String>? categories;
   final bool? isLegendary;
   final bool? isMythical;
-  // ID de generación de la API para filtrado por región
   final int? generationId;
-
-  // Forms (mega, alola, regional variants, etc.)
-  final List<dynamic>? forms; // usar PokemonForm en repositorio
+  final List<dynamic>? forms;
+  /// NUEVO: formas agregadas de toda la cadena evolutiva (megas/variantes de las evoluciones)
+  final List<dynamic>? formsChain;
 
   Pokemon({
     required this.id,
@@ -46,6 +46,7 @@ class Pokemon {
     this.weight,
     this.description,
     this.evolutions,
+    this.evolutionDetails,
     this.isFavorite = false,
     this.abilities = const [],
     this.stats = const {},
@@ -54,6 +55,7 @@ class Pokemon {
     this.isMythical,
     this.generationId,
     this.forms,
+    this.formsChain,
   });
 
   /// Calcula la efectividad de tipos para este Pokémon
@@ -64,8 +66,10 @@ class Pokemon {
 
   Pokemon copyWith({
     List<dynamic>? forms,
+    List<dynamic>? formsChain,
     String? description,
     List<Pokemon>? evolutions,
+    Map<int, EvolutionDetail>? evolutionDetails,
     int? generationId,
   }) {
     return Pokemon(
@@ -78,6 +82,7 @@ class Pokemon {
       height: height,
       weight: weight,
       evolutions: evolutions ?? this.evolutions,
+      evolutionDetails: evolutionDetails ?? this.evolutionDetails,
       isFavorite: isFavorite,
       abilities: abilities,
       stats: stats,
@@ -86,6 +91,7 @@ class Pokemon {
       isMythical: isMythical,
       generationId: generationId ?? this.generationId,
       forms: forms ?? this.forms,
+      formsChain: formsChain ?? this.formsChain,
       description: description ?? this.description,
     );
   }
@@ -108,6 +114,7 @@ class Pokemon {
       isMythical: json['isMythical'] as bool?,
       generationId: json['generationId'] as int?,
       forms: json['forms'] as List<dynamic>?,
+      formsChain: json['formsChain'] as List<dynamic>?,
       description: json['description'] as String?,
     );
   }

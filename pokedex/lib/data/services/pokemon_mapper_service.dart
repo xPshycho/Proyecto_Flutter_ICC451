@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import '../models/pokemon.dart';
 
 class PokemonMapperService {
@@ -208,6 +211,22 @@ class PokemonMapperService {
 
   /// Crea un objeto PokemonForm desde datos GraphQL
   static Map<String, dynamic> createForm(Map<String, dynamic> formData) {
+    String? spriteUrl;
+    try {
+      final sprites = formData['pokemon_v2_pokemonformsprites'] as List<dynamic>?;
+      if (sprites != null && sprites.isNotEmpty) {
+        final spritesData = sprites[0]['sprites'];
+        if (spritesData is String) {
+          final decoded = jsonDecode(spritesData) as Map<String, dynamic>?;
+          spriteUrl = decoded?['front_default'] as String?;
+        } else if (spritesData is Map) {
+          spriteUrl = spritesData['front_default'] as String?;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting form sprite: $e');
+    }
+
     return {
       'id': formData['id'] as int,
       'pokemon_id': formData['pokemon_id'] as int,
@@ -216,7 +235,7 @@ class PokemonMapperService {
       'is_default': (formData['is_default'] as bool?) ?? false,
       'is_battle_only': (formData['is_battle_only'] as bool?) ?? false,
       'is_mega': formData['is_mega'] as bool?,
-      'sprite_url': null,
+      'sprite_url': spriteUrl,
       'types': <String>[],
     };
   }

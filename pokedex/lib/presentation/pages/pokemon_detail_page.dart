@@ -261,14 +261,12 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             repository: widget.repository,
           ),
           const SizedBox(height: 24),
+          // Formas (incluye también las de la cadena evolutiva, si existen)
           PokemonFormsSection(pokemon: pokemon),
           const SizedBox(height: 24),
-          Builder(
-            builder: (context) => PokemonEvolutionSection(
-              pokemon: pokemon,
-              onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
-              isShiny: _isShiny,
-            ),
+          PokemonEvolutionSection(
+            pokemon: pokemon,
+            onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
           ),
           const SizedBox(height: 32),
         ],
@@ -277,7 +275,6 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   }
 
   Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
-    final title = state.isRegionalForm;
     return ErrorView(
       onRetry: () {
         context.read<PokemonDetailBloc>().add(
@@ -288,11 +285,4 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 }
-
-
-
-
-
-
-
 

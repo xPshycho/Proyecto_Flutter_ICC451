@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
 import '../models/pokemon_move.dart';
+import '../models/evolution_detail.dart';
 import '../services/graphql_query_service.dart';
 import '../services/pokemon_mapper_service.dart';
 import '../services/data_services.dart';
@@ -211,7 +212,11 @@ class PokemonRepository {
 
   /// Verifica si un Pokémon tiene detalles completos
   bool _hasCompleteDetails(Pokemon pokemon) {
-    return pokemon.abilities.isNotEmpty;
+    final hasAbilities = pokemon.abilities.isNotEmpty;
+    final hasForms = pokemon.forms != null; // en detalle debe venir al menos lista vacía
+    final hasEvolutions = pokemon.evolutions != null; // en detalle debe venir al menos lista (o vacía)
+
+    return hasAbilities && hasForms && hasEvolutions;
   }
 
   /// Asegura que los tests iniciales se ejecuten una vez
@@ -673,7 +678,7 @@ class PokemonRepository {
       pokemon = pokemon.copyWith(description: description);
     }
 
-    // Obtener formas
+    // Obtener formas (del pokémon actual)
     final forms = await _fetchFormsByPokemonIds([pokemon.id]);
     final pokemonForms = forms[pokemon.id] ?? [];
 
@@ -689,10 +694,36 @@ class PokemonRepository {
       debugPrint('Error fetching evolution chain: $e');
     }
 
+    // ====== NUEVO: formas agregadas de TODA la cadena (para mostrar megas/variantes del árbol) ======
+    final aggregatedForms = <dynamic>[];
+    if (evolutions != null && evolutions.isNotEmpty) {
+      final seen = <String>{};
+      for (final evo in evolutions) {
+        final evoForms = evo.forms;
+        if (evoForms == null) continue;
+        for (final f in evoForms) {
+          if (f is Map) {
+            final key = '${f['id'] ?? ''}|${f['pokemon_id'] ?? ''}|${f['name'] ?? ''}|${f['form_name'] ?? ''}';
+            if (seen.add(key)) aggregatedForms.add(f);
+          }
+        }
+      }
+    }
+
+    // Unir formas propias + formas de la cadena (sin duplicar)
+    final combinedForms = <dynamic>[];
+    final seenCombined = <String>{};
+    for (final f in [...pokemonForms, ...aggregatedForms]) {
+      if (f is Map) {
+        final key = '${f['id'] ?? ''}|${f['pokemon_id'] ?? ''}|${f['name'] ?? ''}|${f['form_name'] ?? ''}';
+        if (seenCombined.add(key)) combinedForms.add(f);
+      }
+    }
+
     // Crear Pokémon final
     final finalPokemon = pokemon.copyWith(
       evolutions: evolutions,
-      forms: pokemonForms,
+      forms: combinedForms,
     );
 
     _detailsCache.put(id, finalPokemon);
@@ -734,38 +765,73 @@ class PokemonRepository {
     if (speciesList == null) return [];
 
     final evolutionChain = <Pokemon>[];
+    final evolutionDetailsMap = <int, Map<int, EvolutionDetail>>{};
 
     for (final species in speciesList) {
+      final speciesId = species['id'] as int?;
       var pokemons = species['pokemon_v2_pokemons'] as List<dynamic>?;
 
-      // Si no hay pokémons, buscarlos por species id
       if (pokemons == null || pokemons.isEmpty) {
-        final speciesId = species['id'] as int?;
         if (speciesId != null) {
           pokemons = await _fetchPokemonsBySpecies(speciesId);
         }
       }
 
-      if (pokemons != null) {
-        for (final pokemonData in pokemons) {
-          final pokemon = PokemonMapperService.mapBasic(pokemonData);
-          evolutionChain.add(pokemon);
-          _detailsCache.put(pokemon.id, _detailsCache.get(pokemon.id) ?? pokemon);
+      if (pokemons != null && pokemons.isNotEmpty) {
+        final basePokemon = pokemons.firstWhere(
+          (p) => (p['id'] as int) == speciesId,
+          orElse: () => pokemons!.first,
+        );
+
+        final pokemon = PokemonMapperService.mapBasic(basePokemon);
+        evolutionChain.add(pokemon);
+        _detailsCache.put(pokemon.id, _detailsCache.get(pokemon.id) ?? pokemon);
+      }
+
+      final evolutions = species['pokemon_v2_pokemonevolutions'] as List<dynamic>?;
+      if (evolutions != null && speciesId != null) {
+        for (final evo in evolutions) {
+          try {
+            final detail = EvolutionDetail.fromGraphQL({
+              ...evo,
+              'evolves_from_species_id': speciesId,
+            });
+
+            final evolvedSpeciesId = detail.evolvesToSpeciesId;
+            if (!evolutionDetailsMap.containsKey(evolvedSpeciesId)) {
+              evolutionDetailsMap[evolvedSpeciesId] = {};
+            }
+            evolutionDetailsMap[evolvedSpeciesId]![speciesId] = detail;
+          } catch (e) {
+            debugPrint('Error parsing evolution detail: $e');
+          }
         }
       }
     }
 
-    // Obtener formas para todos los pokémon
     final pokemonIds = evolutionChain.map((p) => p.id).toList();
     final formsMap = await _fetchFormsByPokemonIds(pokemonIds);
 
-    // Adjuntar formas
-    final withForms = evolutionChain.map((p) {
+    final speciesIdMap = <int, int>{};
+    for (final species in speciesList) {
+      final speciesId = species['id'] as int?;
+      if (speciesId != null) {
+        speciesIdMap[speciesId] = speciesId;
+      }
+    }
+
+    final withFormsAndDetails = evolutionChain.map((p) {
       final forms = formsMap[p.id] ?? [];
-      return p.copyWith(forms: forms);
+      final speciesId = speciesIdMap[p.id] ?? p.id;
+      final details = evolutionDetailsMap[speciesId];
+
+      return p.copyWith(
+        forms: forms,
+        evolutionDetails: details,
+      );
     }).toList();
 
-    return withForms;
+    return withFormsAndDetails;
   }
 
   /// Obtiene pokémon por especie
@@ -1002,3 +1068,4 @@ class PokemonRepository {
     return [];
   }
 }
+

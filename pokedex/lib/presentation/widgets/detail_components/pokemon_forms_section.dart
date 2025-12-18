@@ -165,7 +165,7 @@ class PokemonFormsSection extends StatelessWidget {
             Icon(Icons.transform, size: 20, color: Colors.grey[700]),
             const SizedBox(width: 8),
             const Text(
-              'FORMAS ALTERNATIVAS',
+              'FORMAS',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -212,13 +212,14 @@ class PokemonFormsSection extends StatelessWidget {
     final label = _getFormLabel(form);
     final labelColor = _getLabelColor(label);
     final displayName = _getDisplayName(form);
-    final types = form['types'] as List<dynamic>? ?? [];
 
-    final primaryType = types.isNotEmpty
-        ? PokemonConstants.toSpanishType(types.first.toString())
-        : pokemon.types.isNotEmpty
-            ? PokemonConstants.toSpanishType(pokemon.types.first)
-            : 'Normal';
+    // Si la forma pertenece a otro pokémon de la cadena, mostramos un hint.
+    final formPokemonId = form['pokemon_id'] as int?;
+    final fromChain = formPokemonId != null && formPokemonId != pokemon.id;
+
+    final primaryType = pokemon.types.isNotEmpty
+        ? PokemonConstants.toSpanishType(pokemon.types.first)
+        : 'Normal';
     final typeColor = PokemonConstants.getTypeColor(primaryType);
 
     return Container(
@@ -226,16 +227,15 @@ class PokemonFormsSection extends StatelessWidget {
       width: 120,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: typeColor.withAlpha(25),
+        color: Colors.grey.withAlpha(25),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: typeColor.withAlpha(76),
+          color: Colors.grey.withAlpha(76),
           width: 1.5,
         ),
       ),
       child: Column(
         children: [
-          // Imagen de la forma
           Container(
             width: 80,
             height: 80,
@@ -262,8 +262,6 @@ class PokemonFormsSection extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 8),
-
-          // Etiqueta de tipo de forma
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -280,47 +278,24 @@ class PokemonFormsSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-
-          // Nombre de la forma
           Text(
             displayName,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-
-          // Tipos de la forma si son diferentes al Pokémon base
-          if (types.isNotEmpty && types.length != pokemon.types.length ||
-              (types.isNotEmpty && !types.every((t) => pokemon.types.contains(t.toString()))))
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Wrap(
-                spacing: 4,
-                children: types.take(2).map((type) {
-                  final spanishType = PokemonConstants.toSpanishType(type.toString());
-                  final color = PokemonConstants.getTypeColor(spanishType);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      spanishType.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
+          if (fromChain) ...[
+            const SizedBox(height: 4),
+            Text(
+              'De la cadena',
+              style: TextStyle(fontSize: 9, color: Colors.grey[600], fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
             ),
+          ],
         ],
       ),
     );

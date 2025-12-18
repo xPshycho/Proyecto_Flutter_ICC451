@@ -51,6 +51,9 @@ class GraphQLQueryService {
         is_default
         is_battle_only
         is_mega
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
       }
     }
   ''';
@@ -142,6 +145,31 @@ class GraphQLQueryService {
           name
           evolves_from_species_id
           evolution_chain_id
+          pokemon_v2_pokemonevolutions {
+            evolved_species_id
+            evolution_trigger_id
+            min_level
+            min_happiness
+            min_beauty
+            min_affection
+            time_of_day
+            needs_overworld_rain
+            turn_upside_down
+            evolution_item_id
+            pokemon_v2_evolutiontrigger {
+              name
+            }
+            pokemon_v2_item {
+              pokemon_v2_itemnames(where: {language_id: {_eq: 7}}, limit: 1) {
+                name
+              }
+            }
+            pokemon_v2_location {
+              pokemon_v2_locationnames(where: {language_id: {_eq: 7}}, limit: 1) {
+                name
+              }
+            }
+          }
           pokemon_v2_pokemons(order_by: {id: asc}) {
             id
             name
@@ -293,4 +321,3 @@ class GraphQLQueryService {
     }
   ''';
 }
-
