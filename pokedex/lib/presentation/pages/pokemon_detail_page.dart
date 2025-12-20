@@ -10,6 +10,7 @@ import '../widgets/detail_components/pokemon_stats_section.dart';
 import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
+import '../widgets/detail_components/pokemon_chain_forms_section.dart';
 import '../widgets/detail_components/pokemon_moveset_section.dart';
 import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
 import '../bloc/pokemon_detail/pokemon_detail_event.dart';
@@ -261,12 +262,25 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             repository: widget.repository,
           ),
           const SizedBox(height: 24),
-          // Formas (incluye también las de la cadena evolutiva, si existen)
-          PokemonFormsSection(pokemon: pokemon),
-          const SizedBox(height: 24),
+          // Línea evolutiva primero
           PokemonEvolutionSection(
             pokemon: pokemon,
             onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+            isShiny: _isShiny,
+          ),
+          const SizedBox(height: 24),
+          // Formas del Pokémon actual
+          PokemonFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
+          ),
+          const SizedBox(height: 24),
+          // Formas de la cadena (megas/variantes en evoluciones)
+          PokemonChainFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
           ),
           const SizedBox(height: 32),
         ],

@@ -8,10 +8,14 @@ import 'pokemon_forms_section.dart';
 /// queremos mostrar también las megas/variantes de su línea evolutiva.
 class PokemonChainFormsSection extends StatelessWidget {
   final Pokemon pokemon;
+  final bool isShiny;
+  final void Function(int pokemonId)? onFormTap;
 
   const PokemonChainFormsSection({
     super.key,
     required this.pokemon,
+    this.isShiny = false,
+    this.onFormTap,
   });
 
   @override
@@ -19,10 +23,9 @@ class PokemonChainFormsSection extends StatelessWidget {
     final chainForms = pokemon.formsChain;
     if (chainForms == null || chainForms.isEmpty) return const SizedBox.shrink();
 
-    // Reutilizamos el UI de PokemonFormsSection construyendo un Pokemon “fake”
-    // que mantiene los tipos del pokemon actual pero usa formsChain como forms.
     final proxy = pokemon.copyWith(forms: chainForms);
 
+    // Renderizamos: header "FORMAS (CADENA)" + contenido de categorías.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -41,9 +44,36 @@ class PokemonChainFormsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        PokemonFormsSection(pokemon: proxy),
+        _FormsContentOnly(pokemon: proxy, isShiny: isShiny, onFormTap: onFormTap),
       ],
     );
   }
 }
 
+/// Reutiliza la lógica de `PokemonFormsSection` pero sin pintar su header "FORMAS".
+class _FormsContentOnly extends PokemonFormsSection {
+  const _FormsContentOnly({
+    required super.pokemon,
+    required super.isShiny,
+    required super.onFormTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final categorizedForms = categorizeFormsFromPokemon();
+
+    if (categorizedForms.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...categorizedForms.entries.map((entry) => buildFormsCategory(
+              entry.key,
+              entry.value,
+            )),
+      ],
+    );
+  }
+}

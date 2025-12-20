@@ -58,6 +58,34 @@ class GraphQLQueryService {
     }
   ''';
 
+  /// NUEVO: formas de toda una cadena evolutiva.
+  ///
+  /// Importante: muchas megas/variantes viven en otros `pokemon_id` dentro de la misma
+  /// especie/cadena, por lo que consultarlas solo por `pokemon_id` del actual suele
+  /// devolver vacío.
+  static const String formsByEvolutionChainId = r'''
+    query getFormsByEvolutionChainId($chainId: Int!) {
+      pokemon_v2_pokemonform(
+        where: {
+          pokemon_v2_pokemon: {
+            pokemon_v2_pokemonspecy: {evolution_chain_id: {_eq: $chainId}}
+          }
+        }
+      ) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
+      }
+    }
+  ''';
+
   // Query para mega evoluciones
   static const String megaEvolutions = r'''
     query getMegaEvolutions($pokemonId: Int!) {

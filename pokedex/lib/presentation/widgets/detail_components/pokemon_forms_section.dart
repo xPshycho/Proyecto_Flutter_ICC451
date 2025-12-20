@@ -6,9 +6,17 @@ import '../../../core/constants/pokemon_constants.dart';
 class PokemonFormsSection extends StatelessWidget {
   final Pokemon pokemon;
 
+  /// Si es true, intenta mostrar sprites shiny (si existen).
+  final bool isShiny;
+
+  /// Navegación opcional al detalle al tocar una forma.
+  final void Function(int pokemonId)? onFormTap;
+
   const PokemonFormsSection({
     super.key,
     required this.pokemon,
+    this.isShiny = false,
+    this.onFormTap,
   });
 
   String _formatPokemonName(String name) {
@@ -16,7 +24,8 @@ class PokemonFormsSection extends StatelessWidget {
   }
 
   /// Procesa las formas del Pokémon y las agrupa por tipo
-  Map<String, List<Map<String, dynamic>>> _categorizeFormsFromPokemon() {
+  @protected
+  Map<String, List<Map<String, dynamic>>> categorizeFormsFromPokemon() {
     debugPrint('PokemonFormsSection: Processing forms for ${pokemon.name} (ID: ${pokemon.id})');
     debugPrint('Pokemon forms: ${pokemon.forms}');
 
@@ -40,16 +49,62 @@ class PokemonFormsSection extends StatelessWidget {
           final isMega = f['is_mega'] as bool? ?? false;
           final name = (f['name'] ?? f['form_name'] ?? '') as String;
           final isDefault = f['is_default'] as bool? ?? false;
+          final formPokemonId = f['pokemon_id'] as int?;
 
           debugPrint('PokemonFormsSection: Processing form - name: $name, is_mega: $isMega, is_default: $isDefault');
 
-          // Saltar la forma por defecto
-          if (isDefault) {
-            debugPrint('PokemonFormsSection: Skipping default form: $name');
+          final lower = name.toLowerCase();
+
+          bool hasVariantKeyword(String s) {
+            return s.contains('mega') ||
+                s.contains('gmax') ||
+                s.contains('gigantamax') ||
+                s.contains('alola') ||
+                s.contains('alolan') ||
+                s.contains('galar') ||
+                s.contains('galarian') ||
+                s.contains('hisui') ||
+                s.contains('hisuian') ||
+                s.contains('paldea') ||
+                s.contains('paldean') ||
+                s.contains('primal') ||
+                s.contains('origin') ||
+                s.contains('zen') ||
+                s.contains('therian') ||
+                s.contains('incarnate') ||
+                s.contains('blade') ||
+                s.contains('shield') ||
+                s.contains('altered') ||
+                s.contains('sky') ||
+                s.contains('land') ||
+                s.contains('black') ||
+                s.contains('white');
+          }
+
+          final hasVariant = isMega || hasVariantKeyword(lower) || name.contains('-');
+
+          // En PokeAPI/GraphQL, muchas formas/variantes vienen con `is_default: true`.
+          // Solo saltamos el Pokémon base del detalle.
+          final isBaseOfCurrentPokemon =
+              (formPokemonId != null && formPokemonId == pokemon.id) && !hasVariant;
+
+          if (isBaseOfCurrentPokemon) {
+            debugPrint('PokemonFormsSection: Skipping base form for current pokemon: $name');
             continue;
           }
 
-          final lower = name.toLowerCase();
+          // Además, si estamos renderizando "formas de cadena" (proxy) pueden colarse
+          // los Pokémon base de otras etapas (ivysaur, venusaur) que NO son formas.
+          // Los filtramos: no tienen keywords, no tienen '-' y no son mega.
+          final isBaseOfOtherPokemon =
+              (formPokemonId != null && formPokemonId != pokemon.id) &&
+              isDefault &&
+              !hasVariant;
+
+          if (isBaseOfOtherPokemon) {
+            debugPrint('PokemonFormsSection: Skipping base form from other pokemon in chain: $name');
+            continue;
+          }
 
           // Categorizar mega evoluciones
           if (isMega || lower.contains('mega')) {
@@ -58,25 +113,25 @@ class PokemonFormsSection extends StatelessWidget {
           }
           // Categorizar formas regionales
           else if (lower.contains('alola') || lower.contains('alolan') ||
-                   lower.contains('galar') || lower.contains('galarian') ||
-                   lower.contains('hisui') || lower.contains('hisuian') ||
-                   lower.contains('paldea') || lower.contains('paldean')) {
+              lower.contains('galar') || lower.contains('galarian') ||
+              lower.contains('hisui') || lower.contains('hisuian') ||
+              lower.contains('paldea') || lower.contains('paldean')) {
             categorized['Formas Regionales']!.add(f);
             debugPrint('PokemonFormsSection: Added regional form: $name');
           }
           // Categorizar formas especiales
           else if (lower.contains('gmax') || lower.contains('gigantamax') ||
-                   lower.contains('primal') || lower.contains('origin') ||
-                   lower.contains('zen') || lower.contains('therian') ||
-                   lower.contains('incarnate') || lower.contains('blade') ||
-                   lower.contains('shield') || lower.contains('altered') ||
-                   lower.contains('sky') || lower.contains('land') ||
-                   lower.contains('black') || lower.contains('white') ||
-                   name.contains('-')) {
+              lower.contains('primal') || lower.contains('origin') ||
+              lower.contains('zen') || lower.contains('therian') ||
+              lower.contains('incarnate') || lower.contains('blade') ||
+              lower.contains('shield') || lower.contains('altered') ||
+              lower.contains('sky') || lower.contains('land') ||
+              lower.contains('black') || lower.contains('white') ||
+              name.contains('-')) {
             categorized['Formas Especiales']!.add(f);
             debugPrint('PokemonFormsSection: Added special form: $name');
           }
-          // Si no es default pero tampoco encaja en las categorías, es especial
+          // Si no encaja en las categorías, es especial
           else {
             categorized['Formas Especiales']!.add(f);
             debugPrint('PokemonFormsSection: Added uncategorized form as special: $name');
@@ -151,7 +206,7 @@ class PokemonFormsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categorizedForms = _categorizeFormsFromPokemon();
+    final categorizedForms = categorizeFormsFromPokemon();
 
     if (categorizedForms.isEmpty) {
       return const SizedBox.shrink();
@@ -175,7 +230,7 @@ class PokemonFormsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        ...categorizedForms.entries.map((entry) => _buildFormsCategory(
+        ...categorizedForms.entries.map((entry) => buildFormsCategory(
           entry.key,
           entry.value,
         )),
@@ -183,7 +238,7 @@ class PokemonFormsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildFormsCategory(String categoryName, List<Map<String, dynamic>> forms) {
+  Widget buildFormsCategory(String categoryName, List<Map<String, dynamic>> forms) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,13 +263,19 @@ class PokemonFormsSection extends StatelessWidget {
   }
 
   Widget _buildFormItem(Map<String, dynamic> form) {
-    final spriteUrl = form['sprite_url'] as String?;
+    final normalSpriteUrl = form['sprite_url'] as String?;
+    // Heurística: sprite shiny en GitHub sprites (la mayoría de ids existen)
+    final formPokemonId = form['pokemon_id'] as int?;
+    final shinySpriteUrl = formPokemonId != null
+        ? 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/$formPokemonId.png'
+        : null;
+
+    final spriteUrl = isShiny && shinySpriteUrl != null ? shinySpriteUrl : normalSpriteUrl;
+
     final label = _getFormLabel(form);
     final labelColor = _getLabelColor(label);
     final displayName = _getDisplayName(form);
 
-    // Si la forma pertenece a otro pokémon de la cadena, mostramos un hint.
-    final formPokemonId = form['pokemon_id'] as int?;
     final fromChain = formPokemonId != null && formPokemonId != pokemon.id;
 
     final primaryType = pokemon.types.isNotEmpty
@@ -222,7 +283,9 @@ class PokemonFormsSection extends StatelessWidget {
         : 'Normal';
     final typeColor = PokemonConstants.getTypeColor(primaryType);
 
-    return Container(
+    final canNavigate = onFormTap != null && formPokemonId != null;
+
+    final card = Container(
       margin: const EdgeInsets.only(right: 12),
       width: 120,
       padding: const EdgeInsets.all(12),
@@ -248,6 +311,18 @@ class PokemonFormsSection extends StatelessWidget {
                     spriteUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
+                      // Fallback a normal si shiny falla.
+                      if (isShiny && normalSpriteUrl != null) {
+                        return Image.network(
+                          normalSpriteUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.catching_pokemon,
+                            size: 40,
+                            color: typeColor,
+                          ),
+                        );
+                      }
                       return Icon(
                         Icons.catching_pokemon,
                         size: 40,
@@ -296,8 +371,20 @@ class PokemonFormsSection extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ],
+          if (canNavigate) ...[
+            const SizedBox(height: 4),
+            Icon(Icons.open_in_new, size: 14, color: Colors.grey[600]),
+          ],
         ],
       ),
+    );
+
+    if (!canNavigate) return card;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => onFormTap!(formPokemonId!),
+      child: card,
     );
   }
 }

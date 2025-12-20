@@ -684,10 +684,11 @@ class PokemonRepository {
 
     // Obtener cadena evolutiva
     List<Pokemon>? evolutions;
+    int? chainId;
     try {
       final species = data['pokemon_v2_pokemonspecy'];
       if (species != null && species['evolution_chain_id'] != null) {
-        final chainId = species['evolution_chain_id'] as int;
+        chainId = species['evolution_chain_id'] as int;
         evolutions = await _fetchEvolutionChain(chainId);
       }
     } catch (e) {
@@ -695,39 +696,64 @@ class PokemonRepository {
     }
 
     // ====== NUEVO: formas agregadas de TODA la cadena (para mostrar megas/variantes del árbol) ======
-    final aggregatedForms = <dynamic>[];
-    if (evolutions != null && evolutions.isNotEmpty) {
-      final seen = <String>{};
-      for (final evo in evolutions) {
-        final evoForms = evo.forms;
-        if (evoForms == null) continue;
-        for (final f in evoForms) {
-          if (f is Map) {
-            final key = '${f['id'] ?? ''}|${f['pokemon_id'] ?? ''}|${f['name'] ?? ''}|${f['form_name'] ?? ''}';
-            if (seen.add(key)) aggregatedForms.add(f);
-          }
-        }
+    // Nota: no dependemos de las "forms" cargadas en cada evolución, porque esa carga
+    // por pokemon_id suele perder megas/variantes que viven en otros pokemon_id.
+    final formsChain = <dynamic>[];
+    if (chainId != null) {
+      try {
+        final chainForms = await _fetchFormsByEvolutionChainId(chainId);
+        formsChain.addAll(chainForms);
+      } catch (e) {
+        debugPrint('Error fetching chain forms: $e');
       }
     }
 
-    // Unir formas propias + formas de la cadena (sin duplicar)
-    final combinedForms = <dynamic>[];
-    final seenCombined = <String>{};
-    for (final f in [...pokemonForms, ...aggregatedForms]) {
+    // Dedupe de formas de cadena
+    final dedupedChain = <dynamic>[];
+    final seenChain = <String>{};
+    for (final f in formsChain) {
       if (f is Map) {
         final key = '${f['id'] ?? ''}|${f['pokemon_id'] ?? ''}|${f['name'] ?? ''}|${f['form_name'] ?? ''}';
-        if (seenCombined.add(key)) combinedForms.add(f);
+        if (seenChain.add(key)) dedupedChain.add(f);
       }
     }
 
     // Crear Pokémon final
     final finalPokemon = pokemon.copyWith(
       evolutions: evolutions,
-      forms: combinedForms,
+      forms: pokemonForms,
+      formsChain: dedupedChain,
     );
 
     _detailsCache.put(id, finalPokemon);
     return finalPokemon;
+  }
+
+  /// Obtiene formas para una cadena evolutiva completa
+  Future<List<dynamic>> _fetchFormsByEvolutionChainId(int chainId) async {
+    // Por simplicidad no cacheamos aqu 00: el detalle ya cachea el Pokémon final.
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.formsByEvolutionChainId,
+        variables: {'chainId': chainId},
+        fetchPolicy: FetchPolicy.networkOnly,
+        errorPolicy: ErrorPolicy.ignore,
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        if (data != null) {
+          return data
+              .whereType<Map<String, dynamic>>()
+              .map(PokemonMapperService.createForm)
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching forms by evolution chain id: $e');
+    }
+
+    return [];
   }
 
   /// Obtiene la cadena evolutiva completa
