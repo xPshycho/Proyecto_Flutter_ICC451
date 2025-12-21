@@ -51,6 +51,37 @@ class GraphQLQueryService {
         is_default
         is_battle_only
         is_mega
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
+      }
+    }
+  ''';
+
+  /// NUEVO: formas de toda una cadena evolutiva.
+  ///
+  /// Importante: muchas megas/variantes viven en otros `pokemon_id` dentro de la misma
+  /// especie/cadena, por lo que consultarlas solo por `pokemon_id` del actual suele
+  /// devolver vacío.
+  static const String formsByEvolutionChainId = r'''
+    query getFormsByEvolutionChainId($chainId: Int!) {
+      pokemon_v2_pokemonform(
+        where: {
+          pokemon_v2_pokemon: {
+            pokemon_v2_pokemonspecy: {evolution_chain_id: {_eq: $chainId}}
+          }
+        }
+      ) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
       }
     }
   ''';
@@ -142,6 +173,31 @@ class GraphQLQueryService {
           name
           evolves_from_species_id
           evolution_chain_id
+          pokemon_v2_pokemonevolutions {
+            evolved_species_id
+            evolution_trigger_id
+            min_level
+            min_happiness
+            min_beauty
+            min_affection
+            time_of_day
+            needs_overworld_rain
+            turn_upside_down
+            evolution_item_id
+            pokemon_v2_evolutiontrigger {
+              name
+            }
+            pokemon_v2_item {
+              pokemon_v2_itemnames(where: {language_id: {_eq: 7}}, limit: 1) {
+                name
+              }
+            }
+            pokemon_v2_location {
+              pokemon_v2_locationnames(where: {language_id: {_eq: 7}}, limit: 1) {
+                name
+              }
+            }
+          }
           pokemon_v2_pokemons(order_by: {id: asc}) {
             id
             name
@@ -292,5 +348,81 @@ class GraphQLQueryService {
       }
     }
   ''';
-}
 
+  // Query para encuentros de Pokémon por ubicación
+  static const String encountersByLocation = r'''
+    query getEncountersByLocation($locationId: Int!) {
+      pokemon_v2_encounter(where: {location_area_id: {_eq: $locationId}}) {
+        pokemon_v2_pokemon {
+          id
+          name
+        }
+        pokemon_v2_encounterslot {
+          rarity
+          pokemon_v2_encountermethod {
+            name
+          }
+        }
+        min_level
+        max_level
+        pokemon_v2_version {
+          name
+        }
+      }
+    }
+  ''';
+
+  // Query para encuentros de un Pokémon específico
+  static const String encountersByPokemon = r'''
+    query getEncountersByPokemon($pokemonId: Int!) {
+      pokemon_v2_encounter(where: {pokemon_id: {_eq: $pokemonId}}) {
+        pokemon_v2_locationarea {
+          id
+          name
+          pokemon_v2_location {
+            name
+            pokemon_v2_region {
+              name
+            }
+          }
+        }
+        pokemon_v2_encounterslot {
+          rarity
+          pokemon_v2_encountermethod {
+            name
+          }
+        }
+        min_level
+        max_level
+        pokemon_v2_version {
+          name
+        }
+        pokemon_v2_pokemon {
+          id
+          name
+        }
+      }
+    }
+  ''';
+
+  // Nueva query: obtener location area por nombre (busca coincidencias case-insensitive)
+  static const String locationAreaByName = r'''
+    query getLocationAreaByName($name: String!) {
+      pokemon_v2_locationarea(
+        where: {
+          _or: [
+            {name: {_ilike: $name}},
+            {pokemon_v2_location: {name: {_ilike: $name}}}
+          ]
+        }
+      ) {
+        id
+        name
+        pokemon_v2_location {
+          id
+          name
+        }
+      }
+    }
+  ''';
+}

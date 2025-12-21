@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:math' as math;
+import 'pokedex_page.dart';
+import 'map_page.dart';
+import 'quiz_home_page.dart';
 
 import '../widgets/search_box.dart';
 import '../widgets/bottom_filter_menu.dart';
@@ -14,6 +18,7 @@ import '../widgets/pokemon_card.dart';
 import '../../data/models/pokemon.dart';
 import 'pokemon_detail_page.dart';
 import 'home_page.dart';
+import 'map_page.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../bloc/pokemon/pokemon_bloc.dart';
@@ -177,7 +182,7 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
   Future<void> _showPokedexMenu() async {
     await showBottomMenu(
       context,
-      onPokedexPressed: () => Navigator.pop(context),
+      onPokedexPressed: () => _onPokedexPressed(),
       onMapaPressed: () => _onMapaPressed(),
       onHelpPressed: () => _onHelpPressed(),
       onHomePressed: () => _onHomePressed(),
@@ -191,7 +196,9 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
 
   void _onMapaPressed() {
     debugPrint('Mapa presionado');
-    Navigator.pop(context);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MapPage()),
+    );
   }
 
   void _onHelpPressed() {
@@ -240,249 +247,220 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          _buildPokeballBackground(),
-          _buildMainContent(),
-        ],
-      ),
-      floatingActionButton: _buildMenuButton(),
-    );
-  }
-
-  Widget _buildPokeballBackground() {
-    return Positioned(
-      top: -AppConstants.pokeballSize / 2 + 80,
-      left: MediaQuery.of(context).size.width - AppConstants.pokeballSize / 2 - 50,
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Opacity(
-            opacity: AppConstants.pokeballOpacity,
-            child: Transform.rotate(
-              angle: _rotationAnimation.value,
-              child: ColorFiltered(
-                colorFilter: ColorFilter.mode(
-                  _isRotated ? _pokeballActiveColor : _pokeballDefaultColor,
-                  BlendMode.srcIn,
-                ),
-                child: SvgPicture.asset(
-                  'assets/icons/pokeball.svg',
-                  width: AppConstants.pokeballSize,
-                  height: AppConstants.pokeballSize,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMainContent() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPokedexButton(),
-            const SizedBox(height: 12),
-            _buildSearchBar(),
-            const SizedBox(height: 18),
-            Expanded(
-              child: BlocConsumer<PokemonBloc, PokemonState>(
-                listener: (context, state) {
-                  if (state is PokemonError) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.message),
-                        backgroundColor: Colors.red,
-                      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF121212),
+              Color(0xFF313131),
+              Color(0xFF121212),
+            ],
+            stops: [0.0, 0.25, 0.8],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 100),
+                // Botón Pokedex (rojo)
+                RetroMenuButton(
+                  label: 'Pokedex',
+                  iconAsset: 'assets/icons/pokeball.svg',
+                  iconSize: 400,
+                  iconRotation: -10,
+                  iconOffsetX: 140,
+                  iconOffsetY: 10,
+                  baseColor: const Color(0xFFFC2A2A),
+                  midColor: const Color(0xFFA12020),
+                  shadowColor: const Color(0xFF521212),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PokedexPage()),
                     );
-                  }
-                },
-                builder: (context, state) {
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      context.read<PokemonBloc>().add(const RefreshPokemonList());
-                    },
-                    child: _buildPokemonGrid(state),
-                  );
-                },
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Botón Mapa (azul)
+                RetroMenuButton(
+                  label: 'Mapa',
+                  iconAsset: 'assets/icons/map.svg',
+                  iconSize: 145,
+                  iconRotation: 0,
+                  iconOffsetX: 100,
+                  iconOffsetY: 0,
+                  baseColor: const Color(0xFF3E51B2),
+                  midColor: const Color(0xFF2A387E),
+                  shadowColor: const Color(0xFF1E1E50),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MapPage()),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Botón Quiz (verde)
+                RetroMenuButton(
+                  label: 'Quiz',
+                  iconAsset: 'assets/icons/pikachu_2d.svg',
+                  iconSize: 200,
+                  iconRotation: 0,
+                  iconOffsetX: 130,
+                  iconOffsetY: 0,
+                  baseColor: const Color(0xFF46FC2A),
+                  midColor: const Color(0xFF45A120),
+                  shadowColor: const Color(0xFF256215),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const QuizHomePage()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget personalizado para botones del menú principal
+///
+/// Crea un botón con estilo retro que incluye:
+/// - Gradiente de color personalizable
+/// - Borde metalizado
+/// - Icono SVG con transparencia y rotación
+/// - Control individual de tamaño y posición del icono
+/// - Texto centrado
+class RetroMenuButton extends StatelessWidget {
+  final String label;
+  final Color baseColor;
+  final Color midColor;
+  final Color shadowColor;
+  final String? iconAsset;
+  final double iconSize;
+  final double iconRotation;
+  final double iconOffsetX;
+  final double iconOffsetY;
+  final VoidCallback onPressed;
+
+  const RetroMenuButton({
+    super.key,
+    required this.label,
+    required this.baseColor,
+    required this.midColor,
+    required this.shadowColor,
+    this.iconAsset,
+    this.iconSize = 300,
+    this.iconRotation = 0,
+    this.iconOffsetX = 0,
+    this.iconOffsetY = 0,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 150,
+        width: double.infinity,
+
+        // Borde exterior metalizado
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFF92959A),
+              Color(0xFFE8E8E8),
+              Color(0xFF5B5B5B),
+            ],
+            stops: [0.0, 0.3, 0.6, 1.0],
+          ),
+        ),
+
+        padding: const EdgeInsets.all(4.0),
+
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  baseColor,
+                  midColor,
+                  shadowColor,
+                ],
+                stops: const [0.0, 0.5, 0.90],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+            child: Stack(
+              children: [
+                // Icono de fondo
+                if (iconAsset != null)
+                  Positioned.fill(
+                    child: OverflowBox(
+                      maxWidth: double.infinity,
+                      maxHeight: double.infinity,
+                      alignment: Alignment.center,
+                      child: Transform.translate(
+                        offset: Offset(iconOffsetX, iconOffsetY),
+                        child: Transform.rotate(
+                          angle: iconRotation * math.pi / 180,
+                          child: SvgPicture.asset(
+                            iconAsset!,
+                            width: iconSize,
+                            height: iconSize,
+                            // CAMBIO CLAVE AQUÍ:
+                            // .contain respeta el tamaño exacto sin intentar recortar ni estirar
+                            fit: BoxFit.contain,
+                            colorFilter: const ColorFilter.mode(
+                              Color(0x33000000), // Negro con transparencia (ajustado a tu gusto anterior)
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
-  Widget _buildPokedexButton() {
-    return Align(
-      alignment: Alignment.center,
-      child: TextButton.icon(
-        onPressed: _onPokedexButtonPressed,
-        icon: const Icon(
-          Icons.menu_book_outlined,
-          size: AppConstants.pokedexButtonIconSize,
-        ),
-        label: const Text(
-          'Pokedex',
-          style: TextStyle(fontSize: AppConstants.pokedexButtonFontSize),
-        ),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        Expanded(
-          child: SearchBox(
-            hintText: 'Buscar Pokemon',
-            height: AppConstants.searchBoxHeight,
-            onChanged: _onSearchChanged,
+                // Texto centrado
+                Center(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontFamily: 'Pixelated',
+                      color: Colors.white,
+                      fontSize: 36,
+                      letterSpacing: 2.0,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(5, 5),
+                          color: Colors.black,
+                          blurRadius: 0,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        _buildIconButton(
-          icon: Icons.sort,
-          onPressed: () => _showSortMenu(),
-          colorScheme: colorScheme,
-        ),
-        _buildIconButton(
-          icon: Icons.filter_alt,
-          onPressed: () => _showFilterMenu(),
-          colorScheme: colorScheme,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    required ColorScheme colorScheme,
-  }) {
-    return IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: AppConstants.iconButtonSize),
-      color: colorScheme.onSurface,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-    );
-  }
-
-  void _showSortMenu() {
-    showSortMenu(
-      context,
-      onApplySort: (option, order) => _applySort(option, order),
-      initialOption: _selectedSortOption,
-      initialOrder: _selectedSortOrder,
-    );
-  }
-
-  void _showFilterMenu() {
-    final state = context.read<PokemonBloc>().state;
-
-    Map<String, dynamic> initialFilters = {};
-    if (state is PokemonLoaded) {
-      initialFilters = {
-        'favoritos': state.showFavorites,
-        'noFavoritos': state.showNoFavorites,
-        'tipos': state.activeTypes,
-        'regiones': state.activeRegions,
-        'categorias': state.activeCategories,
-      };
-    }
-
-    showFilterMenu(
-      context,
-      onApplyFilters: (filters) => _applyFilterMap(filters),
-      initialFilters: initialFilters,
-    );
-  }
-
-  Widget _buildPokemonGrid(PokemonState state) {
-    if (state is PokemonLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state is PokemonError && state.cachedPokemons == null) {
-      return _buildErrorView(state.message);
-    }
-
-    if (state is PokemonLoaded) {
-      return _buildResponsiveGrid(state.pokemons, state.hasReachedMax);
-    }
-
-    if (state is PokemonLoadingMore) {
-      return _buildResponsiveGrid(state.currentPokemons, false, isLoadingMore: true);
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildErrorView(String message) {
-    return ErrorView(
-      title: 'No se pudieron cargar los Pokémon',
-      message: message,
-      onRetry: () {
-        context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
-      },
-      showAppBar: false,
-    );
-  }
-
-  Widget _buildResponsiveGrid(List<Pokemon> pokemons, bool hasReachedMax, {bool isLoadingMore = false}) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = ResponsiveUtils.calculateCrossAxisCount(constraints.maxWidth);
-        final childAspectRatio = ResponsiveUtils.calculateChildAspectRatio(constraints.maxWidth);
-
-        return GridView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(0),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 0,
-            crossAxisSpacing: 0,
-            childAspectRatio: childAspectRatio,
-          ),
-          itemCount: pokemons.length + (isLoadingMore || !hasReachedMax ? 1 : 0),
-          itemBuilder: (context, index) => _buildGridItem(context, index, pokemons, isLoadingMore),
-        );
-      },
-    );
-  }
-
-  Widget _buildGridItem(BuildContext context, int index, List<Pokemon> pokemons, bool isLoadingMore) {
-    if (index >= pokemons.length) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final pokemon = pokemons[index];
-    return PokemonCard(
-      pokemon: pokemon,
-      onTap: () => _navigateToPokemonDetail(pokemon),
-    );
-  }
-
-  Widget _buildMenuButton() {
-    return FloatingActionButton(
-      onPressed: _showMenu,
-      child: const Icon(Icons.menu),
+      ),
     );
   }
 }

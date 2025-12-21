@@ -94,22 +94,26 @@ class _MovesFiltersWidgetState extends State<MovesFiltersWidget> {
         children: [
           // Header con título y botón limpiar
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Filtros de movimientos',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: const Text(
+                  'Filtros de movimientos',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               if (_hasActiveFilters)
                 TextButton.icon(
                   onPressed: _clearAllFilters,
-                  icon: const Icon(Icons.clear_all, size: 16),
-                  label: const Text('Limpiar'),
+                  icon: const Icon(Icons.clear_all, size: 14),
+                  label: const Text('Limpiar', style: TextStyle(fontSize: 12)),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.orange,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
             ],

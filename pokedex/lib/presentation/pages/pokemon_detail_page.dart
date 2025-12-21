@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
@@ -11,7 +10,9 @@ import '../widgets/detail_components/pokemon_stats_section.dart';
 import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
+import '../widgets/detail_components/pokemon_chain_forms_section.dart';
 import '../widgets/detail_components/pokemon_moveset_section.dart';
+import '../widgets/detail_components/pokemon_locations_section.dart';
 import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
 import '../bloc/pokemon_detail/pokemon_detail_event.dart';
 import '../bloc/pokemon_detail/pokemon_detail_state.dart';
@@ -262,15 +263,29 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             repository: widget.repository,
           ),
           const SizedBox(height: 24),
-          PokemonFormsSection(pokemon: pokemon),
-          const SizedBox(height: 24),
-          Builder(
-            builder: (context) => PokemonEvolutionSection(
-              pokemon: pokemon,
-              onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
-              isShiny: _isShiny,
-            ),
+          // Línea evolutiva primero
+          PokemonEvolutionSection(
+            pokemon: pokemon,
+            onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+            isShiny: _isShiny,
           ),
+          const SizedBox(height: 24),
+          // Formas del Pokémon actual
+          PokemonFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
+          ),
+          const SizedBox(height: 24),
+          // Formas de la cadena (megas/variantes en evoluciones)
+          PokemonChainFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
+          ),
+          const SizedBox(height: 24),
+          // Ubicaciones donde aparece el Pokémon
+          PokemonLocationsSection(pokemon: pokemon),
           const SizedBox(height: 32),
         ],
       ),
@@ -278,7 +293,6 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   }
 
   Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
-    final title = state.isRegionalForm;
     return ErrorView(
       onRetry: () {
         context.read<PokemonDetailBloc>().add(
@@ -289,11 +303,4 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
     );
   }
 }
-
-
-
-
-
-
-
 

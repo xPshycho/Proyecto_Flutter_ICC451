@@ -19,7 +19,6 @@ class PokemonEvolutionSection extends StatelessWidget {
   }
 
   Widget _buildEvolutionSprite(Pokemon evolution, Color typeColor) {
-    // Determine which sprite URL to use based on shiny state
     String? spriteUrl;
     if (isShiny && evolution.shinySpriteUrl != null) {
       spriteUrl = evolution.shinySpriteUrl;
@@ -48,30 +47,6 @@ class PokemonEvolutionSection extends StatelessWidget {
     }
   }
 
-  // Extrae etiquetas de forms a partir de `pokemon.forms` (misma heurística que en la tarjeta)
-  List<String> _extractFormLabelsFromPokemon(Pokemon pokemon) {
-    final labels = <String>{};
-    final forms = pokemon.forms;
-    if (forms == null) return [];
-    for (final f in forms) {
-      try {
-        if (f is Map) {
-          final isMega = f['is_mega'] as bool?;
-          final name = (f['name'] ?? f['form_name'] ?? '') as String? ?? '';
-          final lower = name.toLowerCase();
-          if (isMega == true || lower.contains('mega')) labels.add('MEGA');
-          if (lower.contains('alola') || lower.contains('alolan')) labels.add('ALOLA');
-          if (lower.contains('galar')) labels.add('GALAR');
-          if (lower.contains('hisui') || lower.contains('hisuan')) labels.add('HISUI');
-          if (lower.contains('paldea') || lower.contains('paldean')) labels.add('PALDEA');
-          if (lower.contains('gmax') || lower.contains('gigantamax')) labels.add('GIGANTAMAX');
-          if (lower.contains('primal')) labels.add('PRIMAL');
-        }
-      } catch (_) {}
-    }
-    return labels.toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     if (pokemon.evolutions == null || pokemon.evolutions!.isEmpty) {
@@ -86,7 +61,7 @@ class PokemonEvolutionSection extends StatelessWidget {
             Icon(Icons.change_circle_outlined, size: 20, color: Colors.grey[700]),
             const SizedBox(width: 8),
             const Text(
-              'EVOLUCIONES',
+              'LÍNEA EVOLUTIVA',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -111,17 +86,10 @@ class PokemonEvolutionSection extends StatelessWidget {
           evolutions.length * 2 - 1,
           (index) {
             if (index.isOdd) {
-              // Arrow between evolutions
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(
-                  Icons.arrow_forward,
-                  size: 24,
-                  color: Colors.grey[600],
-                ),
-              );
+              final evolutionIndex = (index + 1) ~/ 2;
+              final nextEvolution = evolutions[evolutionIndex];
+              return _buildEvolutionArrow(nextEvolution);
             } else {
-              // Evolution item
               final evolutionIndex = index ~/ 2;
               final evolution = evolutions[evolutionIndex];
               final isCurrentPokemon = evolution.id == pokemon.id;
@@ -133,6 +101,49 @@ class PokemonEvolutionSection extends StatelessWidget {
             }
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildEvolutionArrow(Pokemon nextEvolution) {
+    final details = nextEvolution.evolutionDetails;
+    String? detailText;
+
+    if (details != null && details.isNotEmpty) {
+      final detail = details.values.first;
+      detailText = detail.getDisplayText();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.arrow_forward,
+            size: 24,
+            color: Colors.grey[600],
+          ),
+          if (detailText != null && detailText.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                detailText,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -165,7 +176,6 @@ class PokemonEvolutionSection extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Imagen
             Container(
               width: 70,
               height: 70,
@@ -176,7 +186,6 @@ class PokemonEvolutionSection extends StatelessWidget {
               child: _buildEvolutionSprite(evolution, typeColor),
             ),
             const SizedBox(height: 8),
-            // Nombre
             Text(
               _formatPokemonName(evolution.name),
               style: TextStyle(
@@ -187,26 +196,7 @@ class PokemonEvolutionSection extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
-            // Mostrar etiquetas de forma si existen
-            Builder(builder: (context) {
-              final labels = _extractFormLabelsFromPokemon(evolution);
-              if (labels.isEmpty) return const SizedBox.shrink();
-              return Wrap(
-                spacing: 4,
-                alignment: WrapAlignment.center,
-                children: labels.map((lbl) {
-                  final bg = lbl == 'MEGA' ? Colors.orange : Colors.blueGrey;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-                    child: Text(lbl, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                  );
-                }).toList(),
-              );
-            }),
             const SizedBox(height: 4),
-            // ID
             Text(
               'Nº${evolution.id.toString().padLeft(3, '0')}',
               style: TextStyle(
@@ -216,7 +206,6 @@ class PokemonEvolutionSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            // Tipos
             Wrap(
               spacing: 4,
               alignment: WrapAlignment.center,
@@ -240,3 +229,4 @@ class PokemonEvolutionSection extends StatelessWidget {
     );
   }
 }
+
