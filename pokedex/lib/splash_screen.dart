@@ -30,7 +30,7 @@ class SplashScreen extends StatelessWidget {
           ),
         ],
       ),
-      nextScreen: const HomePage(),
+      nextScreen: const PokedexPage(),
       splashIconSize: 400,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       duration: 3000,

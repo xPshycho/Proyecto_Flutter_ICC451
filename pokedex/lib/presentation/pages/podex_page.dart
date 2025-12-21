@@ -22,14 +22,14 @@ import '../bloc/pokemon/pokemon_state.dart';
 import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
 import '../bloc/pokemon_detail/pokemon_detail_event.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class PokedexPage extends StatefulWidget {
+  const PokedexPage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<PokedexPage> createState() => _PokedexPageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStateMixin {
   // Controllers
   final ScrollController _scrollController = ScrollController();
   late final AnimationController _animationController;
