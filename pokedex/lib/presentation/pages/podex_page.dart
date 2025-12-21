@@ -13,6 +13,7 @@ import '../../data/repositories/pokemon_repository.dart';
 import '../widgets/pokemon_card.dart';
 import '../../data/models/pokemon.dart';
 import 'pokemon_detail_page.dart';
+import 'map_page.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../bloc/pokemon/pokemon_bloc.dart';
@@ -188,7 +189,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _onMapaPressed() {
     debugPrint('Mapa presionado');
-    Navigator.pop(context);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MapPage()),
+    );
   }
 
   void _onHelpPressed() {

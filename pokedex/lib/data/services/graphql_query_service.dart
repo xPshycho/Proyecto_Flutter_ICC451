@@ -348,4 +348,81 @@ class GraphQLQueryService {
       }
     }
   ''';
+
+  // Query para encuentros de Pokémon por ubicación
+  static const String encountersByLocation = r'''
+    query getEncountersByLocation($locationId: Int!) {
+      pokemon_v2_encounter(where: {location_area_id: {_eq: $locationId}}) {
+        pokemon_v2_pokemon {
+          id
+          name
+        }
+        pokemon_v2_encounterslot {
+          rarity
+          pokemon_v2_encountermethod {
+            name
+          }
+        }
+        min_level
+        max_level
+        pokemon_v2_version {
+          name
+        }
+      }
+    }
+  ''';
+
+  // Query para encuentros de un Pokémon específico
+  static const String encountersByPokemon = r'''
+    query getEncountersByPokemon($pokemonId: Int!) {
+      pokemon_v2_encounter(where: {pokemon_id: {_eq: $pokemonId}}) {
+        pokemon_v2_locationarea {
+          id
+          name
+          pokemon_v2_location {
+            name
+            pokemon_v2_region {
+              name
+            }
+          }
+        }
+        pokemon_v2_encounterslot {
+          rarity
+          pokemon_v2_encountermethod {
+            name
+          }
+        }
+        min_level
+        max_level
+        pokemon_v2_version {
+          name
+        }
+        pokemon_v2_pokemon {
+          id
+          name
+        }
+      }
+    }
+  ''';
+
+  // Nueva query: obtener location area por nombre (busca coincidencias case-insensitive)
+  static const String locationAreaByName = r'''
+    query getLocationAreaByName($name: String!) {
+      pokemon_v2_locationarea(
+        where: {
+          _or: [
+            {name: {_ilike: $name}},
+            {pokemon_v2_location: {name: {_ilike: $name}}}
+          ]
+        }
+      ) {
+        id
+        name
+        pokemon_v2_location {
+          id
+          name
+        }
+      }
+    }
+  ''';
 }

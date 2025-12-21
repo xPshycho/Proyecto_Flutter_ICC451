@@ -12,6 +12,7 @@ import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
 import '../widgets/detail_components/pokemon_chain_forms_section.dart';
 import '../widgets/detail_components/pokemon_moveset_section.dart';
+import '../widgets/detail_components/pokemon_locations_section.dart';
 import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
 import '../bloc/pokemon_detail/pokemon_detail_event.dart';
 import '../bloc/pokemon_detail/pokemon_detail_state.dart';
@@ -282,6 +283,9 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             isShiny: _isShiny,
             onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
           ),
+          const SizedBox(height: 24),
+          // Ubicaciones donde aparece el Pokémon
+          PokemonLocationsSection(pokemon: pokemon),
           const SizedBox(height: 32),
         ],
       ),
