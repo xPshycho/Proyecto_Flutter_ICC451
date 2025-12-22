@@ -39,53 +39,88 @@ class MapRepository {
 
     final variants = <String>{};
 
+    // If base contains a stop word like 'route', avoid adding broad wildcards like '%route%'
+    final parts = base.split(RegExp(r"\s+"));
+    final stopWords = {'route', 'ruta', 'island', 'town', 'city', 'cave', 'mt', 'islands', 'road'};
+    final containsStopWord = parts.any((p) => stopWords.contains(p));
+
+    // Always try exact and hyphenated exact first
     variants.add(base);
-    variants.add('%$base%');
+    final hyphenated = base.replaceAll(RegExp(r"\s+"), '-');
+    if (hyphenated.isNotEmpty && hyphenated != base) {
+      variants.add(hyphenated);
+    }
 
-    variants.add(_normalize(noApos));
-    variants.add('%${_normalize(noApos)}%');
+    // Add no-apostrophe exact
+    final noAposNorm = _normalize(noApos);
+    if (noAposNorm.isNotEmpty) variants.add(noAposNorm);
 
-    // Remove common suffixes like ' island', ' town', ' city', ' route'
+    // Add wildcard variants only when not too generic
+    if (!containsStopWord) {
+      variants.add('%$base%');
+      variants.add('%${_normalize(noApos)}%');
+      // Also try compacted wildcard
+      final noSpace = base.replaceAll(' ', '');
+      if (noSpace.isNotEmpty && noSpace != base) {
+        variants.add('%$noSpace%');
+      }
+    } else {
+      // If contains stop word (like 'route 1'), add a controlled set of wildcards including hyphenated
+      variants.add('%$hyphenated%');
+      // also try number-only or last-part wildcards (e.g., '1' or '%1%')
+      if (parts.length > 1) {
+        final last = parts.last;
+        if (last.length <= 3 && RegExp(r"^\d+").hasMatch(last)) {
+          variants.add(last);
+          variants.add('%$last%');
+        }
+      }
+    }
+
+    // Remove common suffixes like ' island', ' town', ' city', ' route' and add their shorter variants
     final suffixes = [' island', ' town', ' city', ' route', ' cave', ' mt', ' mt.', 'islands'];
     for (final suf in suffixes) {
       if (base.endsWith(suf.trim())) {
         final without = base.substring(0, base.length - suf.trim().length).trim();
         if (without.isNotEmpty) {
           variants.add(without);
-          variants.add('%$without%');
+          if (!containsStopWord) variants.add('%$without%');
         }
       }
     }
 
     // Try splitting words, e.g., 'cinnabar island' -> 'cinnabar'
-    final parts = base.split(RegExp(r"\s+"));
     if (parts.length > 1) {
       for (final p in parts) {
-        if (p.length > 1) {
-          variants.add(p);
-          variants.add('%$p%');
+        final part = p.trim();
+        if (part.length > 1 && !stopWords.contains(part)) {
+          variants.add(part);
+          if (!containsStopWord) variants.add('%$part%');
         }
       }
     }
 
-    // Also try compacted (no spaces)
-    final noSpace = base.replaceAll(' ', '');
-    if (noSpace.isNotEmpty && noSpace != base) {
-      variants.add(noSpace);
-      variants.add('%$noSpace%');
+    // Also try compacted (no spaces) as exact variant
+    final noSpaceExact = base.replaceAll(' ', '');
+    if (noSpaceExact.isNotEmpty && noSpaceExact != base) {
+      variants.add(noSpaceExact);
+      if (!containsStopWord) variants.add('%$noSpaceExact%');
     }
 
     return variants.toList();
   }
 
   /// Resuelve el id de location area (location_area) a partir de su nombre.
-  /// Devuelve null si no se encuentra.
-  Future<int?> getLocationAreaIdByName(String name) async {
+  /// Devuelve null si no se encuentra. Si se pasa [regionName], prioriza
+  /// coincidencias cuya región (pokemon_v2_location.pokemon_v2_region.name)
+  /// contenga ese nombre normalizado.
+  Future<int?> getLocationAreaIdByName(String name, {String? regionName}) async {
     // Generar candidatos y probarlos en orden hasta que uno devuelva resultados.
     final candidates = _generateCandidates(name);
+    final regionNorm = regionName != null ? _normalize(regionName) : null;
 
     for (final candidate in candidates) {
-      debugPrint('MapRepository: probando candidato: $candidate');
+      debugPrint('MapRepository: probando candidato: $candidate (region filter: $regionName)');
 
       final options = QueryOptions(
         document: gql(GraphQLQueryService.locationAreaByName),
@@ -106,24 +141,42 @@ class MapRepository {
       final data = clean['pokemon_v2_locationarea'] as List<dynamic>? ?? [];
       if (data.isEmpty) continue;
 
-      // Preferir coincidencia exacta en name o en pokemon_v2_location.name
-      final exact = data.firstWhere(
-        (item) {
-          final itemName = (item['name'] as String?)?.toLowerCase() ?? '';
-          final locName = (item['pokemon_v2_location']?['name'] as String?)?.toLowerCase() ?? '';
-          final candNorm = candidate.replaceAll('%', '').toLowerCase();
-          return itemName == candNorm || locName == candNorm;
-        },
-        orElse: () => null,
-      );
+      // Helper local para buscar el primer item que cumpla el test y devolver null si no hay ninguno
+      Map<String, dynamic>? firstMatch(List<dynamic> list, bool Function(Map<String, dynamic>) test) {
+        for (final item in list.cast<Map<String, dynamic>>()) {
+          if (test(item)) return item;
+        }
+        return null;
+      }
 
-      final chosen = exact ?? data.first;
-      final id = chosen['id'] as int?;
-      debugPrint('MapRepository: candidato exitoso: $candidate -> id $id (name: ${chosen['name']}, location: ${chosen['pokemon_v2_location']?['name']})');
+      // Si se proporcionó regionName, intentar priorizar items pertenecientes a esa región
+      Map<String, dynamic>? chosen;
+      if (regionNorm != null) {
+        chosen = firstMatch(data, (item) {
+          final loc = item['pokemon_v2_location'];
+          final region = loc?['pokemon_v2_region']?['name'] as String?;
+          final locName = loc?['name'] as String?;
+          final regionLower = (region ?? '').toLowerCase();
+          final locLower = (locName ?? '').toLowerCase();
+          return _normalize(regionLower).contains(regionNorm) || _normalize(locLower).contains(regionNorm);
+        });
+      }
+
+      // Preferir coincidencia exacta en name o en pokemon_v2_location.name
+      final exact = firstMatch(data, (item) {
+        final itemName = (item['name'] as String?)?.toLowerCase() ?? '';
+        final locName = (item['pokemon_v2_location']?['name'] as String?)?.toLowerCase() ?? '';
+        final candNorm = candidate.replaceAll('%', '').toLowerCase();
+        return itemName == candNorm || locName == candNorm;
+      });
+
+      final finalChoice = chosen ?? exact ?? data.first as Map<String, dynamic>;
+      final id = finalChoice['id'] as int?;
+      debugPrint('MapRepository: candidato exitoso: $candidate -> id $id (name: ${finalChoice['name']}, location: ${finalChoice['pokemon_v2_location']?['name']}, region: ${finalChoice['pokemon_v2_location']?['pokemon_v2_region']?['name']})');
       return id;
     }
 
-    debugPrint('MapRepository: no se encontró locationArea para: $name');
+    debugPrint('MapRepository: no se encontró locationArea para: $name (region filter: $regionName)');
     return null;
   }
 
@@ -299,6 +352,19 @@ class MapRepository {
     if (raw == null) return [];
     final clean = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
     final data = clean['pokemon_v2_locationarea'] as List<dynamic>? ?? [];
+
+    // Debug: imprimir cada match con id, name y location.name para facilitar debugging
+    try {
+      final debugList = data.map((item) => {
+        'id': item['id'],
+        'name': item['name'],
+        'location': item['pokemon_v2_location']?['name']
+      }).toList();
+      debugPrint('MapRepository: getLocationAreaMatches("$term") -> ${debugList.length} items: $debugList');
+    } catch (e) {
+      debugPrint('MapRepository: fallo al imprimir matches de "$term": $e');
+    }
+
     return data.map((item) {
       return {
         'id': item['id'] as int?,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/location.dart';
 import '../../../data/services/map_repository.dart';
@@ -9,11 +10,13 @@ import '../../../data/models/pokemon.dart';
 class RoutePokemonModal extends StatefulWidget {
   final String routeName;
   final int? locationId;
+  final String? regionName;
 
   const RoutePokemonModal({
     super.key,
     required this.routeName,
     this.locationId,
+    this.regionName,
   });
 
   @override
@@ -47,6 +50,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
       _showMatches = false;
       _matches = [];
       _pokemons = [];
+      _encounters = [];
     });
 
     try {
@@ -57,26 +61,126 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       // Si no tenemos un id válido, intentar resolverlo por nombre
       if (idToUse == null) {
-        final resolved = await repository.getLocationAreaIdByName(widget.routeName);
+        // Intentar resolver con la región
+        final resolved = await repository.getLocationAreaIdByName(widget.routeName, regionName: widget.regionName);
         if (resolved == null) {
           // Intentar obtener coincidencias y mostrarlas como opción al usuario
-          final matches = await repository.getLocationAreaMatches(widget.routeName);
-          if (matches.isNotEmpty) {
+          // Hacemos varios intentos con variantes para mejorar la tasa de acierto
+          final List<Map<String, dynamic>> combined = [];
+          void addMatches(List<Map<String, dynamic>> list) {
+            for (final m in list) {
+              final id = m['id'] as int?;
+              if (id == null) continue;
+              final exists = combined.any((c) => (c['id'] as int?) == id);
+              if (!exists) combined.add(m);
+            }
+          }
+
+          List<Map<String, dynamic>> matches = await repository.getLocationAreaMatches(widget.routeName);
+          debugPrint('RoutePokemonModal: matches iniciales para "${widget.routeName}" -> ${matches.length}');
+          addMatches(matches);
+
+          // Variantes: hyphenated, last numeric token, compacted
+          final norm = widget.routeName.trim().toLowerCase();
+          final hyphenated = norm.replaceAll(RegExp(r"\s+"), '-');
+          if (hyphenated != norm) {
+            final more = await repository.getLocationAreaMatches(hyphenated);
+            debugPrint('RoutePokemonModal: matches hyphenated "$hyphenated" -> ${more.length}');
+            addMatches(more);
+          }
+
+          final parts = norm.split(RegExp(r"\s+"));
+          if (parts.isNotEmpty) {
+            final last = parts.last;
+            if (RegExp(r"^\d+").hasMatch(last)) {
+              final more = await repository.getLocationAreaMatches(last);
+              debugPrint('RoutePokemonModal: matches numeric "${last}" -> ${more.length}');
+              addMatches(more);
+            }
+          }
+
+          final compact = norm.replaceAll(' ', '');
+          if (compact != norm) {
+            final more = await repository.getLocationAreaMatches(compact);
+            debugPrint('RoutePokemonModal: matches compact "$compact" -> ${more.length}');
+            addMatches(more);
+          }
+
+          // También intentar combinar con el nombre de la región si está disponible
+          if ((widget.regionName ?? '').isNotEmpty) {
+            final regionNorm = widget.regionName!.trim().toLowerCase();
+            final combined1 = '${norm} ${regionNorm}';
+            final more1 = await repository.getLocationAreaMatches(combined1);
+            debugPrint('RoutePokemonModal: matches "${combined1}" -> ${more1.length}');
+            addMatches(more1);
+
+            final combined2 = '${regionNorm} ${norm}';
+            final more2 = await repository.getLocationAreaMatches(combined2);
+            debugPrint('RoutePokemonModal: matches "${combined2}" -> ${more2.length}');
+            addMatches(more2);
+
+            final hyphenRegion = '${hyphenated}-${regionNorm}';
+            final more3 = await repository.getLocationAreaMatches(hyphenRegion);
+            debugPrint('RoutePokemonModal: matches "${hyphenRegion}" -> ${more3.length}');
+            addMatches(more3);
+          }
+
+          // Intentos adicionales: buscar por tokens sueltos y combinaciones para cubrir casos como 'route 1', 'route-1', '1 route'
+          final tokens = norm.split(RegExp(r"\s+"));
+          // always try the first token (often 'route') and last token (often number)
+          if (tokens.isNotEmpty) {
+            final firstToken = tokens.first;
+            if (firstToken.length > 1) {
+              final more = await repository.getLocationAreaMatches(firstToken);
+              debugPrint('RoutePokemonModal: matches token first "$firstToken" -> ${more.length}');
+              addMatches(more);
+            }
+            final lastToken = tokens.last;
+            if (lastToken.length > 0) {
+              final more = await repository.getLocationAreaMatches(lastToken);
+              debugPrint('RoutePokemonModal: matches token last "$lastToken" -> ${more.length}');
+              addMatches(more);
+            }
+            if (tokens.length >= 2) {
+              final alt1 = '${tokens.first}-${tokens.last}';
+              final more = await repository.getLocationAreaMatches(alt1);
+              debugPrint('RoutePokemonModal: matches alt1 "$alt1" -> ${more.length}');
+              addMatches(more);
+              final alt2 = '${tokens.last} ${tokens.first}';
+              final more2 = await repository.getLocationAreaMatches(alt2);
+              debugPrint('RoutePokemonModal: matches alt2 "$alt2" -> ${more2.length}');
+              addMatches(more2);
+            }
+          }
+
+           // Si aún está vacío, intentar resolver sin filtro de región
+           if (combined.isEmpty) {
+             final resolvedAnyRegion = await repository.getLocationAreaIdByName(widget.routeName, regionName: null);
+             debugPrint('RoutePokemonModal: intento sin region para "${widget.routeName}" -> $resolvedAnyRegion');
+             if (resolvedAnyRegion != null) {
+               idToUse = resolvedAnyRegion;
+             }
+           }
+
+          if (idToUse == null && combined.isNotEmpty) {
             setState(() {
               _isLoading = false;
               _showMatches = true;
-              _matches = matches;
+              _matches = combined.toList();
             });
             return;
           }
 
-          setState(() {
-            _isLoading = false;
-            _error = 'No se encontró la ubicación para "${widget.routeName}" (nombre -> id).';
-          });
-          return;
+          if (idToUse == null) {
+            setState(() {
+              _isLoading = false;
+              _error = 'No se encontró la ubicación para "${widget.routeName}" (nombre -> id).';
+            });
+            return;
+          }
+        } else {
+          idToUse = resolved;
         }
-        idToUse = resolved;
       }
 
       await _loadEncountersForId(idToUse);
@@ -104,6 +208,34 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       _encounters = await repository.getEncountersByLocation(id);
 
+      // Log: mostrar encuentros crudos obtenidos
+      try {
+        debugPrint('RoutePokemonModal: encuentros crudos (id $id) -> ' + _encounters.map((e) => {'pokemonId': e.pokemonId, 'pokemonName': e.pokemonName, 'method': e.method, 'games': e.games, 'min': e.minLevel, 'max': e.maxLevel, 'rate': e.rate}).toList().toString());
+      } catch (e) {
+        debugPrint('RoutePokemonModal: fallo al imprimir encuentros: $e');
+      }
+
+      // Filtrar encuentros para mostrar solo encuentros 'salvajes' usando una lista blanca de métodos.
+      // Métodos comunes salvajes: walk, surf, grass, cave, old-rod, good-rod, super-rod, fishing, rock-smash, headbutt
+      bool isMethodWild(String method) {
+        final m = method.toLowerCase();
+        final whitelist = ['walk', 'surf', 'grass', 'cave', 'old-rod', 'good-rod', 'super-rod', 'fishing', 'fish', 'rock-smash', 'headbutt', 'hidden'];
+        for (final w in whitelist) {
+          if (m.contains(w)) return true;
+        }
+        return false;
+      }
+
+      final beforeFilterCount = _encounters.length;
+      _encounters = _encounters.where((e) {
+        final methods = e.method.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+        for (final m in methods) {
+          if (isMethodWild(m)) return true;
+        }
+        return false;
+      }).toList();
+      debugPrint('RoutePokemonModal: encuentros filtrados (salvajes) para id $id -> ${_encounters.length} (antes: $beforeFilterCount)');
+
       if (_encounters.isEmpty) {
         setState(() {
           _error = 'No hay encuentros registrados para ${widget.routeName} (id $id).';
@@ -111,10 +243,19 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
       } else {
         // Obtener IDs únicos de pokémon de los encuentros
         final ids = _encounters.map((e) => e.pokemonId).toSet().toList();
+        debugPrint('RoutePokemonModal: ids de pokémon a cargar para id $id -> ${ids.toString()}');
         // Cargar datos de pokémon para mostrar tarjetas
         final pokes = await repository.getPokemonsByIds(ids);
         // Reconstruir `Pokemon` simples para evitar referencias inesperadas a objetos complejos
         final safePokes = pokes.map((p) => Pokemon(id: p.id, name: p.name, spriteUrl: p.spriteUrl, types: List<String>.from(p.types))).toList();
+
+        // Log: mostrar pokémon cargados
+        try {
+          debugPrint('RoutePokemonModal: pokémon cargados para id $id -> ' + safePokes.map((p) => {'id': p.id, 'name': p.name}).toList().toString());
+        } catch (e) {
+          debugPrint('RoutePokemonModal: fallo al imprimir pokémon cargados: $e');
+        }
+
         setState(() {
           _pokemons = safePokes;
         });
@@ -187,18 +328,40 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
                           )
                         : _pokemons.isEmpty
                             ? const Center(child: Text('No hay encuentros disponibles'))
-                            : ListView.builder(
-                                itemCount: _pokemons.length,
-                                itemBuilder: (context, index) {
-                                  final pokemon = _pokemons[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    child: _SimplePokemonCard(
-                                      pokemon: pokemon,
-                                      onTap: () => Navigator.of(context).pop(),
+                            : Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        ElevatedButton.icon(
+                                          onPressed: _loadEncounters,
+                                          icon: const Icon(Icons.refresh),
+                                          label: const Text('Refrescar'),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                },
+                                  ),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      itemCount: _pokemons.length,
+                                      itemBuilder: (context, index) {
+                                        final pokemon = _pokemons[index];
+                                        // Encontrar el encounter correspondiente (por id)
+                                        final encounter = _encounters.firstWhere((e) => e.pokemonId == pokemon.id, orElse: () => Encounter(pokemonId: pokemon.id, pokemonName: pokemon.name, method: 'walk', minLevel: 0, maxLevel: 0, rate: 0.0, games: []));
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          child: _DetailedPokemonCard(
+                                            pokemon: pokemon,
+                                            encounter: encounter,
+                                            onTap: () => Navigator.of(context).pop(),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
           ),
         ],
@@ -236,16 +399,33 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
   }
 }
 
-// Tarjeta simple local que muestra sprite, id, nombre y tipos (sin blocs ni dependencias externas)
-class _SimplePokemonCard extends StatelessWidget {
+// Tarjeta más detallada que incluye info de encuentro (games, method, rate)
+class _DetailedPokemonCard extends StatelessWidget {
   final Pokemon pokemon;
+  final Encounter encounter;
   final VoidCallback? onTap;
 
-  const _SimplePokemonCard({required this.pokemon, this.onTap});
+  const _DetailedPokemonCard({required this.pokemon, required this.encounter, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Determinar si el encuentro es considerado 'salvaje'
+    bool isWildEncounter(Encounter e) {
+      final methods = e.method.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final whitelist = ['walk', 'surf', 'grass', 'cave', 'old-rod', 'good-rod', 'super-rod', 'fishing', 'fish', 'rock-smash', 'headbutt', 'hidden'];
+      for (final m in methods) {
+        final low = m.toLowerCase();
+        for (final w in whitelist) {
+          if (low.contains(w)) return true;
+        }
+      }
+      return false;
+    }
+
+    final wild = isWildEncounter(encounter);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -268,7 +448,18 @@ class _SimplePokemonCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('#${pokemon.id.toString().padLeft(3, '0')}', style: TextStyle(color: colorScheme.onSurface.withAlpha(140), fontSize: 11, fontWeight: FontWeight.w600)),
+                    Row(
+                      children: [
+                        Expanded(child: Text('#${pokemon.id.toString().padLeft(3, '0')}', style: TextStyle(color: colorScheme.onSurface.withAlpha(140), fontSize: 11, fontWeight: FontWeight.w600))),
+                        if (wild)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.green.withAlpha(40), borderRadius: BorderRadius.circular(12)),
+                            child: const Text('Salvaje', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text(pokemon.name[0].toUpperCase() + (pokemon.name.length > 1 ? pokemon.name.substring(1) : ''), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
@@ -285,6 +476,45 @@ class _SimplePokemonCard extends StatelessWidget {
                           );
                         }).toList(),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Mostrar info del encuentro: métodos y juegos
+                    Row(
+                      children: [
+                        // métodos como chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: encounter.method.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).map((m) {
+                              return Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(color: colorScheme.secondary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
+                                child: Text(m, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Rate: ${(encounter.rate * 100).toStringAsFixed(0)}%', style: TextStyle(color: colorScheme.onSurface.withAlpha(140), fontSize: 12)),
+                        const SizedBox(width: 8),
+                        // Mostrar juegos como chips
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: encounter.games.map((g) {
+                                return Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: colorScheme.primary.withAlpha(20), borderRadius: BorderRadius.circular(12)),
+                                  child: Text(g, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

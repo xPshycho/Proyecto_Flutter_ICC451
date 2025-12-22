@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../widgets/map_components/interactive_map_widget.dart';
 import '../widgets/map_components/kanto_map_areas.dart';
-import '../../../data/services/map_repository.dart';
 import '../../../data/models/location.dart';
 import '../widgets/map_components/route_pokemon_modal.dart';
 
@@ -16,8 +15,11 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   String? selectedArea;
+  String selectedRegion = 'Kanto';
   List<Location> _locations = [];
   bool _isLoadingEncounters = false;
+  bool _isOpeningModal = false; // evita abrir múltiples modales por taps rápidos
+  bool _isModalOpen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +33,17 @@ class _MapPageState extends State<MapPage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: DropdownButton<String>(
-              value: 'Kanto',
+              value: selectedRegion,
               items: const [
                 DropdownMenuItem(value: 'Kanto', child: Text('Kanto')),
                 // Agregar más regiones
               ],
               onChanged: (value) {
-                // Cambiar mapa
+                if (value != null) {
+                  setState(() {
+                    selectedRegion = value;
+                  });
+                }
               },
             ),
           ),
@@ -45,11 +51,15 @@ class _MapPageState extends State<MapPage> {
             child: InteractiveMapWidget(
               mapImagePath: KantoMapAreas.mapImagePath,
               areas: KantoMapAreas.areas,
-              onAreaTap: (areaName) {
+              onAreaTap: (areaName) async {
+                // Protegemos contra taps rápidos
+                if (_isOpeningModal) return;
+                _isOpeningModal = true;
                 setState(() {
                   selectedArea = areaName;
                 });
-                _showRouteModal(areaName);
+                await _showRouteModal(areaName);
+                _isOpeningModal = false;
               },
             ),
           ),
@@ -68,27 +78,28 @@ class _MapPageState extends State<MapPage> {
       _isLoadingEncounters = true;
     });
 
-    int? locationId;
-    try {
-      final client = GraphQLProvider.of(context).value;
-      final repository = MapRepository(client);
-      locationId = await repository.getLocationAreaIdByName(areaName);
-    } catch (_) {
-      locationId = null;
-    }
-
     setState(() {
       _isLoadingEncounters = false;
     });
 
-    showModalBottomSheet(
+    // Instead of popping arbitrary routes, keep track of modal state and await its closing.
+    if (_isModalOpen) {
+      // If modal is open, don't open another; you could also close it explicitly if needed.
+      return;
+    }
+
+    _isModalOpen = true;
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => RoutePokemonModal(
         routeName: areaName,
-        locationId: locationId,
+        locationId: null,
+        regionName: selectedRegion,
       ),
     );
+    // When modal Future completes, it's closed.
+    _isModalOpen = false;
   }
 }
