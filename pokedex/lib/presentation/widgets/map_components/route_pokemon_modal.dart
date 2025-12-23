@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/location.dart';
 import '../../../data/services/map_repository.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../../data/models/pokemon.dart';
+import '../../../data/repositories/pokemon_repository.dart';
+import '../../pages/pokemon_detail_page.dart';
+import '../../bloc/pokemon_detail/pokemon_detail_bloc.dart';
+import '../../bloc/pokemon_detail/pokemon_detail_event.dart';
 
 /// Modal que muestra todos los Pokémon de una ruta específica.
 class RoutePokemonModal extends StatefulWidget {
@@ -377,7 +382,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
                                           child: _DetailedPokemonCard(
                                             pokemon: pokemon,
                                             encounter: encounter,
-                                            onTap: () => Navigator.of(context).pop(),
+                                            onTap: () => _navigateToPokemonDetail(pokemon),
                                           ),
                                         );
                                       },
@@ -417,6 +422,23 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
           ),
         ),
       ],
+    );
+  }
+
+  void _navigateToPokemonDetail(Pokemon pokemon) async {
+    final repo = RepositoryProvider.of<PokemonRepository>(context);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => PokemonDetailBloc(repository: repo)
+            ..add(LoadPokemonDetail(pokemon.id)),
+          child: PokemonDetailPage(
+            id: pokemon.id,
+            repository: repo,
+          ),
+        ),
+      ),
     );
   }
 }
