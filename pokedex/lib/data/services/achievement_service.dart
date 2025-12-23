@@ -6,7 +6,6 @@ import '../../core/utils/pokemon_utils.dart';
 
 /// Servicio para gestionar logros del quiz
 class AchievementService {
-  static const String _achievementsKey = 'quiz_achievements';
   static const String _unlockedPokemonKey = 'unlocked_pokemon_ids';
   static const String _statsKey = 'quiz_stats';
 

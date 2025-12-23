@@ -252,7 +252,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
                         color: isUnlocked ? Colors.white : Colors.white70,
                       ),
                     ),
-                    // _buildDifficultyTag(achievement.difficulty),
                   ],
                 ),
               ),
@@ -310,48 +309,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  /// Tag de dificultad con color según categoría
-  Widget _buildDifficultyTag(AchievementDifficulty difficulty) {
-    Color backgroundColor;
-    String label;
-
-    switch (difficulty) {
-      case AchievementDifficulty.facil:
-        backgroundColor = const Color(0x3F25B435); // Verde con transparencia
-        label = 'Fácil';
-        break;
-      case AchievementDifficulty.intermedio:
-        backgroundColor = const Color(0x3FFF9800); // Naranja con transparencia
-        label = 'Intermedio';
-        break;
-      case AchievementDifficulty.maestro:
-        backgroundColor = const Color(0x3F9C27B0); // Púrpura con transparencia
-        label = 'Maestro';
-        break;
-      case AchievementDifficulty.arceus:
-        backgroundColor = const Color(0x3FF44336); // Rojo con transparencia
-        label = 'Arceus';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: backgroundColor,
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Pixelated',
-          fontSize: 10,
-          color: Colors.white,
-          fontWeight: FontWeight.w400,
-        ),
       ),
     );
   }

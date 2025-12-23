@@ -159,10 +159,6 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
     }
   }
 
-  void _clearAllFilters() {
-    context.read<PokemonBloc>().add(const ClearFilters());
-  }
-
   // ==================== Navigation ====================
 
   void _showMenu() async {
@@ -183,11 +179,6 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
       onHelpPressed: () => _onHelpPressed(),
       onHomePressed: () => _onHomePressed(),
     );
-  }
-
-  void _onPokedexPressed() {
-    debugPrint('Pokedex Nacional presionado');
-    Navigator.pop(context);
   }
 
   void _onMapaPressed() {

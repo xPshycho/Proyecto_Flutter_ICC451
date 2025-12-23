@@ -10,7 +10,6 @@ import '../../data/services/achievement_service.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../bloc/quiz/quiz_bloc.dart';
 import '../bloc/quiz/quiz_event.dart';
-import '../bloc/quiz/quiz_state.dart';
 import 'home_page.dart';
 import 'quiz_page.dart';
 import 'achievements_page.dart';

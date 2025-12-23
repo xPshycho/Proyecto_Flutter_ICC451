@@ -189,7 +189,7 @@ class QuizGameOverDialog extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4FC43C).withOpacity(0.15),
+                        color: const Color(0xFF4FC43C).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: const Color(0xFFFFD700),
@@ -272,7 +272,7 @@ class QuizGameOverDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF2A2A2A),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Column(
         children: [

@@ -114,7 +114,7 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
         color: const Color(0xFF2A2A2A),
         border: Border(
           bottom: BorderSide(
-            color: const Color(0xFF4FC43C).withOpacity(0.3),
+            color: const Color(0xFF4FC43C).withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -142,7 +142,7 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: _timeColor, width: 2),
                     ),
@@ -181,8 +181,8 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: widget.timeChange! > 0
-                                  ? Colors.green.withOpacity(0.9)
-                                  : Colors.red.withOpacity(0.9),
+                                  ? Colors.green.withValues(alpha: 0.9)
+                                  : Colors.red.withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: widget.timeChange! > 0
@@ -255,9 +255,9 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Column(
         children: [

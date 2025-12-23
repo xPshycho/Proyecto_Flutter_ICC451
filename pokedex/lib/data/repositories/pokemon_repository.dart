@@ -1022,29 +1022,6 @@ class PokemonRepository {
     return filtered;
   }
 
-  /// Obtiene detalles por IDs
-  Future<List<Pokemon>> _fetchDetailsByIds(List<int> ids) async {
-    if (ids.isEmpty) return [];
-
-    try {
-      final result = await _executor.executeQuery(
-        query: GraphQLQueryService.detailsByIds,
-        variables: {'ids': ids},
-      );
-
-      if (!result.hasException && result.data != null) {
-        final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
-        if (data != null) {
-          return PokemonMapperService.mapDetailedList(data);
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching details by IDs: $e');
-    }
-
-    return [];
-  }
-
   // ========== Métodos de testing ==========
 
   Future<void> testMegaEvolutions() async {

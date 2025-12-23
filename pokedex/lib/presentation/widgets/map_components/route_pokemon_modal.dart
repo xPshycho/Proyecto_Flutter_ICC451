@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/location.dart';
 import '../../../data/services/map_repository.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -61,136 +59,160 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       // Si no tenemos un id válido, intentar resolverlo por nombre
       if (idToUse == null) {
-        // Intentar resolver con la región
-        final resolved = await repository.getLocationAreaIdByName(widget.routeName, regionName: widget.regionName);
-        if (resolved == null) {
-          // Intentar obtener coincidencias y mostrarlas como opción al usuario
-          // Hacemos varios intentos con variantes para mejorar la tasa de acierto
-          final List<Map<String, dynamic>> combined = [];
-          void addMatches(List<Map<String, dynamic>> list) {
-            for (final m in list) {
-              final id = m['id'] as int?;
-              if (id == null) continue;
-              final exists = combined.any((c) => (c['id'] as int?) == id);
-              if (!exists) combined.add(m);
-            }
-          }
-
-          List<Map<String, dynamic>> matches = await repository.getLocationAreaMatches(widget.routeName);
-          debugPrint('RoutePokemonModal: matches iniciales para "${widget.routeName}" -> ${matches.length}');
-          addMatches(matches);
-
-          // Variantes: hyphenated, last numeric token, compacted
-          final norm = widget.routeName.trim().toLowerCase();
-          final hyphenated = norm.replaceAll(RegExp(r"\s+"), '-');
-          if (hyphenated != norm) {
-            final more = await repository.getLocationAreaMatches(hyphenated);
-            debugPrint('RoutePokemonModal: matches hyphenated "$hyphenated" -> ${more.length}');
-            addMatches(more);
-          }
-
-          final parts = norm.split(RegExp(r"\s+"));
-          if (parts.isNotEmpty) {
-            final last = parts.last;
-            if (RegExp(r"^\d+").hasMatch(last)) {
-              final more = await repository.getLocationAreaMatches(last);
-              debugPrint('RoutePokemonModal: matches numeric "${last}" -> ${more.length}');
-              addMatches(more);
-            }
-          }
-
-          final compact = norm.replaceAll(' ', '');
-          if (compact != norm) {
-            final more = await repository.getLocationAreaMatches(compact);
-            debugPrint('RoutePokemonModal: matches compact "$compact" -> ${more.length}');
-            addMatches(more);
-          }
-
-          // También intentar combinar con el nombre de la región si está disponible
-          if ((widget.regionName ?? '').isNotEmpty) {
-            final regionNorm = widget.regionName!.trim().toLowerCase();
-            final combined1 = '${norm} ${regionNorm}';
-            final more1 = await repository.getLocationAreaMatches(combined1);
-            debugPrint('RoutePokemonModal: matches "${combined1}" -> ${more1.length}');
-            addMatches(more1);
-
-            final combined2 = '${regionNorm} ${norm}';
-            final more2 = await repository.getLocationAreaMatches(combined2);
-            debugPrint('RoutePokemonModal: matches "${combined2}" -> ${more2.length}');
-            addMatches(more2);
-
-            final hyphenRegion = '${hyphenated}-${regionNorm}';
-            final more3 = await repository.getLocationAreaMatches(hyphenRegion);
-            debugPrint('RoutePokemonModal: matches "${hyphenRegion}" -> ${more3.length}');
-            addMatches(more3);
-          }
-
-          // Intentos adicionales: buscar por tokens sueltos y combinaciones para cubrir casos como 'route 1', 'route-1', '1 route'
-          final tokens = norm.split(RegExp(r"\s+"));
-          // always try the first token (often 'route') and last token (often number)
-          if (tokens.isNotEmpty) {
-            final firstToken = tokens.first;
-            if (firstToken.length > 1) {
-              final more = await repository.getLocationAreaMatches(firstToken);
-              debugPrint('RoutePokemonModal: matches token first "$firstToken" -> ${more.length}');
-              addMatches(more);
-            }
-            final lastToken = tokens.last;
-            if (lastToken.length > 0) {
-              final more = await repository.getLocationAreaMatches(lastToken);
-              debugPrint('RoutePokemonModal: matches token last "$lastToken" -> ${more.length}');
-              addMatches(more);
-            }
-            if (tokens.length >= 2) {
-              final alt1 = '${tokens.first}-${tokens.last}';
-              final more = await repository.getLocationAreaMatches(alt1);
-              debugPrint('RoutePokemonModal: matches alt1 "$alt1" -> ${more.length}');
-              addMatches(more);
-              final alt2 = '${tokens.last} ${tokens.first}';
-              final more2 = await repository.getLocationAreaMatches(alt2);
-              debugPrint('RoutePokemonModal: matches alt2 "$alt2" -> ${more2.length}');
-              addMatches(more2);
-            }
-          }
-
-           // Si aún está vacío, intentar resolver sin filtro de región
-           if (combined.isEmpty) {
-             final resolvedAnyRegion = await repository.getLocationAreaIdByName(widget.routeName, regionName: null);
-             debugPrint('RoutePokemonModal: intento sin region para "${widget.routeName}" -> $resolvedAnyRegion');
-             if (resolvedAnyRegion != null) {
-               idToUse = resolvedAnyRegion;
-             }
-           }
-
-          if (idToUse == null && combined.isNotEmpty) {
-            setState(() {
-              _isLoading = false;
-              _showMatches = true;
-              _matches = combined.toList();
-            });
-            return;
-          }
-
-          if (idToUse == null) {
-            setState(() {
-              _isLoading = false;
-              _error = 'No se encontró la ubicación para "${widget.routeName}" (nombre -> id).';
-            });
-            return;
-          }
+        // Construir identificador en inglés con sintaxis PokeAPI
+        String identifier;
+        final lowerRoute = widget.routeName.toLowerCase();
+        if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
+          // Es ruta: añadir prefijo de región
+          final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
+          final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
+          identifier = '$regionSlug-route-$routeNum';
         } else {
-          idToUse = resolved;
+          // Es ciudad: solo normalizar
+          identifier = lowerRoute.replaceAll(' ', '-');
         }
-      }
+        debugPrint('RoutePokemonModal: construido identifier: $identifier');
 
-      await _loadEncountersForId(idToUse);
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Error al cargar encuentros: $e';
-      });
-    }
-  }
+        // Intentar buscar location con el identifier
+        final locId = await repository.getLocationIdByIdentifier(identifier);
+        if (locId != null) {
+          idToUse = locId;
+        } else {
+          // Fallback: intentar resolver con la lógica anterior (location-area)
+          final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: widget.regionName);
+          debugPrint('RoutePokemonModal: fallback resolveLocationOrArea result -> $resolvedMap');
+          final resolved = resolvedMap['id'] as int?;
+          if (resolved == null) {
+            // Intentar obtener coincidencias y mostrarlas como opción al usuario
+            // Hacemos varios intentos con variantes para mejorar la tasa de acierto
+            final List<Map<String, dynamic>> combined = [];
+            void addMatches(List<Map<String, dynamic>> list) {
+              for (final m in list) {
+                final id = m['id'] as int?;
+                if (id == null) continue;
+                final exists = combined.any((c) => (c['id'] as int?) == id);
+                if (!exists) combined.add(m);
+              }
+            }
+
+            List<Map<String, dynamic>> matches = await repository.getLocationAreaMatches(widget.routeName);
+            debugPrint('RoutePokemonModal: matches iniciales para "${widget.routeName}" -> ${matches.length}');
+            addMatches(matches);
+
+            // Variantes: hyphenated, last numeric token, compacted
+            final norm = widget.routeName.trim().toLowerCase();
+            final hyphenated = norm.replaceAll(RegExp(r"\s+"), '-');
+            if (hyphenated != norm) {
+              final more = await repository.getLocationAreaMatches(hyphenated);
+              debugPrint('RoutePokemonModal: matches hyphenated "$hyphenated" -> ${more.length}');
+              addMatches(more);
+            }
+
+            final parts = norm.split(RegExp(r"\s+"));
+            if (parts.isNotEmpty) {
+              final last = parts.last;
+              if (RegExp(r"^\d+").hasMatch(last)) {
+                final more = await repository.getLocationAreaMatches(last);
+                debugPrint('RoutePokemonModal: matches numeric "$last" -> ${more.length}');
+                addMatches(more);
+              }
+            }
+
+            final compact = norm.replaceAll(' ', '');
+            if (compact != norm) {
+              final more = await repository.getLocationAreaMatches(compact);
+              debugPrint('RoutePokemonModal: matches compact "$compact" -> ${more.length}');
+              addMatches(more);
+            }
+
+            // También intentar combinar con el nombre de la región si está disponible
+            if ((widget.regionName ?? '').isNotEmpty) {
+              final regionNorm = widget.regionName!.trim().toLowerCase();
+              final combined1 = '$norm $regionNorm';
+              final more1 = await repository.getLocationAreaMatches(combined1);
+              debugPrint('RoutePokemonModal: matches "$combined1" -> ${more1.length}');
+              addMatches(more1);
+
+              final combined2 = '$regionNorm $norm';
+              final more2 = await repository.getLocationAreaMatches(combined2);
+              debugPrint('RoutePokemonModal: matches "$combined2" -> ${more2.length}');
+              addMatches(more2);
+
+              final hyphenRegion = '$hyphenated-$regionNorm';
+              final more3 = await repository.getLocationAreaMatches(hyphenRegion);
+              debugPrint('RoutePokemonModal: matches "$hyphenRegion" -> ${more3.length}');
+              addMatches(more3);
+            }
+
+            // Intentos adicionales: buscar por tokens sueltos y combinaciones para cubrir casos como 'route 1', 'route-1', '1 route'
+            final tokens = norm.split(RegExp(r"\s+"));
+            // always try the first token (often 'route') and last token (often number)
+            if (tokens.isNotEmpty) {
+              final firstToken = tokens.first;
+              if (firstToken.length > 1) {
+                final more = await repository.getLocationAreaMatches(firstToken);
+                debugPrint('RoutePokemonModal: matches token first "$firstToken" -> ${more.length}');
+                addMatches(more);
+              }
+              final lastToken = tokens.last;
+              if (lastToken.isNotEmpty) {
+                final more = await repository.getLocationAreaMatches(lastToken);
+                debugPrint('RoutePokemonModal: matches token last "$lastToken" -> ${more.length}');
+                addMatches(more);
+              }
+              if (tokens.length >= 2) {
+                final alt1 = '${tokens.first}-${tokens.last}';
+                final more = await repository.getLocationAreaMatches(alt1);
+                debugPrint('RoutePokemonModal: matches alt1 "$alt1" -> ${more.length}');
+                addMatches(more);
+                final alt2 = '${tokens.last} ${tokens.first}';
+                final more2 = await repository.getLocationAreaMatches(alt2);
+                debugPrint('RoutePokemonModal: matches alt2 "$alt2" -> ${more2.length}');
+                addMatches(more2);
+              }
+            }
+
+             // Si aún está vacío, intentar resolver sin filtro de región
+             if (combined.isEmpty) {
+               // intentar resolver usando resolveLocationOrArea sin region
+               final resolvedAny = await repository.resolveLocationOrArea(widget.routeName, regionName: null);
+               debugPrint('RoutePokemonModal: intento sin region (resolveLocationOrArea) para "${widget.routeName}" -> $resolvedAny');
+               final resolvedAnyId = resolvedAny['id'] as int?;
+               if (resolvedAnyId != null) {
+                 idToUse = resolvedAnyId;
+               }
+             }
+
+            if (idToUse == null && combined.isNotEmpty) {
+              setState(() {
+                _isLoading = false;
+                _showMatches = true;
+                _matches = combined.toList();
+              });
+              return;
+            }
+
+            if (idToUse == null) {
+              setState(() {
+                _isLoading = false;
+                _error = 'No se encontró la ubicación para "${widget.routeName}" (nombre -> id).';
+              });
+              return;
+            }
+          } else {
+            idToUse = resolved;
+          }
+        }
+       }
+
+       await _loadEncountersForId(idToUse);
+     } catch (e) {
+       setState(() {
+         _isLoading = false;
+         _error = 'Error al cargar encuentros: $e';
+       });
+     }
+   }
 
   Future<void> _loadEncountersForId(int id) async {
     setState(() {
@@ -210,7 +232,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       // Log: mostrar encuentros crudos obtenidos
       try {
-        debugPrint('RoutePokemonModal: encuentros crudos (id $id) -> ' + _encounters.map((e) => {'pokemonId': e.pokemonId, 'pokemonName': e.pokemonName, 'method': e.method, 'games': e.games, 'min': e.minLevel, 'max': e.maxLevel, 'rate': e.rate}).toList().toString());
+        debugPrint('RoutePokemonModal: encuentros crudos (id $id) -> ${_encounters.map((e) => {'pokemonId': e.pokemonId, 'pokemonName': e.pokemonName, 'method': e.method, 'games': e.games, 'min': e.minLevel, 'max': e.maxLevel, 'rate': e.rate}).toList()}');
       } catch (e) {
         debugPrint('RoutePokemonModal: fallo al imprimir encuentros: $e');
       }
@@ -251,7 +273,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
         // Log: mostrar pokémon cargados
         try {
-          debugPrint('RoutePokemonModal: pokémon cargados para id $id -> ' + safePokes.map((p) => {'id': p.id, 'name': p.name}).toList().toString());
+          debugPrint('RoutePokemonModal: pokémon cargados para id $id -> ${safePokes.map((p) => {'id': p.id, 'name': p.name}).toList()}');
         } catch (e) {
           debugPrint('RoutePokemonModal: fallo al imprimir pokémon cargados: $e');
         }
@@ -379,7 +401,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
         Expanded(
           child: ListView.separated(
             itemCount: _matches.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final m = _matches[index];
               final id = m['id'] as int?;
@@ -427,7 +449,15 @@ class _DetailedPokemonCard extends StatelessWidget {
     final wild = isWildEncounter(encounter);
 
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        // Log para depuración: quién hizo tap y qué acción se va a ejecutar
+        try {
+          debugPrint('RoutePokemonModal: tarjeta pulsada -> pokemon id=${pokemon.id}, name=${pokemon.name}');
+        } catch (e) {
+          debugPrint('RoutePokemonModal: fallo al imprimir log de tap -> $e');
+        }
+        onTap?.call();
+      },
       borderRadius: BorderRadius.circular(12),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

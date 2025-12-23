@@ -29,8 +29,87 @@ class MapRepository {
     return out;
   }
 
+  /// Intenta resolver un `pokemon_v2_location` por nombre usando la nueva query.
+  /// Devuelve el id de la location si se encuentra, o null si no.
+  Future<int?> getLocationIdByName(String name) async {
+    final candidates = _generateCandidates(name);
+    debugPrint('MapRepository: getLocationIdByName buscando: $name -> candidates: $candidates');
+
+    for (final candidate in candidates) {
+      debugPrint('MapRepository: probando candidate: $candidate');
+
+      final options = QueryOptions(
+        document: gql(GraphQLQueryService.locationByName),
+        variables: {'name': candidate},
+      );
+
+      final result = await client.query(options);
+      if (result.hasException) {
+        debugPrint('MapRepository: error getLocationIdByName for $candidate -> ${result.exception}');
+        continue;
+      }
+
+      final raw = result.data;
+      if (raw == null) continue;
+      final clean = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
+      final data = clean['pokemon_v2_location'] as List<dynamic>? ?? [];
+
+      if (data.isNotEmpty) {
+        final first = data.first as Map<String, dynamic>;
+        debugPrint('MapRepository: getLocationIdByName match for $candidate -> ${first['name']} id=${first['id']}');
+        return first['id'] as int?;
+      }
+    }
+
+    debugPrint('MapRepository: no match for $name');
+    return null;
+  }
+
+  /// Intenta resolver un `pokemon_v2_location` por identificador exacto (ej. "kanto-route-1").
+  /// Devuelve el id de la location si se encuentra, o null si no.
+  Future<int?> getLocationIdByIdentifier(String identifier) async {
+    debugPrint('MapRepository: getLocationIdByIdentifier buscando: $identifier');
+
+    final options = QueryOptions(
+      document: gql(GraphQLQueryService.locationByName),
+      variables: {'name': identifier}, // para buscar exacto
+    );
+
+    final result = await client.query(options);
+    if (result.hasException) {
+      debugPrint('MapRepository: error getLocationIdByIdentifier -> ${result.exception}');
+      return null;
+    }
+
+    final raw = result.data;
+    if (raw == null) return null;
+    final clean = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
+    final data = clean['pokemon_v2_location'] as List<dynamic>? ?? [];
+
+    if (data.isEmpty) return null;
+
+    // Prefer exact matches first (case insensitive)
+    final lowerId = identifier.toLowerCase();
+    for (final item in data.cast<Map<String, dynamic>>()) {
+      final itemName = (item['name'] as String?)?.toLowerCase() ?? '';
+      if (itemName == lowerId) {
+        debugPrint('MapRepository: getLocationIdByIdentifier exact match -> ${item['name']} id=${item['id']}');
+        return item['id'] as int?;
+      }
+    }
+
+    // Otherwise return first if any
+    try {
+      final first = data.first as Map<String, dynamic>;
+      debugPrint('MapRepository: getLocationIdByIdentifier fallback first -> ${first['name']} id=${first['id']}');
+      return first['id'] as int?;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Genera variantes de búsqueda a partir del nombre original.
-  List<String> _generateCandidates(String name) {
+  List<String> _generateCandidates(String name, {String? regionName}) {
     final cleaned = name.trim();
     final noApos = cleaned.replaceAll("'", '');
 
@@ -38,11 +117,6 @@ class MapRepository {
     final base = _normalize(lower);
 
     final variants = <String>{};
-
-    // If base contains a stop word like 'route', avoid adding broad wildcards like '%route%'
-    final parts = base.split(RegExp(r"\s+"));
-    final stopWords = {'route', 'ruta', 'island', 'town', 'city', 'cave', 'mt', 'islands', 'road'};
-    final containsStopWord = parts.any((p) => stopWords.contains(p));
 
     // Always try exact and hyphenated exact first
     variants.add(base);
@@ -55,28 +129,6 @@ class MapRepository {
     final noAposNorm = _normalize(noApos);
     if (noAposNorm.isNotEmpty) variants.add(noAposNorm);
 
-    // Add wildcard variants only when not too generic
-    if (!containsStopWord) {
-      variants.add('%$base%');
-      variants.add('%${_normalize(noApos)}%');
-      // Also try compacted wildcard
-      final noSpace = base.replaceAll(' ', '');
-      if (noSpace.isNotEmpty && noSpace != base) {
-        variants.add('%$noSpace%');
-      }
-    } else {
-      // If contains stop word (like 'route 1'), add a controlled set of wildcards including hyphenated
-      variants.add('%$hyphenated%');
-      // also try number-only or last-part wildcards (e.g., '1' or '%1%')
-      if (parts.length > 1) {
-        final last = parts.last;
-        if (last.length <= 3 && RegExp(r"^\d+").hasMatch(last)) {
-          variants.add(last);
-          variants.add('%$last%');
-        }
-      }
-    }
-
     // Remove common suffixes like ' island', ' town', ' city', ' route' and add their shorter variants
     final suffixes = [' island', ' town', ' city', ' route', ' cave', ' mt', ' mt.', 'islands'];
     for (final suf in suffixes) {
@@ -84,18 +136,18 @@ class MapRepository {
         final without = base.substring(0, base.length - suf.trim().length).trim();
         if (without.isNotEmpty) {
           variants.add(without);
-          if (!containsStopWord) variants.add('%$without%');
         }
       }
     }
 
     // Try splitting words, e.g., 'cinnabar island' -> 'cinnabar'
+    final parts = base.split(RegExp(r"\s+"));
+    final stopWords = {'route', 'ruta', 'island', 'town', 'city', 'cave', 'mt', 'islands', 'road'};
     if (parts.length > 1) {
       for (final p in parts) {
         final part = p.trim();
         if (part.length > 1 && !stopWords.contains(part)) {
           variants.add(part);
-          if (!containsStopWord) variants.add('%$part%');
         }
       }
     }
@@ -104,7 +156,15 @@ class MapRepository {
     final noSpaceExact = base.replaceAll(' ', '');
     if (noSpaceExact.isNotEmpty && noSpaceExact != base) {
       variants.add(noSpaceExact);
-      if (!containsStopWord) variants.add('%$noSpaceExact%');
+    }
+
+    // Si se proporciona regionName, agregar variante con el nombre de la región
+    if (regionName != null) {
+      final regionNorm = _normalize(regionName).replaceAll(' ', '-');
+      // prefijo con guion: e.g. 'kanto-route-1'
+      variants.add('$regionNorm-$base');
+      if (hyphenated.isNotEmpty) variants.add('$regionNorm-$hyphenated');
+      if (noAposNorm.isNotEmpty) variants.add('$regionNorm-$noAposNorm');
     }
 
     return variants.toList();
@@ -116,7 +176,8 @@ class MapRepository {
   /// contenga ese nombre normalizado.
   Future<int?> getLocationAreaIdByName(String name, {String? regionName}) async {
     // Generar candidatos y probarlos en orden hasta que uno devuelva resultados.
-    final candidates = _generateCandidates(name);
+    final candidates = _generateCandidates(name, regionName: regionName);
+    debugPrint('MapRepository: candidatos generados para "$name" (region: $regionName) -> $candidates');
     final regionNorm = regionName != null ? _normalize(regionName) : null;
 
     for (final candidate in candidates) {
@@ -124,7 +185,7 @@ class MapRepository {
 
       final options = QueryOptions(
         document: gql(GraphQLQueryService.locationAreaByName),
-        variables: {'name': candidate}, // ilike pattern
+        variables: {'name': candidate}, // exact match
       );
 
       final result = await client.query(options);
@@ -166,11 +227,22 @@ class MapRepository {
       final exact = firstMatch(data, (item) {
         final itemName = (item['name'] as String?)?.toLowerCase() ?? '';
         final locName = (item['pokemon_v2_location']?['name'] as String?)?.toLowerCase() ?? '';
-        final candNorm = candidate.replaceAll('%', '').toLowerCase();
+        final candNorm = candidate.toLowerCase();
         return itemName == candNorm || locName == candNorm;
       });
 
-      final finalChoice = chosen ?? exact ?? data.first as Map<String, dynamic>;
+      final finalChoice = chosen ?? exact ?? (data.first is Map<String, dynamic> ? data.first as Map<String, dynamic> : null);
+
+      if (finalChoice == null) {
+        debugPrint('MapRepository: finalChoice es null para candidato $candidate, continuar');
+        continue;
+      }
+      // Debug: imprimir elección final para saber por qué se eligió
+      try {
+        debugPrint('MapRepository: finalChoice para candidato $candidate -> ${jsonEncode(finalChoice)}');
+      } catch (e) {
+        debugPrint('MapRepository: fallo al imprimir finalChoice -> $e');
+      }
       final id = finalChoice['id'] as int?;
       debugPrint('MapRepository: candidato exitoso: $candidate -> id $id (name: ${finalChoice['name']}, location: ${finalChoice['pokemon_v2_location']?['name']}, region: ${finalChoice['pokemon_v2_location']?['pokemon_v2_region']?['name']})');
       return id;
@@ -178,6 +250,25 @@ class MapRepository {
 
     debugPrint('MapRepository: no se encontró locationArea para: $name (region filter: $regionName)');
     return null;
+  }
+
+  /// Wrapper que intenta resolver una ubicación primero como `location` y si
+  /// no se encuentra, como `locationarea`. Devuelve un Map con keys:
+  /// { 'type': 'location'|'location-area'|'none', 'id': int?, 'name': String? }
+  Future<Map<String, dynamic>> resolveLocationOrArea(String name, {String? regionName}) async {
+    // Intentar location primero
+    final locId = await getLocationIdByName(name);
+    if (locId != null) {
+      return {'type': 'location', 'id': locId, 'name': name};
+    }
+
+    // Intentar locationarea
+    final areaId = await getLocationAreaIdByName(name, regionName: regionName);
+    if (areaId != null) {
+      return {'type': 'location-area', 'id': areaId, 'name': name};
+    }
+
+    return {'type': 'none', 'id': null, 'name': name};
   }
 
   /// Obtiene encuentros de Pokémon para una ubicación específica.
@@ -236,9 +327,6 @@ class MapRepository {
     final data = clean['pokemon_v2_encounter'] as List<dynamic>? ?? [];
 
     return data.map((json) {
-      final locationArea = json['pokemon_v2_locationarea'];
-      final location = locationArea?['pokemon_v2_location'];
-      final region = location?['pokemon_v2_region'];
       final slot = json['pokemon_v2_encounterslot'];
       final method = slot?['pokemon_v2_encountermethod']?['name'] ?? 'walk';
       final rarity = slot?['rarity'] ?? 0;
@@ -336,47 +424,47 @@ class MapRepository {
   /// Devuelve una lista de coincidencias de location areas para un término.
   /// Cada item es un mapa con keys: 'id', 'name', 'locationName'.
   Future<List<Map<String, dynamic>>> getLocationAreaMatches(String term) async {
-    final pattern = '%${_normalize(term)}%';
-    final options = QueryOptions(
-      document: gql(GraphQLQueryService.locationAreaByName),
-      variables: {'name': pattern},
-    );
+    final candidates = _generateCandidates(term);
+    final allMatches = <Map<String, dynamic>>{};
 
-    final result = await client.query(options);
-    if (result.hasException) {
-      debugPrint('MapRepository: error buscando matches para $term -> ${result.exception}');
-      return [];
+    for (final candidate in candidates) {
+      final options = QueryOptions(
+        document: gql(GraphQLQueryService.locationAreaByName),
+        variables: {'name': candidate},
+      );
+
+      final result = await client.query(options);
+      if (result.hasException) {
+        debugPrint('MapRepository: error matches for $candidate -> ${result.exception}');
+        continue;
+      }
+
+      final raw = result.data;
+      if (raw == null) continue;
+      final clean = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
+      final data = clean['pokemon_v2_locationarea'] as List<dynamic>? ?? [];
+
+      for (final item in data) {
+        final id = item['id'] as int?;
+        if (id != null && !allMatches.any((m) => m['id'] == id)) {
+          allMatches.add({
+            'id': id,
+            'name': item['name'] as String?,
+            'locationName': item['pokemon_v2_location']?['name'] as String?,
+          });
+        }
+      }
     }
 
-    final raw = result.data;
-    if (raw == null) return [];
-    final clean = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
-    final data = clean['pokemon_v2_locationarea'] as List<dynamic>? ?? [];
-
-    // Debug: imprimir cada match con id, name y location.name para facilitar debugging
-    try {
-      final debugList = data.map((item) => {
-        'id': item['id'],
-        'name': item['name'],
-        'location': item['pokemon_v2_location']?['name']
-      }).toList();
-      debugPrint('MapRepository: getLocationAreaMatches("$term") -> ${debugList.length} items: $debugList');
-    } catch (e) {
-      debugPrint('MapRepository: fallo al imprimir matches de "$term": $e');
-    }
-
-    return data.map((item) {
-      return {
-        'id': item['id'] as int?,
-        'name': item['name'] as String?,
-        'locationName': item['pokemon_v2_location']?['name'] as String?,
-      };
-    }).toList();
+    debugPrint('MapRepository: getLocationAreaMatches("$term") -> ${allMatches.length} items');
+    return allMatches.toList();
   }
 
   /// Obtiene información básica de varios pokémon por sus IDs.
   Future<List<Pokemon>> getPokemonsByIds(List<int> ids) async {
     if (ids.isEmpty) return [];
+
+    debugPrint('MapRepository: getPokemonsByIds solicitados -> $ids');
 
     final options = QueryOptions(
       document: gql(GraphQLQueryService.byIds),
@@ -396,20 +484,16 @@ class MapRepository {
 
     // Usar el mapper central para evitar problemas de tipos (y parseo de sprites JSON)
     try {
-      return PokemonMapperService.mapList(data);
+      final mapped = PokemonMapperService.mapList(data);
+      debugPrint('MapRepository: getPokemonsByIds resultados -> ${mapped.map((p) => p.id).toList()}');
+      return mapped;
     } catch (e) {
       debugPrint('MapRepository: fallo al mapear pokemons -> $e');
       // Fallback mínimo
-      return data.map((p) {
+      final fallback = data.map((p) {
         final typesList = (p['pokemon_v2_pokemontypes'] as List<dynamic>?)?.map((t) {
           return (t['pokemon_v2_type']?['name'] as String?) ?? '';
         }).where((s) => s.isNotEmpty).toList() ?? [];
-
-        final sprite = (p['pokemon_v2_pokemonsprites'] is List && p['pokemon_v2_pokemonsprites'].isNotEmpty)
-            ? (p['pokemon_v2_pokemonsprites'][0]['sprites'] is String
-                ? null
-                : null)
-            : null;
 
         return Pokemon(
           id: p['id'] as int,
@@ -418,6 +502,8 @@ class MapRepository {
           types: typesList,
         );
       }).toList();
+      debugPrint('MapRepository: getPokemonsByIds fallback resultados -> ${fallback.map((p) => p.id).toList()}');
+      return fallback;
     }
   }
 }

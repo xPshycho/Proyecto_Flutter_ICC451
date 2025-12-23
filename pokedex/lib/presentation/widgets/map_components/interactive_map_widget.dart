@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../data/models/location.dart';
 
 /// Widget para mostrar un mapa interactivo con áreas clicables.
 class InteractiveMapWidget extends StatefulWidget {
   final String mapImagePath;
   final List<MapArea> areas;
-  final Function(String areaName)? onAreaTap;
+  // Ahora onAreaTap recibe el objeto MapArea para permitir pasar un `identifier` PokeAPI
+  final Function(MapArea area)? onAreaTap;
 
   const InteractiveMapWidget({
     super.key,
@@ -72,7 +72,7 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> {
                       width: scaledRect.width,
                       height: scaledRect.height,
                       child: GestureDetector(
-                        onTap: () => widget.onAreaTap?.call(area.name),
+                        onTap: () => widget.onAreaTap?.call(area),
                         child: Container(
                           color: Colors.transparent, // Invisible, but clickable
                         ),
@@ -91,11 +91,13 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> {
 
 /// Modelo para representar un área clicable en el mapa.
 class MapArea {
-  final String name;
+  final String name; // nombre amigable para mostrar
   final Rect rect;
+  final String? identifier; // identificador PokeAPI (ej. 'kanto-route-1' o 'pallet-town')
 
   MapArea({
     required this.name,
     required this.rect,
+    this.identifier,
   });
 }

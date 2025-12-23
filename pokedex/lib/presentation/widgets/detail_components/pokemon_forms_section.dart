@@ -316,7 +316,7 @@ class PokemonFormsSection extends StatelessWidget {
                         return Image.network(
                           normalSpriteUrl,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Icon(
+                          errorBuilder: (_, _, _) => Icon(
                             Icons.catching_pokemon,
                             size: 40,
                             color: typeColor,
@@ -383,7 +383,7 @@ class PokemonFormsSection extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => onFormTap!(formPokemonId!),
+      onTap: () => onFormTap!(formPokemonId),
       child: card,
     );
   }

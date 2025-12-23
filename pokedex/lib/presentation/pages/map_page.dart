@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import '../widgets/map_components/interactive_map_widget.dart';
 import '../widgets/map_components/kanto_map_areas.dart';
-import '../../../data/models/location.dart';
 import '../widgets/map_components/route_pokemon_modal.dart';
 
 /// Página para explorar mapas interactivos de regiones de Pokémon.
@@ -16,8 +14,6 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   String? selectedArea;
   String selectedRegion = 'Kanto';
-  List<Location> _locations = [];
-  bool _isLoadingEncounters = false;
   bool _isOpeningModal = false; // evita abrir múltiples modales por taps rápidos
   bool _isModalOpen = false;
 
@@ -36,7 +32,14 @@ class _MapPageState extends State<MapPage> {
               value: selectedRegion,
               items: const [
                 DropdownMenuItem(value: 'Kanto', child: Text('Kanto')),
-                // Agregar más regiones
+                DropdownMenuItem(value: 'Johto', child: Text('Johto')),
+                DropdownMenuItem(value: 'Hoenn', child: Text('Hoenn')),
+                DropdownMenuItem(value: 'Sinnoh', child: Text('Sinnoh')),
+                DropdownMenuItem(value: 'Unova', child: Text('Unova')),
+                DropdownMenuItem(value: 'Kalos', child: Text('Kalos')),
+                DropdownMenuItem(value: 'Alola', child: Text('Alola')),
+                DropdownMenuItem(value: 'Galar', child: Text('Galar')),
+                // Agregar más regiones si se necesitan
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -51,14 +54,18 @@ class _MapPageState extends State<MapPage> {
             child: InteractiveMapWidget(
               mapImagePath: KantoMapAreas.mapImagePath,
               areas: KantoMapAreas.areas,
-              onAreaTap: (areaName) async {
-                // Protegemos contra taps rápidos
+              // Ahora recibimos un MapArea y extraemos su identifier
+              onAreaTap: (area) async {
                 if (_isOpeningModal) return;
                 _isOpeningModal = true;
+                // area es MapArea
+                final MapArea mapArea = area;
+                final identifier = mapArea.identifier ?? mapArea.name;
                 setState(() {
-                  selectedArea = areaName;
+                  selectedArea = mapArea.name; // nombre amigable para mostrar
                 });
-                await _showRouteModal(areaName);
+                debugPrint('MapPage: area tapped -> ${mapArea.name} (identifier: $identifier, region: $selectedRegion)');
+                await _showRouteModal(identifier);
                 _isOpeningModal = false;
               },
             ),
@@ -73,15 +80,7 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Future<void> _showRouteModal(String areaName) async {
-    setState(() {
-      _isLoadingEncounters = true;
-    });
-
-    setState(() {
-      _isLoadingEncounters = false;
-    });
-
+  Future<void> _showRouteModal(String routeIdentifier) async {
     // Instead of popping arbitrary routes, keep track of modal state and await its closing.
     if (_isModalOpen) {
       // If modal is open, don't open another; you could also close it explicitly if needed.
@@ -94,7 +93,7 @@ class _MapPageState extends State<MapPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => RoutePokemonModal(
-        routeName: areaName,
+        routeName: routeIdentifier,
         locationId: null,
         regionName: selectedRegion,
       ),

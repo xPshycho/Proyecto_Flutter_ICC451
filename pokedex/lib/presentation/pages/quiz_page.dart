@@ -310,9 +310,7 @@ class _QuizPageState extends State<QuizPage> {
     // Guardar automáticamente el resultado ANTES de mostrar el diálogo
     context.read<QuizBloc>().add(SaveQuizResult(state.playerName));
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-
+    WidgetsBinding.instance.addPostFrameCallback((_){
       showDialog(
         context: context,
         barrierDismissible: false,
