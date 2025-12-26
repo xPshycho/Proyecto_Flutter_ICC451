@@ -26,8 +26,8 @@ class PokemonInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
       child: Column(
@@ -238,6 +238,7 @@ class PokemonInfoCard extends StatelessWidget {
     required String value,
   }) {
     return Container(
+      alignment: Alignment.center,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.withAlpha(25),
