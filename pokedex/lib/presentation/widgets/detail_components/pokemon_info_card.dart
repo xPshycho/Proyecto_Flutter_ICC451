@@ -71,7 +71,7 @@ class PokemonInfoCard extends StatelessWidget {
           // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
           //   const SizedBox(height: 24),
 
-          // Peso y Altura
+          // Peso, Altura y Grupo de Huevo
           Row(
             children: [
               Expanded(child: _buildStatCard(
@@ -90,6 +90,15 @@ class PokemonInfoCard extends StatelessWidget {
                     : 'N/A',
               )),
             ],
+          ),
+          const SizedBox(height: 16),
+          // Grupo de Huevo
+          _buildStatCard(
+            icon: Icons.egg_outlined,
+            label: 'GRUPO DE HUEVO',
+            value: pokemon.eggGroups != null && pokemon.eggGroups!.isNotEmpty
+                ? pokemon.eggGroups!.join(', ')
+                : 'N/A',
           ),
         ],
       ),

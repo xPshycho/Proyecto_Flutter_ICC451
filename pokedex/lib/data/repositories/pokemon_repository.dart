@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
 import '../models/pokemon_move.dart';
 import '../models/evolution_detail.dart';
 import '../services/graphql_query_service.dart';
-import '../services/pokemon_mapper_service.dart';
+import '../services/pokemon_mapper_service.dart' hide debugPrint;
 import '../services/data_services.dart';
 import '../../core/constants/pokemon_constants.dart';
 import '../../core/constants/app_constants.dart';
@@ -1071,4 +1071,3 @@ class PokemonRepository {
     return [];
   }
 }
-

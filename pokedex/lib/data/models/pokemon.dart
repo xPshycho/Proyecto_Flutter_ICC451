@@ -35,6 +35,8 @@ class Pokemon {
   final List<dynamic>? forms;
   /// NUEVO: formas agregadas de toda la cadena evolutiva (megas/variantes de las evoluciones)
   final List<dynamic>? formsChain;
+  /// Grupos de huevo del Pokémon
+  final List<String>? eggGroups;
 
   Pokemon({
     required this.id,
@@ -57,6 +59,7 @@ class Pokemon {
     this.generationId,
     this.forms,
     this.formsChain,
+    this.eggGroups,
   });
 
   /// Calcula la efectividad de tipos para este Pokémon
@@ -72,6 +75,7 @@ class Pokemon {
     List<Pokemon>? evolutions,
     Map<int, EvolutionDetail>? evolutionDetails,
     int? generationId,
+    List<String>? eggGroups,
   }) {
     return Pokemon(
       id: id,
@@ -94,6 +98,7 @@ class Pokemon {
       forms: forms ?? this.forms,
       formsChain: formsChain ?? this.formsChain,
       description: description ?? this.description,
+      eggGroups: eggGroups ?? this.eggGroups,
     );
   }
 
@@ -134,6 +139,7 @@ class Pokemon {
       forms: json['forms'] as List<dynamic>?,
       formsChain: json['formsChain'] as List<dynamic>?,
       description: json['description'] as String?,
+      eggGroups: (json['eggGroups'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
     );
   }
 }

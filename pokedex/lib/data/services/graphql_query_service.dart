@@ -161,6 +161,14 @@ class GraphQLQueryService {
           pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: 7}}, limit: 1) {
             flavor_text
           }
+          pokemon_v2_pokemonegggroups {
+            pokemon_v2_egggroup {
+              name
+              pokemon_v2_egggroupnames(where: {language_id: {_eq: 7}}, limit: 1) {
+                name
+              }
+            }
+          }
         }
       }
     }

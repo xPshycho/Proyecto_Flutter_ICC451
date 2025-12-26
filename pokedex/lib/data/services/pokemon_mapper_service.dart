@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/pokemon.dart';
 import '../models/pokemon_ability.dart';
@@ -74,6 +74,7 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+      eggGroups: speciesData['eggGroups'],
     );
   }
 
@@ -153,7 +154,7 @@ class PokemonMapperService {
     return statsMap;
   }
 
-  /// Extrae datos de la especie (legendary, mythical, categories, generationId)
+  /// Extrae datos de la especie (legendary, mythical, categories, generationId, eggGroups)
   static Map<String, dynamic> _extractSpeciesData(dynamic speciesData) {
     if (speciesData == null) {
       return {
@@ -161,6 +162,7 @@ class PokemonMapperService {
         'isLegendary': null,
         'isMythical': null,
         'generationId': null,
+        'eggGroups': null,
       };
     }
 
@@ -172,12 +174,52 @@ class PokemonMapperService {
     if (isLegendary == true) categories.add('legendario');
     if (isMythical == true) categories.add('mitico');
 
+    // Extraer grupos de huevo
+    final eggGroups = _extractEggGroups(speciesData['pokemon_v2_pokemonegggroups']);
+
     return {
       'categories': categories.isEmpty ? null : categories,
       'isLegendary': isLegendary,
       'isMythical': isMythical,
       'generationId': generationId,
+      'eggGroups': eggGroups,
     };
+  }
+
+  /// Extrae los grupos de huevo desde los datos GraphQL
+  static List<String>? _extractEggGroups(dynamic eggGroupsData) {
+    if (eggGroupsData == null || eggGroupsData is! List) return null;
+    if (eggGroupsData.isEmpty) return null;
+
+    final eggGroups = <String>[];
+
+    for (final eggGroup in eggGroupsData) {
+      final group = eggGroup['pokemon_v2_egggroup'];
+      if (group != null) {
+        // Intentar obtener el nombre en español primero
+        final namesData = group['pokemon_v2_egggroupnames'] as List<dynamic>?;
+        if (namesData != null && namesData.isNotEmpty) {
+          final spanishName = namesData[0]['name'] as String?;
+          if (spanishName != null && spanishName.isNotEmpty) {
+            eggGroups.add(spanishName);
+            continue;
+          }
+        }
+        // Fallback al nombre en inglés (formateado)
+        final englishName = group['name'] as String?;
+        if (englishName != null && englishName.isNotEmpty) {
+          eggGroups.add(_formatEggGroupName(englishName));
+        }
+      }
+    }
+
+    return eggGroups.isEmpty ? null : eggGroups;
+  }
+
+  /// Formatea el nombre del grupo de huevo (capitaliza y reemplaza guiones)
+  static String _formatEggGroupName(String name) {
+    if (name.isEmpty) return name;
+    return name[0].toUpperCase() + name.substring(1).replaceAll('-', ' ');
   }
 
   /// Extrae la descripción desde flavor texts
@@ -188,7 +230,7 @@ class PokemonMapperService {
         final texts = specy['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>;
         if (texts.isNotEmpty) {
           final ft = texts[0]['flavor_text'] as String?;
-          if (ft != null && ft.trim().isNotEmpty) {
+          if (ft != null) {
             return ft.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
           }
         }
@@ -235,17 +277,11 @@ class PokemonMapperService {
   static List<String> extractTypesFromPokemon(dynamic pokemonData) {
     if (pokemonData == null) return [];
 
-    try {
-      final types = pokemonData['pokemon_v2_pokemontypes'] as List<dynamic>?;
-      if (types != null) {
-        return types
-            .map((t) => t['pokemon_v2_type']['name'] as String)
-            .toList();
-      }
-    } catch (_) {
-      return [];
-    }
+    final types = pokemonData['pokemon_v2_pokemontypes'] as List<dynamic>?;
+    if (types == null) return [];
 
-    return [];
+    return types
+        .map<String>((t) => t['pokemon_v2_type']['name'] as String)
+        .toList();
   }
 }

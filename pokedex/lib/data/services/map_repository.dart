@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/location.dart';
 import '../models/pokemon.dart';
 import 'graphql_query_service.dart';
 import 'pokemon_mapper_service.dart';
+
 
 /// Repositorio para manejar datos de mapas y encuentros de Pokémon.
 class MapRepository {
