@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 class InteractiveMapWidget extends StatefulWidget {
   final String mapImagePath;
   final List<MapArea> areas;
+  final double imageWidth;
+  final double imageHeight;
   // Ahora onAreaTap recibe el objeto MapArea para permitir pasar un `identifier` PokeAPI
   final Function(MapArea area)? onAreaTap;
 
@@ -11,6 +13,8 @@ class InteractiveMapWidget extends StatefulWidget {
     super.key,
     required this.mapImagePath,
     required this.areas,
+    required this.imageWidth,
+    required this.imageHeight,
     this.onAreaTap,
   });
 
@@ -29,19 +33,15 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Assuming kanto.png is 200x618 as in the HTML
-    const double imageWidth = 200.0;
-    const double imageHeight = 618.0;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate scale to fit the image in the container
-        final scaleX = constraints.maxWidth / imageWidth;
-        final scaleY = constraints.maxHeight / imageHeight;
+        final scaleX = constraints.maxWidth / widget.imageWidth;
+        final scaleY = constraints.maxHeight / widget.imageHeight;
         final scale = scaleX < scaleY ? scaleX : scaleY;
 
-        final scaledWidth = imageWidth * scale;
-        final scaledHeight = imageHeight * scale;
+        final scaledWidth = widget.imageWidth * scale;
+        final scaledHeight = widget.imageHeight * scale;
 
         return InteractiveViewer(
           transformationController: _transformationController,

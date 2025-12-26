@@ -37,6 +37,8 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
   List<Map<String, dynamic>> _matches = [];
   bool _showMatches = false;
 
+  String? _resolvedType;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -68,12 +70,16 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
         String identifier;
         final lowerRoute = widget.routeName.toLowerCase();
         if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
-          // Es ruta: añadir prefijo de región
-          final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
+          // Es ruta
           final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
-          identifier = '$regionSlug-route-$routeNum';
+          if (widget.regionName?.toLowerCase() == 'johto') {
+            identifier = 'route$routeNum';
+          } else {
+            final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
+            identifier = '$regionSlug-route-$routeNum';
+          }
         } else {
-          // Es ciudad: solo normalizar
+          // Es ciudad o lugar
           identifier = lowerRoute.replaceAll(' ', '-');
         }
         debugPrint('RoutePokemonModal: construido identifier: $identifier');
@@ -82,6 +88,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
         final locId = await repository.getLocationIdByIdentifier(identifier);
         if (locId != null) {
           idToUse = locId;
+          _resolvedType = 'location';
         } else {
           // Fallback: intentar resolver con la lógica anterior (location-area)
           final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: widget.regionName);
@@ -185,6 +192,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
                final resolvedAnyId = resolvedAny['id'] as int?;
                if (resolvedAnyId != null) {
                  idToUse = resolvedAnyId;
+                 _resolvedType = resolvedAny['type'] as String?;
                }
              }
 
@@ -206,11 +214,12 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
             }
           } else {
             idToUse = resolved;
+            _resolvedType = resolvedMap['type'] as String?;
           }
         }
        }
 
-       await _loadEncountersForId(idToUse);
+       await _loadEncountersForId(idToUse, _resolvedType ?? 'location');
      } catch (e) {
        setState(() {
          _isLoading = false;
@@ -219,7 +228,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
      }
    }
 
-  Future<void> _loadEncountersForId(int id) async {
+    Future<void> _loadEncountersForId(int id, [String type = 'location']) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -233,7 +242,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
       final client = GraphQLProvider.of(context).value;
       final repository = MapRepository(client);
 
-      _encounters = await repository.getEncountersByLocation(id);
+      _encounters = await repository.getEncountersByLocationOrArea(id, type);
 
       // Log: mostrar encuentros crudos obtenidos
       try {
@@ -416,7 +425,7 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
                 title: Text(name),
                 subtitle: locationName.isNotEmpty ? Text(locationName) : null,
                 trailing: id != null ? Text('id $id') : null,
-                onTap: id != null ? () => _loadEncountersForId(id) : null,
+                onTap: id != null ? () => _loadEncountersForId(id, 'location-area') : null,
               );
             },
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/map_components/interactive_map_widget.dart';
 import '../widgets/map_components/kanto_map_areas.dart';
 import '../widgets/map_components/route_pokemon_modal.dart';
+import '../widgets/map_components/johto_map_areas.dart';
 
 /// Página para explorar mapas interactivos de regiones de Pokémon.
 class MapPage extends StatefulWidget {
@@ -52,8 +53,10 @@ class _MapPageState extends State<MapPage> {
           ),
           Expanded(
             child: InteractiveMapWidget(
-              mapImagePath: KantoMapAreas.mapImagePath,
-              areas: KantoMapAreas.areas,
+              mapImagePath: _mapImagePath,
+              areas: _areas,
+              imageWidth: _imageWidth,
+              imageHeight: _imageHeight,
               // Ahora recibimos un MapArea y extraemos su identifier
               onAreaTap: (area) async {
                 if (_isOpeningModal) return;
@@ -78,6 +81,50 @@ class _MapPageState extends State<MapPage> {
         ],
       ),
     );
+  }
+
+  String get _mapImagePath {
+    switch (selectedRegion) {
+      case 'Kanto':
+        return KantoMapAreas.mapImagePath;
+      case 'Johto':
+        return JohtoMapAreas.mapImagePath;
+      default:
+        return KantoMapAreas.mapImagePath;
+    }
+  }
+
+  List<MapArea> get _areas {
+    switch (selectedRegion) {
+      case 'Kanto':
+        return KantoMapAreas.areas;
+      case 'Johto':
+        return JohtoMapAreas.areas;
+      default:
+        return KantoMapAreas.areas;
+    }
+  }
+
+  double get _imageWidth {
+    switch (selectedRegion) {
+      case 'Kanto':
+        return KantoMapAreas.imageWidth;
+      case 'Johto':
+        return JohtoMapAreas.imageWidth;
+      default:
+        return KantoMapAreas.imageWidth;
+    }
+  }
+
+  double get _imageHeight {
+    switch (selectedRegion) {
+      case 'Kanto':
+        return KantoMapAreas.imageHeight;
+      case 'Johto':
+        return JohtoMapAreas.imageHeight;
+      default:
+        return KantoMapAreas.imageHeight;
+    }
   }
 
   Future<void> _showRouteModal(String routeIdentifier) async {

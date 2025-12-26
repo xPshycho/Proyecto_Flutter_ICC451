@@ -349,8 +349,8 @@ class GraphQLQueryService {
     }
   ''';
 
-  // Query para encuentros de Pokémon por ubicación
-  static const String encountersByLocation = r'''
+    // Query para encuentros de Pokémon por ubicación
+    static const String encountersByLocation = r'''
     query getEncountersByLocation($locationId: Int!) {
       pokemon_v2_encounter(where: {pokemon_v2_locationarea: {location_id: {_eq: $locationId}}}) {
         pokemon_v2_pokemon {
@@ -370,10 +370,10 @@ class GraphQLQueryService {
         }
       }
     }
-  ''';
+    ''';
 
-  // Query para encuentros de un Pokémon específico
-  static const String encountersByPokemon = r'''
+    // Query para encuentros de un Pokémon específico
+    static const String encountersByPokemon = r'''
     query getEncountersByPokemon($pokemonId: Int!) {
       pokemon_v2_encounter(where: {pokemon_id: {_eq: $pokemonId}}) {
         pokemon_v2_locationarea {
@@ -399,11 +399,33 @@ class GraphQLQueryService {
         }
         pokemon_v2_pokemon {
           id
+        }
+      }
+    }
+    ''';
+
+    // Query para encuentros de Pokémon por área de ubicación
+    static const String encountersByLocationArea = r'''
+    query getEncountersByLocationArea($locationAreaId: Int!) {
+      pokemon_v2_encounter(where: {location_area_id: {_eq: $locationAreaId}}) {
+        pokemon_v2_pokemon {
+          id
+          name
+        }
+        pokemon_v2_encounterslot {
+          rarity
+          pokemon_v2_encountermethod {
+            name
+          }
+        }
+        min_level
+        max_level
+        pokemon_v2_version {
           name
         }
       }
     }
-  ''';
+    ''';
 
   // Nueva query: obtener location area por nombre (busca coincidencias exactas)
   static const String locationAreaByName = r'''

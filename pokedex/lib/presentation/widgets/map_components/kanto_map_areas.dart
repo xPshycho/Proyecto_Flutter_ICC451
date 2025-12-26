@@ -4,6 +4,8 @@ import 'interactive_map_widget.dart';
 /// Definiciones de áreas clicables para el mapa de Kanto.
 class KantoMapAreas {
   static const String mapImagePath = 'assets/images/maps/kanto.png';
+  static const double imageWidth = 200.0;
+  static const double imageHeight = 618.0;
 
   static List<MapArea> get areas => [
     MapArea(name: 'Pallet Town', rect: Rect.fromLTRB(47, 103, 56, 112)),

@@ -308,11 +308,14 @@ class MapRepository {
     }).toList();
   }
 
-  /// Obtiene encuentros de un Pokémon específico.
-  Future<List<Encounter>> getEncountersByPokemon(int pokemonId) async {
+  /// Obtiene encuentros de Pokémon para una ubicación o área específica.
+  Future<List<Encounter>> getEncountersByLocationOrArea(int id, String type) async {
+    final query = type == 'location-area' ? GraphQLQueryService.encountersByLocationArea : GraphQLQueryService.encountersByLocation;
+    final variables = type == 'location-area' ? {'locationAreaId': id} : {'locationId': id};
+
     final options = QueryOptions(
-      document: gql(GraphQLQueryService.encountersByPokemon),
-      variables: {'pokemonId': pokemonId},
+      document: gql(query),
+      variables: variables,
     );
 
     final result = await client.query(options);
@@ -327,15 +330,15 @@ class MapRepository {
     final data = clean['pokemon_v2_encounter'] as List<dynamic>? ?? [];
 
     return data.map((json) {
+      final pokemon = json['pokemon_v2_pokemon'];
       final slot = json['pokemon_v2_encounterslot'];
       final method = slot?['pokemon_v2_encountermethod']?['name'] ?? 'walk';
       final rarity = slot?['rarity'] ?? 0;
-      final rate = rarity / 100.0;
-      final pokemon = json['pokemon_v2_pokemon'];
+      final rate = rarity / 100.0; // assuming rarity is percentage
 
       return Encounter(
-        pokemonId: pokemonId,
-        pokemonName: pokemon?['name'] as String? ?? 'Unknown',
+        pokemonId: pokemon['id'] as int,
+        pokemonName: pokemon['name'] as String,
         method: method,
         minLevel: json['min_level'] as int,
         maxLevel: json['max_level'] as int,
