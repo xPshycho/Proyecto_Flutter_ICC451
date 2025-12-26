@@ -10,9 +10,9 @@ class ObliviaMapAreas {
 
   static List<MapArea> get areas => [
     // Dolce Island
-    MapArea(name: 'Dolce Island - Southern Beach', rect: Rect.fromLTRB(61, 238, 69, 245), identifier: 'oblivia-dolce-southern-beach'),
-    MapArea(name: 'Dolce Island - Hill', rect: Rect.fromLTRB(61, 230, 69, 236), identifier: 'oblivia-dolce-hill'),
-    MapArea(name: 'Dolce Island - Eastern Beach', rect: Rect.fromLTRB(69, 230, 77, 236), identifier: 'oblivia-dolce-eastern-beach'),
+    MapArea(name: 'Dolce Island - Southern Beach', rect: Rect.fromLTRB(61, 238, 69, 245), identifier: 'dolce-southern-beach'),
+    MapArea(name: 'Dolce Island - Hill', rect: Rect.fromLTRB(61, 230, 69, 236), identifier: 'dolce-hill'),
+    MapArea(name: 'Dolce Island - Eastern Beach', rect: Rect.fromLTRB(69, 230, 77, 236), identifier: 'dolce-eastern-beach'),
 
     // Renbow Island
     MapArea(name: 'Renbow Island - Cocona Village', rect: Rect.fromLTRB(93, 189, 102, 205), identifier: 'oblivia-renbow-cocona-village'),
@@ -23,12 +23,12 @@ class ObliviaMapAreas {
     MapArea(name: "Renbow Island - Rand's House", rect: Rect.fromLTRB(125, 173, 133, 181), identifier: 'oblivia-renbow-rands-house'),
     // Latolato Trail (varias entradas -> usar un rect que cubre ambas)
     MapArea(name: 'Renbow Island - Latolato Trail', rect: Rect.fromLTRB(109, 156, 125, 181), identifier: 'oblivia-renbow-latolato-trail'),
-    MapArea(name: 'Renbow Island - Mt. Latolato', rect: Rect.fromLTRB(77, 149, 117, 157), identifier: 'oblivia-renbow-mt-latolato'),
+    MapArea(name: 'Renbow Island - Mt. Latolato', rect: Rect.fromLTRB(77, 149, 117, 157), identifier: 'renbow-mt-latolato'),
     MapArea(name: 'Renbow Island - Wireless Tower', rect: Rect.fromLTRB(69, 149, 77, 157), identifier: 'oblivia-renbow-wireless-tower'),
     // Hinder Cape (varias entradas -> combinar)
     MapArea(name: 'Renbow Island - Hinder Cape', rect: Rect.fromLTRB(117, 141, 133, 165), identifier: 'oblivia-renbow-hinder-cape'),
     MapArea(name: 'Renbow Island - Big Booker Bridge', rect: Rect.fromLTRB(133, 141, 197, 149), identifier: 'oblivia-renbow-big-booker-bridge'),
-    MapArea(name: 'Offshore Renbow Island - Coral Sea', rect: Rect.fromLTRB(109, 205, 117, 221), identifier: 'oblivia-renbow-coral-sea'),
+    MapArea(name: 'Offshore Renbow Island - Coral Sea', rect: Rect.fromLTRB(109, 205, 117, 221), identifier: 'renbow-coral-sea'),
 
     // Mitonga Island
     MapArea(name: 'Mitonga Island - Tilt Village', rect: Rect.fromLTRB(197, 141, 205, 149), identifier: 'oblivia-mitonga-tilt-village'),
@@ -47,13 +47,13 @@ class ObliviaMapAreas {
     // Sophian Road (varias entradas -> combinar)
     MapArea(name: 'Sophian Island - Sophian Road', rect: Rect.fromLTRB(117, 45, 173, 77), identifier: 'oblivia-sophian-road'),
     MapArea(name: 'Sophian Island - Canal Ruins', rect: Rect.fromLTRB(125, 77, 133, 85), identifier: 'oblivia-sophian-canal-ruins'),
-    MapArea(name: 'Sophian Island - Mt. Sorbet', rect: Rect.fromLTRB(165, 37, 173, 45), identifier: 'oblivia-sophian-mt-sorbet'),
+    MapArea(name: 'Sophian Island - Mt. Sorbet', rect: Rect.fromLTRB(165, 37, 173, 45), identifier: 'sophian-mt-sorbet'),
     MapArea(name: 'Sophian Island - Silver Falls', rect: Rect.fromLTRB(109, 52, 117, 77), identifier: 'oblivia-sophian-silver-falls'),
     MapArea(name: 'Sophian Island - Oblivia Ruins', rect: Rect.fromLTRB(109, 45, 117, 53), identifier: 'oblivia-sophian-oblivia-ruins'),
 
     // Tilikule / Layuda / other small islands
     MapArea(name: 'Tilikule Island - Tilikule Monument', rect: Rect.fromLTRB(41, 64, 49, 72), identifier: 'oblivia-tilikule-monument'),
-    MapArea(name: 'Layuda Island - Mt. Layuda', rect: Rect.fromLTRB(37, 98, 45, 106), identifier: 'oblivia-layuda-mt-layuda'),
+    MapArea(name: 'Layuda Island - Mt. Layuda', rect: Rect.fromLTRB(37, 98, 45, 106), identifier: 'layuda-mt-layuda'),
 
     // Eastern / Western Seas
     MapArea(name: 'Eastern Sea - Undersea Cavern', rect: Rect.fromLTRB(251, 45, 259, 53), identifier: 'oblivia-eastern-undersea-cavern'),

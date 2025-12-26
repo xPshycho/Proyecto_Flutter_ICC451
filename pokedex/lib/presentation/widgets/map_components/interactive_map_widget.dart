@@ -100,4 +100,43 @@ class MapArea {
     required this.rect,
     this.identifier,
   });
+
+  /// Devuelve una lista de identificadores candidatos para probar.
+  ///
+  /// Dado que no siempre sabemos cuáles son rutas marinas o terrestres, esta
+  /// lista incluye el identificador original (si existe), una variante con
+  /// el prefijo "sea-" y variantes donde "route" se transforma a
+  /// "sea-route" cuando procede. También se incluye el `name` como fallback.
+  List<String> get candidateIdentifiers {
+    final Set<String> ids = {};
+
+    if (identifier != null && identifier!.trim().isNotEmpty) {
+      final id = identifier!.trim();
+      ids.add(id);
+
+      // Variante con prefijo sea-
+      ids.add('sea-$id');
+
+      // Reemplazo de -route- por -sea-route- (ej: kanto-route-1 -> kanto-sea-route-1)
+      if (id.contains('-route-')) {
+        ids.add(id.replaceAll('-route-', '-sea-route-'));
+      }
+
+      // Reemplazo de route- por sea-route- (caso sin guión previo)
+      if (id.contains('route-') && !id.contains('-route-')) {
+        ids.add(id.replaceAll('route-', 'sea-route-'));
+      }
+
+      // Si ya tiene sea-route, también agregar la versión sin sea-
+      if (id.contains('sea-route')) {
+        ids.add(id.replaceAll('sea-route', 'route'));
+        ids.add(id.replaceAll('sea-', ''));
+      }
+    }
+
+    // Siempre añadir el name como última opción para compatibilidad
+    ids.add(name);
+
+    return ids.toList(growable: false);
+  }
 }

@@ -245,6 +245,7 @@ class GraphQLQueryService {
     }
   ''';
 
+
   // Query para lista con filtro por tipos
   static const String listByTypes = r'''
     query getPokemonsByTypes($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!, $typeNames: [String!]!) {
@@ -448,11 +449,52 @@ class GraphQLQueryService {
     }
   ''';
 
-  // Nueva query: obtener location (ubicación) por nombre (busca coincidencias exactas)
+  // Nueva query: obtener location por nombre (coincidencia exacta)
   static const String locationByName = r'''
     query getLocationByName($name: String!) {
       pokemon_v2_location(
         where: { name: {_eq: $name} }
+      ) {
+        id
+        name
+        pokemon_v2_region {
+          id
+          name
+        }
+      }
+    }
+  ''';
+
+  // Query que busca coincidencias parciales usando ILIKE (case-insensitive, pattern)
+  static const String locationAreaByNameLike = r'''
+    query getLocationAreaByNameLike($name: String!) {
+      pokemon_v2_locationarea(
+        where: {
+          _or: [
+            {name: {_ilike: $name}},
+            {pokemon_v2_location: {name: {_ilike: $name}}}
+          ]
+        }
+      ) {
+        id
+        name
+        pokemon_v2_location {
+          id
+          name
+          pokemon_v2_region {
+            id
+            name
+          }
+        }
+      }
+    }
+  ''';
+
+  // Query para location (tabla pokemon_v2_location) con ILIKE
+  static const String locationByNameLike = r'''
+    query getLocationByNameLike($name: String!) {
+      pokemon_v2_location(
+        where: { name: {_ilike: $name} }
       ) {
         id
         name

@@ -82,7 +82,7 @@ class _MapPageState extends State<MapPage> {
                   selectedArea = mapArea.name; // nombre amigable para mostrar
                 });
                 debugPrint('MapPage: area tapped -> ${mapArea.name} (identifier: $identifier, region: $selectedRegion)');
-                await _showRouteModal(identifier);
+                await _showRouteModal(mapArea);
                 _isOpeningModal = false;
               },
             ),
@@ -209,7 +209,7 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  Future<void> _showRouteModal(String routeIdentifier) async {
+  Future<void> _showRouteModal(MapArea mapArea) async {
     // Instead of popping arbitrary routes, keep track of modal state and await its closing.
     if (_isModalOpen) {
       // If modal is open, don't open another; you could also close it explicitly if needed.
@@ -222,7 +222,9 @@ class _MapPageState extends State<MapPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => RoutePokemonModal(
-        routeName: routeIdentifier,
+        routeName: mapArea.name,
+        routeIdentifier: mapArea.identifier,
+        candidateIdentifiers: mapArea.candidateIdentifiers,
         locationId: null,
         regionName: selectedRegion,
       ),

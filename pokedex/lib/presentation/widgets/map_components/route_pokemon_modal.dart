@@ -12,12 +12,16 @@ import '../../bloc/pokemon_detail/pokemon_detail_event.dart';
 /// Modal que muestra todos los Pokémon de una ruta específica.
 class RoutePokemonModal extends StatefulWidget {
   final String routeName;
+  final String? routeIdentifier; // nuevo
+  final List<String>? candidateIdentifiers;
   final int? locationId;
   final String? regionName;
 
   const RoutePokemonModal({
     super.key,
     required this.routeName,
+    this.routeIdentifier,
+    this.candidateIdentifiers,
     this.locationId,
     this.regionName,
   });
@@ -66,26 +70,44 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       // Si no tenemos un id válido, intentar resolverlo por nombre
       if (idToUse == null) {
-        // Construir identificador en inglés con sintaxis PokeAPI
-        String identifier;
-        final lowerRoute = widget.routeName.toLowerCase();
-        if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
-          // Es ruta
-          final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
-          if (widget.regionName?.toLowerCase() == 'johto') {
-            identifier = 'route$routeNum';
+        // Si el MapPage nos pasó un routeIdentifier explícito úsalo directamente.
+        String? identifier = widget.routeIdentifier;
+        if (identifier == null) {
+          // Construir identificador en inglés con sintaxis PokeAPI (fallback)
+          final lowerRoute = widget.routeName.toLowerCase();
+          if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
+            // Es ruta
+            final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
+            if (widget.regionName?.toLowerCase() == 'johto') {
+              identifier = 'route$routeNum';
+            } else {
+              final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
+              identifier = '$regionSlug-route-$routeNum';
+            }
           } else {
-            final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
-            identifier = '$regionSlug-route-$routeNum';
+            // Es ciudad o lugar
+            identifier = lowerRoute.replaceAll(' ', '-');
           }
-        } else {
-          // Es ciudad o lugar
-          identifier = lowerRoute.replaceAll(' ', '-');
         }
         debugPrint('RoutePokemonModal: construido identifier: $identifier');
 
-        // Intentar buscar location con el identifier
-        final locId = await repository.getLocationIdByIdentifier(identifier);
+        // Intentar buscar location con el identifier (si existe)
+        // Primero intentar con la lista de candidatos si viene desde MapArea
+        int? locId;
+        if (widget.candidateIdentifiers != null && widget.candidateIdentifiers!.isNotEmpty) {
+          for (final cand in widget.candidateIdentifiers!) {
+            final tryId = await repository.getLocationIdByIdentifier(cand);
+            if (tryId != null) {
+              locId = tryId;
+              identifier = cand;
+              break;
+            }
+          }
+        }
+        // Si no encontramos nada con candidatos, intentar con el identifier construido
+        if (locId == null) {
+          locId = identifier != null ? await repository.getLocationIdByIdentifier(identifier) : null;
+        }
         if (locId != null) {
           idToUse = locId;
           _resolvedType = 'location';
