@@ -75,7 +75,13 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
         if (identifier == null) {
           // Construir identificador en inglés con sintaxis PokeAPI (fallback)
           final lowerRoute = widget.routeName.toLowerCase();
-          if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
+
+          // Detectar tipos: ruta, ciudad, cueva/monte u otro
+          final isRoute = lowerRoute.contains('route') || lowerRoute.contains('ruta');
+          final isCity = lowerRoute.contains('city') || lowerRoute.contains('ciudad') || lowerRoute.endsWith(' city') || lowerRoute.endsWith(' ciudad');
+          final isCaveOrMount = lowerRoute.contains('mount') || lowerRoute.contains('mt ') || lowerRoute.startsWith('mt') || lowerRoute.contains('mountain') || lowerRoute.contains('cave') || lowerRoute.contains('cueva');
+
+          if (isRoute) {
             // Es ruta
             final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
             if (widget.regionName?.toLowerCase() == 'johto') {
@@ -84,9 +90,12 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
               final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
               identifier = '$regionSlug-route-$routeNum';
             }
+          } else if (isCity || isCaveOrMount) {
+            // Para ciudades y cuevas/monte: usar solo el slug del lugar (ej. "mt-silver"), NO añadir la región
+            identifier = lowerRoute.replaceAll(RegExp(r"\s+"), '-').replaceAll('--', '-');
           } else {
-            // Es ciudad o lugar
-            identifier = lowerRoute.replaceAll(' ', '-');
+            // Es ciudad o lugar genérico: usar slug simple (sin agregar región por defecto)
+            identifier = lowerRoute.replaceAll(RegExp(r"\s+"), '-').replaceAll('--', '-');
           }
         }
         debugPrint('RoutePokemonModal: construido identifier: $identifier');
@@ -113,7 +122,9 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
           _resolvedType = 'location';
         } else {
           // Fallback: intentar resolver con la lógica anterior (location-area)
-          final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: widget.regionName);
+          // Nota: para ciudades y cuevas/monte no pasamos la región al resolver (según petición)
+          final shouldSendRegion = !(widget.routeName.toLowerCase().contains('city') || widget.routeName.toLowerCase().contains('ciudad') || widget.routeName.toLowerCase().contains('mount') || widget.routeName.toLowerCase().contains('mt') || widget.routeName.toLowerCase().contains('cave') || widget.routeName.toLowerCase().contains('cueva'));
+          final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: shouldSendRegion ? widget.regionName : null);
           debugPrint('RoutePokemonModal: fallback resolveLocationOrArea result -> $resolvedMap');
           final resolved = resolvedMap['id'] as int?;
           if (resolved == null) {
@@ -160,7 +171,9 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
             }
 
             // También intentar combinar con el nombre de la región si está disponible
-            if ((widget.regionName ?? '').isNotEmpty) {
+            // Pero NO hacerlo para ciudades o cuevas/monte (según petición)
+            final isCityOrCave = norm.contains('city') || norm.contains('ciudad') || norm.contains('mount') || norm.contains('mt') || norm.contains('cave') || norm.contains('cueva');
+            if ((widget.regionName ?? '').isNotEmpty && !isCityOrCave) {
               final regionNorm = widget.regionName!.trim().toLowerCase();
               final combined1 = '$norm $regionNorm';
               final more1 = await repository.getLocationAreaMatches(combined1);
