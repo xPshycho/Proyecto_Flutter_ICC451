@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../models/pokemon.dart';
+import '../models/pokemon_ability.dart';
 
 class PokemonMapperService {
   const PokemonMapperService._();
@@ -121,26 +122,16 @@ class PokemonMapperService {
   }
 
   /// Extrae las habilidades desde los datos GraphQL
-  static List<String> _extractAbilities(dynamic abilitiesData) {
+  static List<PokemonAbility> _extractAbilities(dynamic abilitiesData) {
     if (abilitiesData == null || abilitiesData is! List) return [];
 
     return abilitiesData
         .map((a) {
-      final ability = a['pokemon_v2_ability'];
-      if (ability == null) return null;
-
-      // Intentar obtener nombre en español
-      final abilityNames = ability['pokemon_v2_abilitynames'];
-      if (abilityNames is List && abilityNames.isNotEmpty) {
-        final spanishName = abilityNames[0]['name'];
-        if (spanishName != null) return spanishName as String;
-      }
-
-      // Fallback al nombre en inglés
-      return ability['name'] as String?;
-    })
-        .where((name) => name != null)
-        .cast<String>()
+          if (a is! Map<String, dynamic>) return null;
+          return PokemonAbility.fromGraphQL(a);
+        })
+        .where((ability) => ability != null && ability.name.isNotEmpty)
+        .cast<PokemonAbility>()
         .toList();
   }
 
@@ -258,4 +249,3 @@ class PokemonMapperService {
     return [];
   }
 }
-

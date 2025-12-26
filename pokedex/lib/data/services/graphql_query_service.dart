@@ -143,10 +143,14 @@ class GraphQLQueryService {
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonabilities { 
+          is_hidden
           pokemon_v2_ability { 
             name 
             pokemon_v2_abilitynames(where: {language_id: {_eq: 7}}, limit: 1) {
               name
+            }
+            pokemon_v2_abilityflavortexts(where: {language_id: {_eq: 7}}, limit: 1) {
+              flavor_text
             }
           } 
         }

@@ -2,6 +2,7 @@ import '../../domain/models/type_effectiveness.dart';
 import '../../domain/services/type_effectiveness_service.dart';
 import '../../core/constants/pokemon_constants.dart';
 import 'evolution_detail.dart';
+import 'pokemon_ability.dart';
 
 /// Modelo principal de Pokémon. Representa la entidad "base" del pokémon con sus
 /// atributos principales (id, nombre, tipos, stats, etc.).
@@ -25,7 +26,7 @@ class Pokemon {
   final List<Pokemon>? evolutions;
   final Map<int, EvolutionDetail>? evolutionDetails;
   bool isFavorite;
-  final List<String> abilities;
+  final List<PokemonAbility> abilities;
   final Map<String, int> stats;
   final List<String>? categories;
   final bool? isLegendary;
@@ -98,6 +99,23 @@ class Pokemon {
 
   // Fábrica desde JSON genérico
   factory Pokemon.fromJson(Map<String, dynamic> json) {
+    // Parsear abilities - puede venir como lista de strings o de objetos
+    List<PokemonAbility> parsedAbilities = [];
+    final abilitiesData = json['abilities'];
+    if (abilitiesData is List) {
+      for (final item in abilitiesData) {
+        if (item is String) {
+          parsedAbilities.add(PokemonAbility(name: item));
+        } else if (item is Map<String, dynamic>) {
+          parsedAbilities.add(PokemonAbility(
+            name: item['name'] as String? ?? '',
+            isHidden: item['isHidden'] as bool? ?? false,
+            effect: item['effect'] as String?,
+          ));
+        }
+      }
+    }
+
     return Pokemon(
       id: json['id'] as int,
       name: json['name'] as String,
@@ -107,7 +125,7 @@ class Pokemon {
       types: (json['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       height: (json['height'] as num?)?.toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
-      abilities: (json['abilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      abilities: parsedAbilities,
       stats: (json['stats'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as int)) ?? {},
       categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
       isLegendary: json['isLegendary'] as bool?,
