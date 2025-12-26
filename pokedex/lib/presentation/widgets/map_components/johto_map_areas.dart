@@ -36,7 +36,7 @@ class JohtoMapAreas {
 
     // Routes
     MapArea(name: 'Route 29', rect: Rect.fromLTRB(113, 108, 143, 118)),
-    MapArea(name: 'Route 30', rect: Rect.fromLTRB(105, 108, 116, 68)),
+    MapArea(name: 'Route 30', rect: Rect.fromLTRB(105, 68, 116, 108)),
     MapArea(name: 'Route 31', rect: Rect.fromLTRB(98, 59, 115, 68)),
     MapArea(name: 'Route 32', rect: Rect.fromLTRB(89, 68, 99, 128)),
     MapArea(name: 'Route 33', rect: Rect.fromLTRB(79, 128, 90, 137)),
@@ -55,6 +55,9 @@ class JohtoMapAreas {
     MapArea(name: 'Route 46', rect: Rect.fromLTRB(130, 78, 140, 108)),
     MapArea(name: 'Route 47', rect: Rect.fromLTRB(0, 104, 8, 111)),
     MapArea(name: 'Route 48', rect: Rect.fromLTRB(0, 100, 6, 105)),
+
+    MapArea(name: 'Tohjo Falls (Kanto)', rect: Rect.fromLTRB(161, 109, 166, 115)),
+    MapArea(name: 'Route 26 (Kanto)', rect: Rect.fromLTRB(152, 108, 161, 117)),
 
     // Other
     MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(10, 51, 18, 59)),
