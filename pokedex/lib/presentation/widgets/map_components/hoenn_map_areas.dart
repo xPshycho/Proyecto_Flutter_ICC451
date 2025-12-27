@@ -14,12 +14,12 @@ class HoennMapAreas {
     MapArea(name: 'Petalburg City', rect: Rect.fromLTRB(30, 122, 45, 130), identifier: 'petalburg-city'),
     MapArea(name: 'Rustboro City', rect: Rect.fromLTRB(11, 82, 26, 90), identifier: 'rustboro-city'),
     // segunda área superpuesta para Rustboro (aparece también en el HTML)
-    MapArea(name: 'Rustboro City', rect: Rect.fromLTRB(11, 82, 19, 97), identifier: 'hoenn-rustboro-city-alt'),
+    MapArea(name: 'Rustboro City', rect: Rect.fromLTRB(11, 82, 19, 97), identifier: 'rustboro-city-alt'),
     MapArea(name: 'Dewford Town', rect: Rect.fromLTRB(38, 185, 46, 193), identifier: 'dewford-town'),
     MapArea(name: 'Slateport City', rect: Rect.fromLTRB(85, 140, 100, 155), identifier: 'slateport-city'),
     MapArea(name: 'Mauville City', rect: Rect.fromLTRB(85, 89, 99, 96), identifier: 'mauville-city'),
     // segunda área superpuesta para Mauville
-    MapArea(name: 'Mauville City', rect: Rect.fromLTRB(85, 89, 93, 104), identifier: 'hoenn-mauville-city-alt'),
+    MapArea(name: 'Mauville City', rect: Rect.fromLTRB(85, 89, 93, 104), identifier: 'mauville-city-alt'),
     MapArea(name: 'Verdanturf Town', rect: Rect.fromLTRB(57, 89, 65, 97), identifier: 'verdanturf-town'),
     MapArea(name: 'Lavaridge Town', rect: Rect.fromLTRB(64, 64, 72, 72), identifier: 'lavaridge-town'),
     MapArea(name: 'Fallarbor Town', rect: Rect.fromLTRB(44, 43, 59, 51), identifier: 'fallarbor-town'),
@@ -29,8 +29,8 @@ class HoennMapAreas {
     MapArea(name: 'Sootopolis City', rect: Rect.fromLTRB(199, 109, 207, 117), identifier: 'sootopolis-city'),
     MapArea(name: 'Mossdeep City', rect: Rect.fromLTRB(227, 79, 242, 87), identifier: 'mossdeep-city'),
     MapArea(name: 'Evergrande City', rect: Rect.fromLTRB(268, 130, 276, 144), identifier: 'evergrande-city'),
-    MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(221, 174, 237, 191), identifier: 'hoenn-battle-frontier'),
-    MapArea(name: 'Southern Island', rect: Rect.fromLTRB(268, 196, 280, 208), identifier: 'hoenn-southern-island'),
+    MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(221, 174, 237, 191), identifier: 'battle-frontier'),
+    MapArea(name: 'Southern Island', rect: Rect.fromLTRB(268, 196, 280, 208), identifier: 'southern-island'),
 
     // Routes
     MapArea(name: 'Route 101', rect: Rect.fromLTRB(57, 130, 65, 147), identifier: 'hoenn-route-101'),
@@ -51,7 +51,7 @@ class HoennMapAreas {
     MapArea(name: 'Route 114', rect: Rect.fromLTRB(27, 43, 44, 51), identifier: 'hoenn-route-114'),
     // entrada adicional para Route 114 (área mayor)
     MapArea(name: 'Route 114', rect: Rect.fromLTRB(27, 43, 35, 63), identifier: 'hoenn-route-114-alt'),
-    MapArea(name: 'Meteor Falls', rect: Rect.fromLTRB(18, 55, 27, 63), identifier: 'hoenn-meteor-falls'),
+    MapArea(name: 'Meteor Falls', rect: Rect.fromLTRB(18, 55, 27, 63), identifier: 'meteor-falls'),
     MapArea(name: 'Route 115', rect: Rect.fromLTRB(11, 55, 19, 82), identifier: 'hoenn-route-115'),
     MapArea(name: 'Route 116', rect: Rect.fromLTRB(26, 82, 65, 90), identifier: 'hoenn-route-116'),
     MapArea(name: 'Route 117', rect: Rect.fromLTRB(65, 89, 85, 97), identifier: 'hoenn-route-117'),
@@ -76,4 +76,3 @@ class HoennMapAreas {
     MapArea(name: 'Route 134', rect: Rect.fromLTRB(100, 147, 131, 155), identifier: 'hoenn-route-134'),
   ];
 }
-

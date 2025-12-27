@@ -578,17 +578,20 @@ class _DetailedPokemonCard extends StatelessWidget {
                     Row(
                       children: [
                         // métodos como chips
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: encounter.method.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).map((m) {
-                              return Container(
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: colorScheme.secondary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
-                                child: Text(m, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              );
-                            }).toList(),
+                        Expanded(
+                          flex: 1,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: encounter.method.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).map((m) {
+                                return Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: colorScheme.secondary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
+                                  child: Text(m, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                );
+                              }).toList(),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -596,6 +599,7 @@ class _DetailedPokemonCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         // Mostrar juegos como chips
                         Expanded(
+                          flex: 2,
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(

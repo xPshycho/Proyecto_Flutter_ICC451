@@ -24,15 +24,15 @@ class JohtoMapAreas {
     MapArea(name: 'Dark Cave', rect: Rect.fromLTRB(116, 60, 136, 69), identifier: 'dark-cave'),
     MapArea(name: 'Ruins of Alph', rect: Rect.fromLTRB(81, 76, 89, 84), identifier: 'ruins-of-alph'),
     MapArea(name: 'Union Cave', rect: Rect.fromLTRB(90, 129, 98, 137), identifier: 'union-cave'),
-    MapArea(name: 'Ilex Forest', rect: Rect.fromLTRB(53, 129, 61, 137), identifier: 'johto-ilex-forest'),
-    MapArea(name: 'National Park', rect: Rect.fromLTRB(53, 60, 61, 68), identifier: 'johto-national-park'),
-    MapArea(name: 'Whirl Islands', rect: Rect.fromLTRB(18, 88, 26, 96), identifier: 'johto-whirl-islands'),
+    MapArea(name: 'Ilex Forest', rect: Rect.fromLTRB(53, 129, 61, 137), identifier: 'ilex-forest'),
+    MapArea(name: 'National Park', rect: Rect.fromLTRB(53, 60, 61, 68), identifier: 'national-park'),
+    MapArea(name: 'Whirl Islands', rect: Rect.fromLTRB(18, 88, 26, 96), identifier: 'whirl-islands'),
     MapArea(name: 'Mt. Mortar', rect: Rect.fromLTRB(86, 40, 94, 48), identifier: 'mt-mortar'),
-    MapArea(name: 'Lake of Rage', rect: Rect.fromLTRB(109, 7, 117, 15), identifier: 'johto-lake-of-rage'),
-    MapArea(name: 'Ice Path', rect: Rect.fromLTRB(129, 40, 137, 48), identifier: 'johto-ice-path'),
-    MapArea(name: 'Dragon\'s Den', rect: Rect.fromLTRB(137, 30, 145, 38), identifier: 'johto-dragons-den'),
+    MapArea(name: 'Lake of Rage', rect: Rect.fromLTRB(109, 7, 117, 15), identifier: 'lake-of-rage'),
+    MapArea(name: 'Ice Path', rect: Rect.fromLTRB(129, 40, 137, 48), identifier: 'ice-path'),
+    MapArea(name: 'Dragon\'s Den', rect: Rect.fromLTRB(137, 30, 145, 38), identifier: 'dragons-den'),
     MapArea(name: 'Mt. Silver', rect: Rect.fromLTRB(158, 80, 166, 88), identifier: 'mt-silver'),
-    MapArea(name: 'Safari Zone', rect: Rect.fromLTRB(0, 93, 5, 101), identifier: 'johto-safari-zone'),
+    MapArea(name: 'Safari Zone', rect: Rect.fromLTRB(0, 93, 5, 101), identifier: 'safari-zone'),
 
     // Routes
     MapArea(name: 'Route 29', rect: Rect.fromLTRB(113, 108, 143, 118), identifier: 'johto-route-29'),
@@ -57,10 +57,10 @@ class JohtoMapAreas {
     MapArea(name: 'Route 47', rect: Rect.fromLTRB(0, 104, 8, 111), identifier: 'johto-route-47'),
     MapArea(name: 'Route 48', rect: Rect.fromLTRB(0, 100, 6, 105), identifier: 'johto-route-48'),
 
-    MapArea(name: 'Tohjo Falls (Kanto)', rect: Rect.fromLTRB(161, 109, 166, 115), identifier: 'johto-tohjo-falls-kanto'),
+    MapArea(name: 'Tohjo Falls (Kanto)', rect: Rect.fromLTRB(161, 109, 166, 115), identifier: 'tohjo-falls-kanto'),
     MapArea(name: 'Route 26 (Kanto)', rect: Rect.fromLTRB(152, 108, 161, 117), identifier: 'johto-route-26-kanto'),
 
     // Other
-    MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(10, 51, 18, 59), identifier: 'johto-battle-frontier'),
+    MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(10, 51, 18, 59), identifier: 'battle-frontier'),
   ];
 }
