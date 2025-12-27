@@ -245,7 +245,6 @@ class MapRepository {
             final clean = jsonDecode(jsonEncode(resLikeLoc.data)) as Map<String, dynamic>;
             final data = clean['pokemon_v2_location'] as List<dynamic>? ?? [];
             if (data.isNotEmpty) {
-              // Prefer entries in same region if possible
               if (identifier.contains('-')) {
                 final maybeRegion = identifier.split('-').first.toLowerCase();
                 for (final item in data.cast<Map<String, dynamic>>()) {
@@ -273,7 +272,6 @@ class MapRepository {
             final clean = jsonDecode(jsonEncode(resLikeArea.data)) as Map<String, dynamic>;
             final data = clean['pokemon_v2_locationarea'] as List<dynamic>? ?? [];
             if (data.isNotEmpty) {
-              // Prefer same-region entries
               if (identifier.contains('-')) {
                 final maybeRegion = identifier.split('-').first.toLowerCase();
                 for (final item in data.cast<Map<String, dynamic>>()) {
@@ -637,8 +635,6 @@ class MapRepository {
 
   /// Obtiene ubicaciones por región (placeholder, implementar si necesario).
   Future<List<Location>> getLocationsByRegion(String region) async {
-    // Placeholder: en una implementación real, consultar ubicaciones por región.
-    // Por ahora, devolver lista vacía o mock.
     return [];
   }
 
