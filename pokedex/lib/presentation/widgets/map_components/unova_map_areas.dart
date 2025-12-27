@@ -8,47 +8,47 @@ class UnovaMapAreas {
   static const double imageHeight = 168.0;
 
   static List<MapArea> get areas => [
-    // Routes (rects and approximated polys as bounding rects)
+    // Rutas (rects y polígonos aproximados como rectángulos delimitadores)
     MapArea(name: 'Route 1', rect: Rect.fromLTRB(231, 144, 233, 152), identifier: 'unova-route-1'),
     MapArea(name: 'Route 2', rect: Rect.fromLTRB(229, 124, 232, 132), identifier: 'unova-route-2'),
     MapArea(name: 'Route 3', rect: Rect.fromLTRB(209, 117, 222, 121), identifier: 'unova-route-3'),
     MapArea(name: 'Route 4', rect: Rect.fromLTRB(130, 96, 134, 124), identifier: 'unova-route-4'),
     MapArea(name: 'Route 5', rect: Rect.fromLTRB(115, 89, 126, 94), identifier: 'unova-route-5'),
-    // Route 6 poly -> bbox
+    // Ruta 6 polígono -> bbox
     MapArea(name: 'Route 6', rect: Rect.fromLTRB(44, 68, 69, 89), identifier: 'unova-route-6'),
-    // Route 7 poly -> bbox
+    // Ruta 7 polígono -> bbox
     MapArea(name: 'Route 7', rect: Rect.fromLTRB(44, 45, 70, 64), identifier: 'unova-route-7'),
     MapArea(name: 'Route 8', rect: Rect.fromLTRB(80, 41, 94, 47), identifier: 'unova-route-8'),
     MapArea(name: 'Route 9', rect: Rect.fromLTRB(113, 41, 127, 47), identifier: 'unova-route-9'),
     MapArea(name: 'Route 10', rect: Rect.fromLTRB(134, 29, 158, 34), identifier: 'unova-route-10'),
     MapArea(name: 'Route 11', rect: Rect.fromLTRB(138, 41, 151, 47), identifier: 'unova-route-11'),
     MapArea(name: 'Route 12', rect: Rect.fromLTRB(170, 41, 184, 47), identifier: 'unova-route-12'),
-    // Route 13 poly -> bbox
+    // Ruta 13 polígono -> bbox
     MapArea(name: 'Route 13', rect: Rect.fromLTRB(195, 46, 220, 67), identifier: 'unova-route-13'),
-    // Route 14 poly -> bbox
+    // Ruta 14 polígono -> bbox
     MapArea(name: 'Route 14', rect: Rect.fromLTRB(194, 69, 220, 90), identifier: 'unova-route-14'),
     MapArea(name: 'Route 15', rect: Rect.fromLTRB(169, 89, 184, 94), identifier: 'unova-route-15'),
     MapArea(name: 'Route 16', rect: Rect.fromLTRB(138, 89, 150, 94), identifier: 'unova-route-16'),
     MapArea(name: 'Route 17', rect: Rect.fromLTRB(213, 156, 226, 161), identifier: 'unova-route-17'),
     MapArea(name: 'Route 18', rect: Rect.fromLTRB(202, 156, 213, 161), identifier: 'unova-route-18'),
-    // Route 19 has two entries: rect and small poly bbox
+    // Ruta 19 tiene dos entradas: rect y pequeño polígono bbox
     MapArea(name: 'Route 19', rect: Rect.fromLTRB(13, 131, 15, 147), identifier: 'unova-route-19'),
     MapArea(name: 'Route 19 (alt)', rect: Rect.fromLTRB(12, 126, 27, 132), identifier: 'unova-route-19-alt'),
     MapArea(name: 'Route 20', rect: Rect.fromLTRB(39, 126, 63, 130), identifier: 'unova-route-20'),
     MapArea(name: 'Route 21', rect: Rect.fromLTRB(233, 41, 237, 50), identifier: 'unova-route-21'),
     MapArea(name: 'Route 22', rect: Rect.fromLTRB(211, 35, 229, 39), identifier: 'unova-route-22'),
-    // Route 23 multiple rects
+    // Ruta 23 múltiples rectángulos
     MapArea(name: 'Route 23', rect: Rect.fromLTRB(195, 35, 205, 39), identifier: 'unova-route-23'),
     MapArea(name: 'Route 23 (alt1)', rect: Rect.fromLTRB(195, 15, 197, 39), identifier: 'unova-route-23-alt1'),
     MapArea(name: 'Route 23 (alt2)', rect: Rect.fromLTRB(188, 15, 197, 19), identifier: 'unova-route-23-alt2'),
 
-    // Marine Tube appears multiple times -> add all rects
+    // Marine Tube aparece múltiples veces -> agregar todos los rectángulos
     MapArea(name: 'Marine Tube', rect: Rect.fromLTRB(229, 66, 253, 71), identifier: 'unova-marine-tube'),
     MapArea(name: 'Marine Tube (alt1)', rect: Rect.fromLTRB(251, 31, 253, 71), identifier: 'unova-marine-tube-alt1'),
     MapArea(name: 'Marine Tube (alt2)', rect: Rect.fromLTRB(241, 35, 253, 40), identifier: 'unova-marine-tube-alt2'),
 
-    // Bridges and special locations
-    // Skyarrow Bridge poly bbox (approx)
+    // Puentes y lugares especiales
+    // Bbox poligonal de Skyarrow Bridge (aprox)
     MapArea(name: 'Skyarrow Bridge', rect: Rect.fromLTRB(138, 117, 187, 130), identifier: 'unova-skyarrow-bridge'),
     MapArea(name: 'Desert Resort', rect: Rect.fromLTRB(118, 102, 131, 107), identifier: 'unova-desert-resort'),
     MapArea(name: 'Tubeline Bridge', rect: Rect.fromLTRB(93, 40, 114, 46), identifier: 'unova-tubeline-bridge'),
@@ -56,7 +56,7 @@ class UnovaMapAreas {
     MapArea(name: 'Marvelous Bridge', rect: Rect.fromLTRB(149, 88, 170, 94), identifier: 'unova-marvelous-bridge'),
     MapArea(name: 'Driftveil Drawbridge', rect: Rect.fromLTRB(80, 88, 114, 94), identifier: 'unova-driftveil-drawbridge'),
 
-    // Towns / Cities / Points of Interest
+    // Pueblos / Ciudades / Puntos de interés
     MapArea(name: 'Nuvema Town', rect: Rect.fromLTRB(226, 152, 238, 164), identifier: 'nuvema-town'),
     MapArea(name: 'Plasma Frigate', rect: Rect.fromLTRB(219, 148, 225, 154), identifier: 'plasma-frigate'),
     MapArea(name: 'Accumula Town', rect: Rect.fromLTRB(226, 132, 238, 144), identifier: 'accumula-town'),
@@ -116,4 +116,3 @@ class UnovaMapAreas {
     MapArea(name: 'Unity Tower', rect: Rect.fromLTRB(95, 153, 103, 161), identifier: 'unova-unity-tower'),
   ];
 }
-

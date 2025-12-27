@@ -139,7 +139,7 @@ class _PokemonHeaderState extends State<PokemonHeader> with TickerProviderStateM
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Theme-aware colors for icons
+    // Colores según el tema para los íconos
     final bool isDark = theme.brightness == Brightness.dark;
     final Color defaultIconColor = isDark ? Colors.white : Colors.black;
     final Color blurBgColor = isDark

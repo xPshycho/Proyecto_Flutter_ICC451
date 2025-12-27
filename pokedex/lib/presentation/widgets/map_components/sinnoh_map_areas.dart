@@ -8,7 +8,7 @@ class SinnohMapAreas {
   static const double imageHeight = 168.0;
 
   static List<MapArea> get areas => [
-    // Towns / Key locations
+    // Pueblos / Lugares clave
     MapArea(name: 'Twinleaf Town', rect: Rect.fromLTRB(22, 150, 30, 158), identifier: 'twinleaf-town'),
     MapArea(name: 'Lake Verity', rect: Rect.fromLTRB(8, 136, 23, 151), identifier: 'lake-verity'),
     MapArea(name: 'Sandgem Town', rect: Rect.fromLTRB(36, 143, 44, 151), identifier: 'sandgem-town'),
@@ -53,7 +53,7 @@ class SinnohMapAreas {
     MapArea(name: 'Flower Paradise', rect: Rect.fromLTRB(197, 2, 205, 10), identifier: 'flower-paradise'),
     MapArea(name: 'Stark Mountain', rect: Rect.fromLTRB(162, 10, 170, 16), identifier: 'stark-mountain'),
 
-    // Routes
+    // Rutas
     MapArea(name: 'Route 201', rect: Rect.fromLTRB(23, 143, 36, 151), identifier: 'sinnoh-route-201'),
     MapArea(name: 'Route 202', rect: Rect.fromLTRB(36, 137, 44, 143), identifier: 'sinnoh-route-202'),
     MapArea(name: 'Route 203', rect: Rect.fromLTRB(44, 122, 57, 130), identifier: 'sinnoh-route-203'),

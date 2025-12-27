@@ -193,7 +193,6 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
             // Intentos adicionales: buscar por tokens sueltos y combinaciones para cubrir casos como 'route 1', 'route-1', '1 route'
             final tokens = norm.split(RegExp(r"\s+"));
-            // always try the first token (often 'route') and last token (often number)
             if (tokens.isNotEmpty) {
               final firstToken = tokens.first;
               if (firstToken.length > 1) {

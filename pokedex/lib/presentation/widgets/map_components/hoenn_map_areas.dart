@@ -8,7 +8,7 @@ class HoennMapAreas {
   static const double imageHeight = 221.0;
 
   static List<MapArea> get areas => [
-    // Towns / Cities
+    // Pueblos / Ciudades
     MapArea(name: 'Littleroot Town', rect: Rect.fromLTRB(57, 147, 65, 155), identifier: 'littleroot-town'),
     MapArea(name: 'Oldale Town', rect: Rect.fromLTRB(57, 122, 65, 129), identifier: 'oldale-town'),
     MapArea(name: 'Petalburg City', rect: Rect.fromLTRB(30, 122, 45, 130), identifier: 'petalburg-city'),
@@ -32,7 +32,7 @@ class HoennMapAreas {
     MapArea(name: 'Battle Frontier', rect: Rect.fromLTRB(221, 174, 237, 191), identifier: 'battle-frontier'),
     MapArea(name: 'Southern Island', rect: Rect.fromLTRB(268, 196, 280, 208), identifier: 'southern-island'),
 
-    // Routes
+    // Rutas
     MapArea(name: 'Route 101', rect: Rect.fromLTRB(57, 130, 65, 147), identifier: 'hoenn-route-101'),
     MapArea(name: 'Route 102', rect: Rect.fromLTRB(45, 122, 57, 130), identifier: 'hoenn-route-102'),
     MapArea(name: 'Route 103', rect: Rect.fromLTRB(57, 115, 85, 123), identifier: 'hoenn-route-103'),

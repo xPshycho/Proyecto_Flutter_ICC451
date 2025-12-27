@@ -232,12 +232,12 @@ class MapRepository {
         }
       }
 
-      // Remove duplicates while preserving order
+      // Eliminar duplicados manteniendo el orden
       final seen = <String>{};
       final patterns = ilikePatterns.where((p) => seen.add(p)).toList();
 
       for (final p in patterns) {
-        // Try location table first
+        // Intentar la tabla de locations primero
         try {
           final optionsLikeLoc = QueryOptions(document: gql(GraphQLQueryService.locationByNameLike), variables: {'name': p});
           final resLikeLoc = await client.query(optionsLikeLoc);
@@ -265,7 +265,7 @@ class MapRepository {
           debugPrint('MapRepository: error ilike location query for $p -> $e');
         }
 
-        // Try location area like
+        // Intentar location area con LIKE
         try {
           final optionsLikeArea = QueryOptions(document: gql(GraphQLQueryService.locationAreaByNameLike), variables: {'name': p});
           final resLikeArea = await client.query(optionsLikeArea);
@@ -311,18 +311,18 @@ class MapRepository {
 
     final variants = <String>{};
 
-    // Always try exact and hyphenated exact first
+    // Primero probar exacto y su variante con guiones
     variants.add(base);
     final hyphenated = base.replaceAll(RegExp(r"\s+"), '-');
     if (hyphenated.isNotEmpty && hyphenated != base) {
       variants.add(hyphenated);
     }
 
-    // Add no-apostrophe exact
+    // Añadir variante sin apóstrofe
     final noAposNorm = _normalize(noApos);
     if (noAposNorm.isNotEmpty) variants.add(noAposNorm);
 
-    // If this looks like a route (contains 'route' or a trailing number), also add "sea"-prefixed/suffixed variants
+    // Si esto parece una ruta (contiene 'route' o un número final), también añadir variantes con prefijo/sufijo 'sea'
     bool looksLikeRoute = base.contains('route') || RegExp(r"\b\d+\b").hasMatch(base);
     if (looksLikeRoute) {
       // sea + base
@@ -340,7 +340,7 @@ class MapRepository {
       }
     }
 
-    // Remove common suffixes like ' island', ' town', ' city', ' route' and add their shorter variants
+    // Eliminar sufijos comunes como ' island', ' town', ' city', ' route' y añadir sus variantes cortas
     final suffixes = [' island', ' town', ' city', ' route', ' cave', ' mt', ' mt.', 'islands'];
     for (final suf in suffixes) {
       if (base.endsWith(suf.trim())) {
@@ -351,7 +351,7 @@ class MapRepository {
       }
     }
 
-    // Try splitting words, e.g., 'cinnabar island' -> 'cinnabar'
+    // Intentar dividir palabras, p. ej., 'cinnabar island' -> 'cinnabar'
     final parts = base.split(RegExp(r"\s+"));
     final stopWords = {'route', 'ruta', 'island', 'town', 'city', 'cave', 'mt', 'islands', 'road'};
     if (parts.length > 1) {
@@ -363,7 +363,7 @@ class MapRepository {
       }
     }
 
-    // Also try compacted (no spaces) as exact variant
+    // También probar la variante compacta (sin espacios) como variante exacta
     final noSpaceExact = base.replaceAll(' ', '');
     if (noSpaceExact.isNotEmpty && noSpaceExact != base) {
       variants.add(noSpaceExact);

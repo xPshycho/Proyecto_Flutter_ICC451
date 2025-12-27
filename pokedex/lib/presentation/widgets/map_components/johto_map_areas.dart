@@ -8,7 +8,7 @@ class JohtoMapAreas {
   static const double imageHeight = 144.0;
 
   static List<MapArea> get areas => [
-    // Towns
+    // Pueblos
     MapArea(name: 'New Bark Town', rect: Rect.fromLTRB(144, 109, 152, 117), identifier: 'new-bark-town'),
     MapArea(name: 'Cherrygrove City', rect: Rect.fromLTRB(105, 109, 113, 117), identifier: 'cherrygrove-city'),
     MapArea(name: 'Violet City', rect: Rect.fromLTRB(90, 60, 97, 68), identifier: 'violet-city'),
@@ -34,7 +34,7 @@ class JohtoMapAreas {
     MapArea(name: 'Mt. Silver', rect: Rect.fromLTRB(158, 80, 166, 88), identifier: 'mt-silver'),
     MapArea(name: 'Safari Zone', rect: Rect.fromLTRB(0, 93, 5, 101), identifier: 'safari-zone'),
 
-    // Routes
+    // Rutas
     MapArea(name: 'Route 29', rect: Rect.fromLTRB(113, 108, 143, 118), identifier: 'johto-route-29'),
     MapArea(name: 'Route 30', rect: Rect.fromLTRB(105, 68, 116, 108), identifier: 'johto-route-30'),
     MapArea(name: 'Route 31', rect: Rect.fromLTRB(98, 59, 115, 68), identifier: 'johto-route-31'),
