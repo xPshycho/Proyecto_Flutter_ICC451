@@ -483,10 +483,14 @@ class PokemonRepository {
     required List<Map<String, String>> orderBy,
   }) async {
     try {
+      // Si hay 2 tipos, necesitamos traer más registros y filtrar en memoria
+      // porque GraphQL con _in trae los que tengan UNO u OTRO tipo
+      final fetchLimit = typeNames.length == 2 ? limit * 5 : limit;
+
       final result = await _executor.executeQuery(
         query: GraphQLQueryService.listByTypes,
         variables: {
-          'limit': limit,
+          'limit': fetchLimit,
           'offset': offset,
           'orderBy': orderBy,
           'typeNames': typeNames,
@@ -496,7 +500,23 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
-          return PokemonMapperService.mapList(data);
+          var pokemons = PokemonMapperService.mapList(data);
+
+          // Si hay 2 tipos, filtrar en memoria para obtener SOLO los que tengan AMBOS
+          if (typeNames.length == 2) {
+            pokemons = PokemonFilterService.filterByTypes(
+              pokemons,
+              typeNames,
+              (p) => p.types,
+            );
+
+            // Aplicar paginación después del filtro
+            if (pokemons.length > limit) {
+              pokemons = pokemons.take(limit).toList();
+            }
+          }
+
+          return pokemons;
         }
       }
     } catch (e) {
@@ -514,10 +534,13 @@ class PokemonRepository {
     required List<Map<String, String>> orderBy,
   }) async {
     try {
+      // Si hay 2 tipos, necesitamos traer más registros y filtrar en memoria
+      final fetchLimit = typeNames.length == 2 ? limit * 5 : limit;
+
       final result = await _executor.executeQuery(
         query: GraphQLQueryService.listByTypesAndGenerations,
         variables: {
-          'limit': limit,
+          'limit': fetchLimit,
           'offset': offset,
           'orderBy': orderBy,
           'typeNames': typeNames,
@@ -528,7 +551,23 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
-          return PokemonMapperService.mapList(data);
+          var pokemons = PokemonMapperService.mapList(data);
+
+          // Si hay 2 tipos, filtrar en memoria para obtener SOLO los que tengan AMBOS
+          if (typeNames.length == 2) {
+            pokemons = PokemonFilterService.filterByTypes(
+              pokemons,
+              typeNames,
+              (p) => p.types,
+            );
+
+            // Aplicar paginación después del filtro
+            if (pokemons.length > limit) {
+              pokemons = pokemons.take(limit).toList();
+            }
+          }
+
+          return pokemons;
         }
       }
     } catch (e) {
