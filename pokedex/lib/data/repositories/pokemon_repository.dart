@@ -5,7 +5,7 @@ import '../models/pokemon.dart';
 import '../models/pokemon_move.dart';
 import '../models/evolution_detail.dart';
 import '../services/graphql_query_service.dart';
-import '../services/pokemon_mapper_service.dart' hide debugPrint;
+import '../services/pokemon_mapper_service.dart';
 import '../services/data_services.dart';
 import '../../core/constants/pokemon_constants.dart';
 import '../../core/constants/app_constants.dart';
@@ -50,6 +50,11 @@ class PokemonRepository {
   }) async {
     final normalizedCategories = _normalizeCategories(categories);
 
+    // Determinar si hay filtros activos
+    final hasActiveFilters = (types != null && types.isNotEmpty) ||
+        (regions != null && regions.isNotEmpty) ||
+        normalizedCategories.isNotEmpty;
+
     // Fast-path para starters
     if (_isSingleStarterCategory(normalizedCategories)) {
       return _fetchStarters(
@@ -83,6 +88,7 @@ class PokemonRepository {
       regions: regions,
       sortBy: sortBy,
       ascending: ascending,
+      onlyDefault: !hasActiveFilters, // Solo default cuando no hay filtros
     );
   }
 
@@ -344,6 +350,7 @@ class PokemonRepository {
     List<String>? regions,
     String? sortBy,
     bool? ascending,
+    bool onlyDefault = false, // Nuevo parámetro para filtrar solo por isDefault
   }) async {
     // Crear clave de caché que incluya filtros
     final cacheKey = _createCacheKey(offset, types, regions, sortBy, ascending);
@@ -405,6 +412,11 @@ class PokemonRepository {
           offset: offset,
           orderBy: orderBy,
         );
+      }
+
+      // Aplicar filtro adicional por isDefault si es necesario
+      if (onlyDefault) {
+        result = result.where((pokemon) => pokemon.isDefault == true).toList();
       }
 
       _pageCache.put(cacheKey, result);

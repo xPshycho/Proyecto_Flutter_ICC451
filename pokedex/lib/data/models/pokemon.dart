@@ -37,6 +37,8 @@ class Pokemon {
   final List<dynamic>? formsChain;
   /// Grupos de huevo del Pokémon
   final List<String>? eggGroups;
+  /// Indica si es un Pokémon por defecto (los 1025 principales)
+  final bool? isDefault;
 
   Pokemon({
     required this.id,
@@ -60,6 +62,7 @@ class Pokemon {
     this.forms,
     this.formsChain,
     this.eggGroups,
+    this.isDefault,
   });
 
   /// Calcula la efectividad de tipos para este Pokémon
@@ -76,6 +79,7 @@ class Pokemon {
     Map<int, EvolutionDetail>? evolutionDetails,
     int? generationId,
     List<String>? eggGroups,
+    bool? isDefault,
   }) {
     return Pokemon(
       id: id,
@@ -99,6 +103,7 @@ class Pokemon {
       formsChain: formsChain ?? this.formsChain,
       description: description ?? this.description,
       eggGroups: eggGroups ?? this.eggGroups,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 
@@ -140,6 +145,7 @@ class Pokemon {
       formsChain: json['formsChain'] as List<dynamic>?,
       description: json['description'] as String?,
       eggGroups: (json['eggGroups'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      isDefault: json['isDefault'] as bool?,
     );
   }
 }

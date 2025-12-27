@@ -16,6 +16,7 @@ class PokemonMapperService {
   static Pokemon mapBasic(Map<String, dynamic> item) {
     final id = item['id'] as int;
     final name = item['name'] as String;
+    final isDefault = item['is_default'] as bool?;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
     final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
@@ -32,6 +33,7 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+      isDefault: isDefault,
     );
   }
 
@@ -44,6 +46,7 @@ class PokemonMapperService {
   static Pokemon mapDetailed(Map<String, dynamic> item) {
     final id = item['id'] as int;
     final name = item['name'] as String;
+    final isDefault = item['is_default'] as bool?;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
     final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
@@ -75,6 +78,7 @@ class PokemonMapperService {
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
       eggGroups: speciesData['eggGroups'],
+      isDefault: isDefault,
     );
   }
 

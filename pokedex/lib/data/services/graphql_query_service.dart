@@ -7,6 +7,7 @@ class GraphQLQueryService {
       pokemon_v2_pokemon(where: {id: {_in: $ids}}) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
@@ -26,6 +27,7 @@ class GraphQLQueryService {
       pokemon_v2_pokemon(where: {id: {_in: $ids}}) {
         id
         name
+        is_default
         height
         weight
         pokemon_v2_pokemonsprites { sprites }
@@ -107,6 +109,7 @@ class GraphQLQueryService {
       pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy, where: $where) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
       }
@@ -116,9 +119,10 @@ class GraphQLQueryService {
   // Query para lista con información de especies (para filtros de Legendario/Mítico)
   static const String listWithSpecies = r'''
     query getPokemonsWithSpecies($limit: Int!, $offset: Int!, $orderBy: [pokemon_v2_pokemon_order_by!]!) {
-      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy) {
+      pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: $orderBy, where: {is_default: {_eq: true}}) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
@@ -138,6 +142,7 @@ class GraphQLQueryService {
       pokemon_v2_pokemon_by_pk(id: $id) {
         id
         name
+        is_default
         height
         weight
         pokemon_v2_pokemonsprites { sprites }
@@ -244,6 +249,7 @@ class GraphQLQueryService {
       ) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
@@ -269,6 +275,7 @@ class GraphQLQueryService {
       ) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
@@ -298,6 +305,7 @@ class GraphQLQueryService {
       ) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
@@ -322,6 +330,7 @@ class GraphQLQueryService {
       ) {
         id
         name
+        is_default
         pokemon_v2_pokemonsprites { sprites }
         pokemon_v2_pokemontypes { pokemon_v2_type { name } }
         pokemon_v2_pokemonspecy { 
