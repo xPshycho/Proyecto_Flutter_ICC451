@@ -14,7 +14,11 @@ import '../widgets/map_components/almia_map_areas.dart';
 
 /// Página para explorar mapas interactivos de regiones de Pokémon.
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final String? initialRegion;
+  final String? initialRouteIdentifier;
+  final Map<String, String>? manualAreaIdMap;
+
+  const MapPage({super.key, this.initialRegion, this.initialRouteIdentifier, this.manualAreaIdMap});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -22,9 +26,35 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   String? selectedArea;
-  String selectedRegion = 'Kanto';
+  late String selectedRegion;
   bool _isOpeningModal = false; // evita abrir múltiples modales por taps rápidos
   bool _isModalOpen = false;
+
+  // Lista canonical de regiones que coincide con los DropdownMenuItem.value
+  static const List<String> _regions = [
+    'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Orre', 'Fiore', 'Almia', 'Oblivia', 'Unova (BW)'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    selectedRegion = _canonicalRegion(widget.initialRegion) ?? 'Kanto';
+  }
+
+  // Normaliza una cadena de región a uno de los valores en _regions (case-insensitive)
+  String? _canonicalRegion(String? input) {
+    if (input == null) return null;
+    final trimmed = input.trim().toLowerCase();
+    for (final r in _regions) {
+      if (r.toLowerCase() == trimmed) return r;
+      if (trimmed == r.toLowerCase().replaceAll(RegExp('\\s+'), ' ')) return r;
+    }
+    // Intentar coincidencia parcial por palabra
+    for (final r in _regions) {
+      if (r.toLowerCase().contains(trimmed) || trimmed.contains(r.toLowerCase())) return r;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +68,7 @@ class _MapPageState extends State<MapPage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: DropdownButton<String>(
-              value: selectedRegion,
+              value: _canonicalRegion(selectedRegion) ?? 'Kanto',
               items: const [
                 DropdownMenuItem(value: 'Kanto', child: Text('Kanto')),
                 DropdownMenuItem(value: 'Johto', child: Text('Johto')),
@@ -58,7 +88,7 @@ class _MapPageState extends State<MapPage> {
               onChanged: (value) {
                 if (value != null) {
                   setState(() {
-                    // Normalize value if we added variants
+                    // Guardar el valor tal cual (es un valor validado por los items)
                     selectedRegion = value;
                   });
                 }
@@ -71,7 +101,9 @@ class _MapPageState extends State<MapPage> {
               areas: _areas,
               imageWidth: _imageWidth,
               imageHeight: _imageHeight,
-              // Ahora recibimos un MapArea y extraemos su identifier
+              // Pasar al InteractiveMapWidget el identifier inicial si lo hubo
+              initialAreaIdentifier: widget.initialRouteIdentifier,
+              manualAreaIdMap: widget.manualAreaIdMap,
               onAreaTap: (area) async {
                 if (_isOpeningModal) return;
                 _isOpeningModal = true;
@@ -81,8 +113,8 @@ class _MapPageState extends State<MapPage> {
                 setState(() {
                   selectedArea = mapArea.name; // nombre amigable para mostrar
                 });
-                debugPrint('MapPage: area tapped -> ${mapArea.name} (identifier: $identifier, region: $selectedRegion)');
-                await _showRouteModal(identifier);
+                debugPrint('MapPage: area tapped -> ${mapArea.name} (identifier: $identifier, region: ${selectedRegion})');
+                await _showRouteModal(mapArea);
                 _isOpeningModal = false;
               },
             ),
@@ -98,7 +130,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   String get _mapImagePath {
-    switch (selectedRegion) {
+    final region = _canonicalRegion(selectedRegion) ?? 'Kanto';
+    switch (region) {
       case 'Kanto':
         return KantoMapAreas.mapImagePath;
       case 'Johto':
@@ -126,7 +159,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   List<MapArea> get _areas {
-    switch (selectedRegion) {
+    final region = _canonicalRegion(selectedRegion) ?? 'Kanto';
+    switch (region) {
       case 'Kanto':
         return KantoMapAreas.areas;
       case 'Johto':
@@ -154,7 +188,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   double get _imageWidth {
-    switch (selectedRegion) {
+    final region = _canonicalRegion(selectedRegion) ?? 'Kanto';
+    switch (region) {
       case 'Kanto':
         return KantoMapAreas.imageWidth;
       case 'Johto':
@@ -162,7 +197,7 @@ class _MapPageState extends State<MapPage> {
       case 'Hoenn':
         return HoennMapAreas.imageWidth;
       case 'Sinnoh':
-        return SinnohMapAreas.imageWidth;
+        return SinnohMapAreas.imageHeight;
       case 'Unova':
       case 'Unova (BW)':
         return UnovaMapAreas.imageWidth;
@@ -182,7 +217,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   double get _imageHeight {
-    switch (selectedRegion) {
+    final region = _canonicalRegion(selectedRegion) ?? 'Kanto';
+    switch (region) {
       case 'Kanto':
         return KantoMapAreas.imageHeight;
       case 'Johto':
@@ -209,10 +245,10 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  Future<void> _showRouteModal(String routeIdentifier) async {
-    // Instead of popping arbitrary routes, keep track of modal state and await its closing.
+  Future<void> _showRouteModal(MapArea mapArea) async {
+    // Instead of popping arbitrary routes, keep track de modal state y await its closing.
     if (_isModalOpen) {
-      // If modal is open, don't open another; you could also close it explicitly if needed.
+      // If modal is open, don't open another; you could also close it explícitamente si needed.
       return;
     }
 
@@ -222,9 +258,11 @@ class _MapPageState extends State<MapPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => RoutePokemonModal(
-        routeName: routeIdentifier,
+        routeName: mapArea.name,
+        routeIdentifier: mapArea.identifier,
+        candidateIdentifiers: mapArea.candidateIdentifiers,
         locationId: null,
-        regionName: selectedRegion,
+        regionName: _canonicalRegion(selectedRegion) ?? 'Kanto',
       ),
     );
     // When modal Future completes, it's closed.

@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 
-// Theme constants: change these values to modify the look of the dark theme.
-// Colors are defined here for easy manual modification.
-const Color kDarkBackgroundColor = Color(0xFF121212); // Entire app background (single color)
-const Color kDarkPrimaryColor = Color(0xFFCC0000); // Primary color (buttons, app bar)
-const Color kDarkSurfaceColor = Color(0xFF1E1E1E); // Surface (cards, inputs)
-const Color kDarkOnPrimaryColor = Colors.white; // Text/icons on primary
-const Color kDarkOnSurfaceColor = Colors.white; // Text/icons on surface
+const Color kDarkBackgroundColor = Color(0xFF121212);
+const Color kDarkPrimaryColor = Color(0xFFCC0000);
+const Color kDarkSurfaceColor = Color(0xFF1E1E1E);
+const Color kDarkOnPrimaryColor = Colors.white;
+const Color kDarkOnSurfaceColor = Colors.white;
 
-// Font: the main font family used across the app. Ensure the font is declared in pubspec.yaml.
-// To change the main font, replace 'Pixelated' with your font family name.
 const String kMainFontFamily = 'Pixelated';
 
 ThemeData darkTheme = ThemeData(
   brightness: Brightness.dark,
-  // Use the color constants above to make manual edits easy.
   colorScheme: const ColorScheme.dark(
     primary: kDarkPrimaryColor,
     surface: kDarkSurfaceColor,
@@ -22,7 +17,6 @@ ThemeData darkTheme = ThemeData(
     onSecondary: kDarkOnPrimaryColor,
     onSurface: kDarkOnSurfaceColor,
   ),
-  // Entire background will be a single color. Change kDarkBackgroundColor to update it.
   scaffoldBackgroundColor: kDarkBackgroundColor,
   appBarTheme: const AppBarTheme(
     backgroundColor: kDarkPrimaryColor,

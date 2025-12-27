@@ -19,11 +19,22 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
   List<Location> _locations = [];
   bool _isLoading = true;
   String? _error;
+  bool _didLoadLocations = false; // bandera para didChangeDependencies
 
   @override
   void initState() {
     super.initState();
-    _loadLocations();
+    // NO llamar a _loadLocations() aquí porque usa GraphQLProvider.of(context)
+    // que depende de un InheritedWidget; en su lugar llamaremos en didChangeDependencies.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didLoadLocations) {
+      _didLoadLocations = true;
+      _loadLocations();
+    }
   }
 
   Future<void> _loadLocations() async {
@@ -39,9 +50,11 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
     } catch (e) {
       _error = 'Error al cargar ubicaciones: $e';
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -72,57 +85,42 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
         else if (_locations.isEmpty)
           const Text('No hay ubicaciones disponibles')
         else
-          _buildLocationsList(),
+          _buildGroupedLocations(),
       ],
     );
   }
 
-  Widget _buildLocationsList() {
+  Widget _buildGroupedLocations() {
+    // Agrupar por región
+    final Map<String, List<Location>> grouped = {};
+    for (final loc in _locations) {
+      grouped.putIfAbsent(loc.region, () => []).add(loc);
+    }
+
+    final sortedRegions = grouped.keys.toList()..sort();
+
     return Column(
-      children: _locations.map((location) => _buildLocationCard(location)).toList(),
+      children: sortedRegions.map((region) {
+        final locations = grouped[region]!..sort((a, b) => a.name.compareTo(b.name));
+        return ExpansionTile(
+          title: Text(region, style: Theme.of(context).textTheme.titleMedium),
+          children: locations.map((loc) => _buildLocationTile(loc)).toList(),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildLocationCard(Location location) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              location.name,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              'Región: ${location.region}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            ...location.encounters.map((encounter) => _buildEncounterInfo(encounter)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEncounterInfo(Encounter encounter) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
+  Widget _buildLocationTile(Location location) {
+    return ListTile(
+      title: Text(location.name),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${encounter.method}: Niv. ${encounter.minLevel}-${encounter.maxLevel}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${(encounter.rate * 100).toStringAsFixed(1)}%',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
-          ),
+          ...location.encounters.map((enc) => Text('${enc.method}: Niv. ${enc.minLevel}-${enc.maxLevel} · ${(enc.rate * 100).toStringAsFixed(1)}%')),
         ],
       ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _openMapAtLocation(location),
     );
   }
 
@@ -130,5 +128,59 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const MapPage()),
     );
+  }
+
+  void _openMapAtLocation(Location location) {
+    // Intent: abrir MapPage con la región y un identificador de ruta/área.
+    // Suponemos que el nombre de la ubicación o su id pueden usarse como identifier.
+    final identifier = _normalizeIdentifier(location.name);
+    final manualMap = _buildManualAreaMap(location);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MapPage(
+          initialRegion: location.region,
+          initialRouteIdentifier: identifier,
+          manualAreaIdMap: manualMap,
+        ),
+      ),
+    );
+  }
+
+  Map<String, String> _buildManualAreaMap(Location location) {
+    final key = _normalizeIdentifier(location.name);
+    final region = location.region.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '-');
+
+    // Candidates: region + '-' + id, region + '-route-' + num (if route), 'sea-' variants, id alone
+    final id = key;
+    final candidates = <String>[];
+
+    if (id.startsWith('route-') || id.startsWith('route')) {
+      // route-1 -> region-route-1
+      final routeNum = id.replaceFirst(RegExp(r'^route-?'), '');
+      candidates.add('$region-route-$routeNum');
+      candidates.add('$region-sea-route-$routeNum');
+      candidates.add('sea-$region-route-$routeNum');
+    }
+
+    candidates.add('$region-$id');
+    candidates.add('sea-$region-$id');
+    candidates.add(id); // fallback
+
+    // Elegimos el primer candidato como valor aproximado; InteractiveMapWidget probará
+    // manualTargetId contra los candidateIdentifiers de cada MapArea.
+    return {key: candidates.first};
+  }
+
+  String _normalizeIdentifier(String name) {
+    // Normalizar el nombre para intentar coincidir con los identifiers usados en MapArea
+    var id = name.toLowerCase();
+    // Reemplazar espacios y caracteres comunes
+    id = id.replaceAll(RegExp('[^a-z0-9\-]'), '-');
+    id = id.replaceAll(RegExp('-+'), '-');
+    id = id.trim();
+    if (id.endsWith('-')) id = id.substring(0, id.length - 1);
+    if (id.startsWith('-')) id = id.substring(1);
+    return id;
   }
 }

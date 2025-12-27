@@ -12,12 +12,16 @@ import '../../bloc/pokemon_detail/pokemon_detail_event.dart';
 /// Modal que muestra todos los Pokémon de una ruta específica.
 class RoutePokemonModal extends StatefulWidget {
   final String routeName;
+  final String? routeIdentifier; // nuevo
+  final List<String>? candidateIdentifiers;
   final int? locationId;
   final String? regionName;
 
   const RoutePokemonModal({
     super.key,
     required this.routeName,
+    this.routeIdentifier,
+    this.candidateIdentifiers,
     this.locationId,
     this.regionName,
   });
@@ -66,32 +70,61 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
       // Si no tenemos un id válido, intentar resolverlo por nombre
       if (idToUse == null) {
-        // Construir identificador en inglés con sintaxis PokeAPI
-        String identifier;
-        final lowerRoute = widget.routeName.toLowerCase();
-        if (lowerRoute.contains('route') || lowerRoute.contains('ruta')) {
-          // Es ruta
-          final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
-          if (widget.regionName?.toLowerCase() == 'johto') {
-            identifier = 'route$routeNum';
+        // Si el MapPage nos pasó un routeIdentifier explícito úsalo directamente.
+        String? identifier = widget.routeIdentifier;
+        if (identifier == null) {
+          // Construir identificador en inglés con sintaxis PokeAPI (fallback)
+          final lowerRoute = widget.routeName.toLowerCase();
+
+          // Detectar tipos: ruta, ciudad, cueva/monte u otro
+          final isRoute = lowerRoute.contains('route') || lowerRoute.contains('ruta');
+          final isCity = lowerRoute.contains('city') || lowerRoute.contains('ciudad') || lowerRoute.endsWith(' city') || lowerRoute.endsWith(' ciudad');
+          final isCaveOrMount = lowerRoute.contains('mount') || lowerRoute.contains('mt ') || lowerRoute.startsWith('mt') || lowerRoute.contains('mountain') || lowerRoute.contains('cave') || lowerRoute.contains('cueva');
+
+          if (isRoute) {
+            // Es ruta
+            final routeNum = lowerRoute.replaceAll('route', '').replaceAll('ruta', '').replaceAll(' ', '').replaceAll('-', '');
+            if (widget.regionName?.toLowerCase() == 'johto') {
+              identifier = 'route$routeNum';
+            } else {
+              final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
+              identifier = '$regionSlug-route-$routeNum';
+            }
+          } else if (isCity || isCaveOrMount) {
+            // Para ciudades y cuevas/monte: usar solo el slug del lugar (ej. "mt-silver"), NO añadir la región
+            identifier = lowerRoute.replaceAll(RegExp(r"\s+"), '-').replaceAll('--', '-');
           } else {
-            final regionSlug = (widget.regionName ?? 'kanto').toLowerCase().replaceAll(' ', '-');
-            identifier = '$regionSlug-route-$routeNum';
+            // Es ciudad o lugar genérico: usar slug simple (sin agregar región por defecto)
+            identifier = lowerRoute.replaceAll(RegExp(r"\s+"), '-').replaceAll('--', '-');
           }
-        } else {
-          // Es ciudad o lugar
-          identifier = lowerRoute.replaceAll(' ', '-');
         }
         debugPrint('RoutePokemonModal: construido identifier: $identifier');
 
-        // Intentar buscar location con el identifier
-        final locId = await repository.getLocationIdByIdentifier(identifier);
+        // Intentar buscar location con el identifier (si existe)
+        // Primero intentar con la lista de candidatos si viene desde MapArea
+        int? locId;
+        if (widget.candidateIdentifiers != null && widget.candidateIdentifiers!.isNotEmpty) {
+          for (final cand in widget.candidateIdentifiers!) {
+            final tryId = await repository.getLocationIdByIdentifier(cand);
+            if (tryId != null) {
+              locId = tryId;
+              identifier = cand;
+              break;
+            }
+          }
+        }
+        // Si no encontramos nada con candidatos, intentar con el identifier construido
+        if (locId == null) {
+          locId = identifier != null ? await repository.getLocationIdByIdentifier(identifier) : null;
+        }
         if (locId != null) {
           idToUse = locId;
           _resolvedType = 'location';
         } else {
           // Fallback: intentar resolver con la lógica anterior (location-area)
-          final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: widget.regionName);
+          // Nota: para ciudades y cuevas/monte no pasamos la región al resolver (según petición)
+          final shouldSendRegion = !(widget.routeName.toLowerCase().contains('city') || widget.routeName.toLowerCase().contains('ciudad') || widget.routeName.toLowerCase().contains('mount') || widget.routeName.toLowerCase().contains('mt') || widget.routeName.toLowerCase().contains('cave') || widget.routeName.toLowerCase().contains('cueva'));
+          final resolvedMap = await repository.resolveLocationOrArea(widget.routeName, regionName: shouldSendRegion ? widget.regionName : null);
           debugPrint('RoutePokemonModal: fallback resolveLocationOrArea result -> $resolvedMap');
           final resolved = resolvedMap['id'] as int?;
           if (resolved == null) {
@@ -138,7 +171,9 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
             }
 
             // También intentar combinar con el nombre de la región si está disponible
-            if ((widget.regionName ?? '').isNotEmpty) {
+            // Pero NO hacerlo para ciudades o cuevas/monte (según petición)
+            final isCityOrCave = norm.contains('city') || norm.contains('ciudad') || norm.contains('mount') || norm.contains('mt') || norm.contains('cave') || norm.contains('cueva');
+            if ((widget.regionName ?? '').isNotEmpty && !isCityOrCave) {
               final regionNorm = widget.regionName!.trim().toLowerCase();
               final combined1 = '$norm $regionNorm';
               final more1 = await repository.getLocationAreaMatches(combined1);
@@ -158,7 +193,6 @@ class _RoutePokemonModalState extends State<RoutePokemonModal> {
 
             // Intentos adicionales: buscar por tokens sueltos y combinaciones para cubrir casos como 'route 1', 'route-1', '1 route'
             final tokens = norm.split(RegExp(r"\s+"));
-            // always try the first token (often 'route') and last token (often number)
             if (tokens.isNotEmpty) {
               final firstToken = tokens.first;
               if (firstToken.length > 1) {
@@ -543,17 +577,20 @@ class _DetailedPokemonCard extends StatelessWidget {
                     Row(
                       children: [
                         // métodos como chips
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: encounter.method.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).map((m) {
-                              return Container(
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: colorScheme.secondary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
-                                child: Text(m, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              );
-                            }).toList(),
+                        Expanded(
+                          flex: 1,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: encounter.method.split(',').map((m) => m.trim()).where((m) => m.isNotEmpty).map((m) {
+                                return Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: colorScheme.secondary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
+                                  child: Text(m, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                );
+                              }).toList(),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -561,6 +598,7 @@ class _DetailedPokemonCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         // Mostrar juegos como chips
                         Expanded(
+                          flex: 2,
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
