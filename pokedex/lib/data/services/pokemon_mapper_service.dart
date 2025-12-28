@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/pokemon.dart';
+import '../models/pokemon_ability.dart';
 
 class PokemonMapperService {
   const PokemonMapperService._();
@@ -11,20 +12,11 @@ class PokemonMapperService {
     return data.map((item) => mapBasic(item)).toList();
   }
 
-  /// Mapea una lista de datos detallados de GraphQL
-  static List<Pokemon> mapDetailedList(List<dynamic> data) {
-    return data.map((item) => mapDetailed(item)).toList();
-  }
-
-  /// Mapea una lista de datos GraphQL a lista de Pokemon con traducciones
-  static List<Pokemon> mapListWithTranslation(List<dynamic> data) {
-    return data.map((item) => mapBasicWithTranslation(item)).toList();
-  }
-
   /// Mapea un Pokémon básico (id, name, sprite, types)
   static Pokemon mapBasic(Map<String, dynamic> item) {
     final id = item['id'] as int;
     final name = item['name'] as String;
+    final isDefault = item['is_default'] as bool?;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
     final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
@@ -41,13 +33,20 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+      isDefault: isDefault,
     );
+  }
+
+  /// Mapea una lista de datos detallados de GraphQL
+  static List<Pokemon> mapDetailedList(List<dynamic> data) {
+    return data.map((item) => mapDetailed(item)).toList();
   }
 
   /// Mapea un Pokémon con detalles completos
   static Pokemon mapDetailed(Map<String, dynamic> item) {
     final id = item['id'] as int;
     final name = item['name'] as String;
+    final isDefault = item['is_default'] as bool?;
     final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
     final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
     final types = _extractTypes(item['pokemon_v2_pokemontypes']);
@@ -78,37 +77,8 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
-    );
-  }
-
-  /// Mapea un Pokémon básico con nombre traducido (para el Quiz)
-  static Pokemon mapBasicWithTranslation(Map<String, dynamic> item) {
-    final id = item['id'] as int;
-    final originalName = item['name'] as String;
-    final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
-    final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
-    final types = _extractTypes(item['pokemon_v2_pokemontypes']);
-    final speciesData = _extractSpeciesData(item['pokemon_v2_pokemonspecy']);
-
-    // Extraer nombre traducido y descripción
-    final translatedName = _extractTranslatedName(item['pokemon_v2_pokemonspecy']);
-    final translatedDescription = _extractTranslatedDescription(item['pokemon_v2_pokemonspecy']);
-
-    // Usar nombre traducido si existe, sino usar el original
-    final name = translatedName ?? originalName;
-
-    return Pokemon(
-      id: id,
-      name: name,
-      spriteUrl: spriteUrl,
-      shinySpriteUrl: shinySpriteUrl,
-      cryUrl: _generateCryUrl(id),
-      types: types,
-      categories: speciesData['categories'],
-      isLegendary: speciesData['isLegendary'],
-      isMythical: speciesData['isMythical'],
-      generationId: speciesData['generationId'],
-      description: translatedDescription,
+      eggGroups: speciesData['eggGroups'],
+      isDefault: isDefault,
     );
   }
 
@@ -157,26 +127,16 @@ class PokemonMapperService {
   }
 
   /// Extrae las habilidades desde los datos GraphQL
-  static List<String> _extractAbilities(dynamic abilitiesData) {
+  static List<PokemonAbility> _extractAbilities(dynamic abilitiesData) {
     if (abilitiesData == null || abilitiesData is! List) return [];
 
     return abilitiesData
         .map((a) {
-      final ability = a['pokemon_v2_ability'];
-      if (ability == null) return null;
-
-      // Intentar obtener nombre en español
-      final abilityNames = ability['pokemon_v2_abilitynames'];
-      if (abilityNames is List && abilityNames.isNotEmpty) {
-        final spanishName = abilityNames[0]['name'];
-        if (spanishName != null) return spanishName as String;
-      }
-
-      // Fallback al nombre en inglés
-      return ability['name'] as String?;
-    })
-        .where((name) => name != null)
-        .cast<String>()
+          if (a is! Map<String, dynamic>) return null;
+          return PokemonAbility.fromGraphQL(a);
+        })
+        .where((ability) => ability != null && ability.name.isNotEmpty)
+        .cast<PokemonAbility>()
         .toList();
   }
 
@@ -198,7 +158,7 @@ class PokemonMapperService {
     return statsMap;
   }
 
-  /// Extrae datos de la especie (legendary, mythical, categories, generationId)
+  /// Extrae datos de la especie (legendary, mythical, categories, generationId, eggGroups)
   static Map<String, dynamic> _extractSpeciesData(dynamic speciesData) {
     if (speciesData == null) {
       return {
@@ -206,6 +166,7 @@ class PokemonMapperService {
         'isLegendary': null,
         'isMythical': null,
         'generationId': null,
+        'eggGroups': null,
       };
     }
 
@@ -217,12 +178,52 @@ class PokemonMapperService {
     if (isLegendary == true) categories.add('legendario');
     if (isMythical == true) categories.add('mitico');
 
+    // Extraer grupos de huevo
+    final eggGroups = _extractEggGroups(speciesData['pokemon_v2_pokemonegggroups']);
+
     return {
       'categories': categories.isEmpty ? null : categories,
       'isLegendary': isLegendary,
       'isMythical': isMythical,
       'generationId': generationId,
+      'eggGroups': eggGroups,
     };
+  }
+
+  /// Extrae los grupos de huevo desde los datos GraphQL
+  static List<String>? _extractEggGroups(dynamic eggGroupsData) {
+    if (eggGroupsData == null || eggGroupsData is! List) return null;
+    if (eggGroupsData.isEmpty) return null;
+
+    final eggGroups = <String>[];
+
+    for (final eggGroup in eggGroupsData) {
+      final group = eggGroup['pokemon_v2_egggroup'];
+      if (group != null) {
+        // Intentar obtener el nombre en español primero
+        final namesData = group['pokemon_v2_egggroupnames'] as List<dynamic>?;
+        if (namesData != null && namesData.isNotEmpty) {
+          final spanishName = namesData[0]['name'] as String?;
+          if (spanishName != null && spanishName.isNotEmpty) {
+            eggGroups.add(spanishName);
+            continue;
+          }
+        }
+        // Fallback al nombre en inglés (formateado)
+        final englishName = group['name'] as String?;
+        if (englishName != null && englishName.isNotEmpty) {
+          eggGroups.add(_formatEggGroupName(englishName));
+        }
+      }
+    }
+
+    return eggGroups.isEmpty ? null : eggGroups;
+  }
+
+  /// Formatea el nombre del grupo de huevo (capitaliza y reemplaza guiones)
+  static String _formatEggGroupName(String name) {
+    if (name.isEmpty) return name;
+    return name[0].toUpperCase() + name.substring(1).replaceAll('-', ' ');
   }
 
   /// Extrae la descripción desde flavor texts
@@ -233,7 +234,7 @@ class PokemonMapperService {
         final texts = specy['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>;
         if (texts.isNotEmpty) {
           final ft = texts[0]['flavor_text'] as String?;
-          if (ft != null && ft.trim().isNotEmpty) {
+          if (ft != null) {
             return ft.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
           }
         }
@@ -280,56 +281,11 @@ class PokemonMapperService {
   static List<String> extractTypesFromPokemon(dynamic pokemonData) {
     if (pokemonData == null) return [];
 
-    try {
-      final types = pokemonData['pokemon_v2_pokemontypes'] as List<dynamic>?;
-      if (types != null) {
-        return types
-            .map((t) => t['pokemon_v2_type']['name'] as String)
-            .toList();
-      }
-    } catch (_) {
-      return [];
-    }
+    final types = pokemonData['pokemon_v2_pokemontypes'] as List<dynamic>?;
+    if (types == null) return [];
 
-    return [];
-  }
-
-  /// Extrae el nombre traducido del Pokémon desde los datos de especie
-  static String? _extractTranslatedName(dynamic speciesData) {
-    if (speciesData == null) return null;
-
-    try {
-      final names = speciesData['pokemon_v2_pokemonspeciesnames'] as List<dynamic>?;
-      if (names != null && names.isNotEmpty) {
-        final translatedName = names[0]['name'] as String?;
-        if (translatedName != null && translatedName.trim().isNotEmpty) {
-          return translatedName;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error extracting translated name: $e');
-    }
-
-    return null;
-  }
-
-  /// Extrae la descripción traducida del Pokémon desde los datos de especie
-  static String? _extractTranslatedDescription(dynamic speciesData) {
-    if (speciesData == null) return null;
-
-    try {
-      final texts = speciesData['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>?;
-      if (texts != null && texts.isNotEmpty) {
-        final flavorText = texts[0]['flavor_text'] as String?;
-        if (flavorText != null && flavorText.trim().isNotEmpty) {
-          // Limpiar el texto de caracteres especiales
-          return flavorText.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
-        }
-      }
-    } catch (e) {
-      debugPrint('Error extracting translated description: $e');
-    }
-
-    return null;
+    return types
+        .map<String>((t) => t['pokemon_v2_type']['name'] as String)
+        .toList();
   }
 }
