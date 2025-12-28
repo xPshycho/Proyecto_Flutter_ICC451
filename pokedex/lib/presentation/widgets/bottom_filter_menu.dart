@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'FilterBoxes/expandable_filter_box.dart';
+import 'FilterBoxes/single_select_filter_box.dart';
 import 'FilterBoxes/type_filter_box.dart';
 
 class FilterOptions {
@@ -42,9 +42,9 @@ class BottomFilterMenu extends StatefulWidget {
 class _BottomFilterMenuState extends State<BottomFilterMenu> {
   bool _favoritos = false;
   bool _noFavoritos = false;
-  List<String> _categoriasSeleccionadas = [];
+  String? _categoriaSeleccionada;
   List<String> _tiposSeleccionados = [];
-  List<String> _regionesSeleccionadas = [];
+  String? _regionSeleccionada;
 
   @override
   void initState() {
@@ -58,9 +58,24 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
       setState(() {
         _favoritos = filters['favoritos'] ?? false;
         _noFavoritos = filters['noFavoritos'] ?? false;
-        _categoriasSeleccionadas = List<String>.from(filters['categorias'] ?? []);
-        _tiposSeleccionados = List<String>.from(filters['tipos'] ?? []);
-        _regionesSeleccionadas = List<String>.from(filters['regiones'] ?? []);
+
+        // Para categorías: tomar solo la primera si hay múltiples
+        final categorias = filters['categorias'] as List<dynamic>?;
+        _categoriaSeleccionada = (categorias != null && categorias.isNotEmpty)
+            ? categorias.first.toString()
+            : null;
+
+        // Para tipos: máximo 2
+        final tipos = filters['tipos'] as List<dynamic>?;
+        _tiposSeleccionados = tipos != null
+            ? tipos.take(2).map((e) => e.toString()).toList()
+            : [];
+
+        // Para regiones: tomar solo la primera si hay múltiples
+        final regiones = filters['regiones'] as List<dynamic>?;
+        _regionSeleccionada = (regiones != null && regiones.isNotEmpty)
+            ? regiones.first.toString()
+            : null;
       });
     }
   }
@@ -69,9 +84,9 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     setState(() {
       _favoritos = false;
       _noFavoritos = false;
-      _categoriasSeleccionadas = [];
+      _categoriaSeleccionada = null;
       _tiposSeleccionados = [];
-      _regionesSeleccionadas = [];
+      _regionSeleccionada = null;
     });
   }
 
@@ -79,9 +94,9 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
     final filters = {
       'favoritos': _favoritos,
       'noFavoritos': _noFavoritos,
-      'categorias': _categoriasSeleccionadas,
+      'categorias': _categoriaSeleccionada != null ? [_categoriaSeleccionada] : [],
       'tipos': _tiposSeleccionados,
-      'regiones': _regionesSeleccionadas,
+      'regiones': _regionSeleccionada != null ? [_regionSeleccionada] : [],
     };
 
     widget.onApplyFilters?.call(filters);
@@ -173,19 +188,19 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
 
                   const SizedBox(height: 8),
 
-                  // Categoría
-                  ExpandableFilterBox(
+                  // Categoría - SELECCIÓN ÚNICA
+                  SingleSelectFilterBox(
                     title: 'Categoría',
                     options: FilterOptions.categorias,
-                    selectedOptions: _categoriasSeleccionadas,
+                    selectedOption: _categoriaSeleccionada,
                     onSelectionChanged: (selected) {
-                      setState(() => _categoriasSeleccionadas = selected);
+                      setState(() => _categoriaSeleccionada = selected);
                     },
                   ),
 
                   const SizedBox(height: 8),
 
-                  // Tipo - Usando TypeFilterBox con íconos
+                  // Tipo - Máximo 2 selecciones con TypeFilterBox
                   TypeFilterBox(
                     title: 'Tipo',
                     options: FilterOptions.tipos,
@@ -197,13 +212,13 @@ class _BottomFilterMenuState extends State<BottomFilterMenu> {
 
                   const SizedBox(height: 8),
 
-                  // Region
-                  ExpandableFilterBox(
+                  // Region - SELECCIÓN ÚNICA
+                  SingleSelectFilterBox(
                     title: 'Region',
                     options: FilterOptions.regiones,
-                    selectedOptions: _regionesSeleccionadas,
+                    selectedOption: _regionSeleccionada,
                     onSelectionChanged: (selected) {
-                      setState(() => _regionesSeleccionadas = selected);
+                      setState(() => _regionSeleccionada = selected);
                     },
                   ),
 

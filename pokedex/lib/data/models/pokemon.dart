@@ -2,6 +2,7 @@ import '../../domain/models/type_effectiveness.dart';
 import '../../domain/services/type_effectiveness_service.dart';
 import '../../core/constants/pokemon_constants.dart';
 import 'evolution_detail.dart';
+import 'pokemon_ability.dart';
 
 /// Modelo principal de Pokémon. Representa la entidad "base" del pokémon con sus
 /// atributos principales (id, nombre, tipos, stats, etc.).
@@ -25,7 +26,7 @@ class Pokemon {
   final List<Pokemon>? evolutions;
   final Map<int, EvolutionDetail>? evolutionDetails;
   bool isFavorite;
-  final List<String> abilities;
+  final List<PokemonAbility> abilities;
   final Map<String, int> stats;
   final List<String>? categories;
   final bool? isLegendary;
@@ -34,6 +35,10 @@ class Pokemon {
   final List<dynamic>? forms;
   /// NUEVO: formas agregadas de toda la cadena evolutiva (megas/variantes de las evoluciones)
   final List<dynamic>? formsChain;
+  /// Grupos de huevo del Pokémon
+  final List<String>? eggGroups;
+  /// Indica si es un Pokémon por defecto (los 1025 principales)
+  final bool? isDefault;
 
   Pokemon({
     required this.id,
@@ -56,6 +61,8 @@ class Pokemon {
     this.generationId,
     this.forms,
     this.formsChain,
+    this.eggGroups,
+    this.isDefault,
   });
 
   /// Calcula la efectividad de tipos para este Pokémon
@@ -71,6 +78,8 @@ class Pokemon {
     List<Pokemon>? evolutions,
     Map<int, EvolutionDetail>? evolutionDetails,
     int? generationId,
+    List<String>? eggGroups,
+    bool? isDefault,
   }) {
     return Pokemon(
       id: id,
@@ -93,11 +102,30 @@ class Pokemon {
       forms: forms ?? this.forms,
       formsChain: formsChain ?? this.formsChain,
       description: description ?? this.description,
+      eggGroups: eggGroups ?? this.eggGroups,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 
   // Fábrica desde JSON genérico
   factory Pokemon.fromJson(Map<String, dynamic> json) {
+    // Parsear abilities - puede venir como lista de strings o de objetos
+    List<PokemonAbility> parsedAbilities = [];
+    final abilitiesData = json['abilities'];
+    if (abilitiesData is List) {
+      for (final item in abilitiesData) {
+        if (item is String) {
+          parsedAbilities.add(PokemonAbility(name: item));
+        } else if (item is Map<String, dynamic>) {
+          parsedAbilities.add(PokemonAbility(
+            name: item['name'] as String? ?? '',
+            isHidden: item['isHidden'] as bool? ?? false,
+            effect: item['effect'] as String?,
+          ));
+        }
+      }
+    }
+
     return Pokemon(
       id: json['id'] as int,
       name: json['name'] as String,
@@ -107,7 +135,7 @@ class Pokemon {
       types: (json['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       height: (json['height'] as num?)?.toDouble(),
       weight: (json['weight'] as num?)?.toDouble(),
-      abilities: (json['abilities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      abilities: parsedAbilities,
       stats: (json['stats'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as int)) ?? {},
       categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
       isLegendary: json['isLegendary'] as bool?,
@@ -116,6 +144,8 @@ class Pokemon {
       forms: json['forms'] as List<dynamic>?,
       formsChain: json['formsChain'] as List<dynamic>?,
       description: json['description'] as String?,
+      eggGroups: (json['eggGroups'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      isDefault: json['isDefault'] as bool?,
     );
   }
 }

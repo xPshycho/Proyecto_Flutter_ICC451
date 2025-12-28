@@ -26,8 +26,8 @@ class PokemonInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
       child: Column(
@@ -71,7 +71,7 @@ class PokemonInfoCard extends StatelessWidget {
           // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
           //   const SizedBox(height: 24),
 
-          // Peso y Altura
+          // Peso, Altura y Grupo de Huevo
           Row(
             children: [
               Expanded(child: _buildStatCard(
@@ -90,6 +90,15 @@ class PokemonInfoCard extends StatelessWidget {
                     : 'N/A',
               )),
             ],
+          ),
+          const SizedBox(height: 16),
+          // Grupo de Huevo
+          _buildStatCard(
+            icon: Icons.egg_outlined,
+            label: 'GRUPO DE HUEVO',
+            value: pokemon.eggGroups != null && pokemon.eggGroups!.isNotEmpty
+                ? pokemon.eggGroups!.join(', ')
+                : 'N/A',
           ),
         ],
       ),
@@ -229,6 +238,7 @@ class PokemonInfoCard extends StatelessWidget {
     required String value,
   }) {
     return Container(
+      alignment: Alignment.center,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.withAlpha(25),

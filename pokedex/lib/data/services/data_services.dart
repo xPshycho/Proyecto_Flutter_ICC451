@@ -108,6 +108,9 @@ class GraphQLExecutor {
 class PokemonFilterService {
   const PokemonFilterService._();
 
+  /// Filtra Pokémon por tipos
+  /// - Si se proporciona 1 tipo: busca todos los Pokémon que tengan ese tipo
+  /// - Si se proporcionan 2 tipos: busca Pokémon que tengan ambos tipos (pueden tener más tipos)
   static List<T> filterByTypes<T>(
     List<T> items,
     List<String> types,
@@ -117,10 +120,24 @@ class PokemonFilterService {
 
     final lowerTypes = types.map((t) => t.toLowerCase()).toSet();
 
-    return items.where((item) {
-      final itemTypes = typeExtractor(item).map((t) => t.toLowerCase());
-      return itemTypes.any((t) => lowerTypes.contains(t));
-    }).toList();
+    // Si se selecciona solo 1 tipo, buscar todos los que lo tengan
+    if (lowerTypes.length == 1) {
+      return items.where((item) {
+        final itemTypes = typeExtractor(item).map((t) => t.toLowerCase()).toSet();
+        return itemTypes.contains(lowerTypes.first);
+      }).toList();
+    }
+
+    // Si se seleccionan 2 tipos, buscar los que tengan AMBOS tipos
+    if (lowerTypes.length == 2) {
+      return items.where((item) {
+        final itemTypes = typeExtractor(item).map((t) => t.toLowerCase()).toSet();
+        // Verificar que tenga ambos tipos seleccionados
+        return itemTypes.containsAll(lowerTypes);
+      }).toList();
+    }
+
+    return items;
   }
 
   static List<T> filterByRegions<T>(
@@ -199,4 +216,3 @@ class PokemonFilterService {
     return items.sublist(start, end);
   }
 }
-

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
 import '../models/pokemon_move.dart';
@@ -50,6 +50,11 @@ class PokemonRepository {
   }) async {
     final normalizedCategories = _normalizeCategories(categories);
 
+    // Determinar si hay filtros activos
+    final hasActiveFilters = (types != null && types.isNotEmpty) ||
+        (regions != null && regions.isNotEmpty) ||
+        normalizedCategories.isNotEmpty;
+
     // Fast-path para starters
     if (_isSingleStarterCategory(normalizedCategories)) {
       return _fetchStarters(
@@ -83,6 +88,7 @@ class PokemonRepository {
       regions: regions,
       sortBy: sortBy,
       ascending: ascending,
+      onlyDefault: !hasActiveFilters, // Solo default cuando no hay filtros
     );
   }
 
@@ -344,6 +350,7 @@ class PokemonRepository {
     List<String>? regions,
     String? sortBy,
     bool? ascending,
+    bool onlyDefault = false, // Nuevo parámetro para filtrar solo por isDefault
   }) async {
     // Crear clave de caché que incluya filtros
     final cacheKey = _createCacheKey(offset, types, regions, sortBy, ascending);
@@ -405,6 +412,11 @@ class PokemonRepository {
           offset: offset,
           orderBy: orderBy,
         );
+      }
+
+      // Aplicar filtro adicional por isDefault si es necesario
+      if (onlyDefault) {
+        result = result.where((pokemon) => pokemon.isDefault == true).toList();
       }
 
       _pageCache.put(cacheKey, result);
@@ -471,10 +483,14 @@ class PokemonRepository {
     required List<Map<String, String>> orderBy,
   }) async {
     try {
+      // Si hay 2 tipos, necesitamos traer más registros y filtrar en memoria
+      // porque GraphQL con _in trae los que tengan UNO u OTRO tipo
+      final fetchLimit = typeNames.length == 2 ? limit * 5 : limit;
+
       final result = await _executor.executeQuery(
         query: GraphQLQueryService.listByTypes,
         variables: {
-          'limit': limit,
+          'limit': fetchLimit,
           'offset': offset,
           'orderBy': orderBy,
           'typeNames': typeNames,
@@ -484,7 +500,23 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
-          return PokemonMapperService.mapList(data);
+          var pokemons = PokemonMapperService.mapList(data);
+
+          // Si hay 2 tipos, filtrar en memoria para obtener SOLO los que tengan AMBOS
+          if (typeNames.length == 2) {
+            pokemons = PokemonFilterService.filterByTypes(
+              pokemons,
+              typeNames,
+              (p) => p.types,
+            );
+
+            // Aplicar paginación después del filtro
+            if (pokemons.length > limit) {
+              pokemons = pokemons.take(limit).toList();
+            }
+          }
+
+          return pokemons;
         }
       }
     } catch (e) {
@@ -502,10 +534,13 @@ class PokemonRepository {
     required List<Map<String, String>> orderBy,
   }) async {
     try {
+      // Si hay 2 tipos, necesitamos traer más registros y filtrar en memoria
+      final fetchLimit = typeNames.length == 2 ? limit * 5 : limit;
+
       final result = await _executor.executeQuery(
         query: GraphQLQueryService.listByTypesAndGenerations,
         variables: {
-          'limit': limit,
+          'limit': fetchLimit,
           'offset': offset,
           'orderBy': orderBy,
           'typeNames': typeNames,
@@ -516,7 +551,23 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemon'] as List<dynamic>?;
         if (data != null) {
-          return PokemonMapperService.mapList(data);
+          var pokemons = PokemonMapperService.mapList(data);
+
+          // Si hay 2 tipos, filtrar en memoria para obtener SOLO los que tengan AMBOS
+          if (typeNames.length == 2) {
+            pokemons = PokemonFilterService.filterByTypes(
+              pokemons,
+              typeNames,
+              (p) => p.types,
+            );
+
+            // Aplicar paginación después del filtro
+            if (pokemons.length > limit) {
+              pokemons = pokemons.take(limit).toList();
+            }
+          }
+
+          return pokemons;
         }
       }
     } catch (e) {
@@ -1071,4 +1122,3 @@ class PokemonRepository {
     return [];
   }
 }
-

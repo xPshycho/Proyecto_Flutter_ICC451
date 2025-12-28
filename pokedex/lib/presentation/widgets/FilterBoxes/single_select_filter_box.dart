@@ -1,66 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../../../core/constants/pokemon_constants.dart';
 
-class TypeFilterBox extends StatefulWidget {
+/// Componente de filtro que permite seleccionar solo una opción a la vez
+class SingleSelectFilterBox extends StatefulWidget {
   final String title;
   final List<String> options;
-  final List<String> selectedOptions;
-  final ValueChanged<List<String>> onSelectionChanged;
+  final String? selectedOption;
+  final ValueChanged<String?> onSelectionChanged;
 
-  const TypeFilterBox({
+  const SingleSelectFilterBox({
     super.key,
     required this.title,
     required this.options,
-    required this.selectedOptions,
+    required this.selectedOption,
     required this.onSelectionChanged,
   });
 
   @override
-  State<TypeFilterBox> createState() => _TypeFilterBoxState();
+  State<SingleSelectFilterBox> createState() => _SingleSelectFilterBoxState();
 }
 
-class _TypeFilterBoxState extends State<TypeFilterBox> {
+class _SingleSelectFilterBoxState extends State<SingleSelectFilterBox> {
   bool _isExpanded = false;
-  static const int maxTypeSelection = 2;
 
   void _toggleOption(String option) {
-    final List<String> newSelection = List.from(widget.selectedOptions);
-    if (newSelection.contains(option)) {
-      newSelection.remove(option);
+    // Si la opción ya está seleccionada, deseleccionarla
+    if (widget.selectedOption == option) {
+      widget.onSelectionChanged(null);
     } else {
-      // Solo agregar si no se ha alcanzado el máximo
-      if (newSelection.length < maxTypeSelection) {
-        newSelection.add(option);
-      } else {
-        // Mostrar mensaje de que solo se pueden seleccionar 2 tipos
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Solo puedes seleccionar máximo 2 tipos'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
+      // Seleccionar la nueva opción (reemplaza la anterior)
+      widget.onSelectionChanged(option);
     }
-    widget.onSelectionChanged(newSelection);
   }
 
   void _clearSelection() {
-    widget.onSelectionChanged([]);
+    widget.onSelectionChanged(null);
   }
 
   List<String> _getOrderedOptions() {
-    final selected = widget.options.where((opt) => widget.selectedOptions.contains(opt)).toList();
-    final unselected = widget.options.where((opt) => !widget.selectedOptions.contains(opt)).toList();
+    if (widget.selectedOption == null) return widget.options;
+
+    final selected = widget.options.where((opt) => opt == widget.selectedOption).toList();
+    final unselected = widget.options.where((opt) => opt != widget.selectedOption).toList();
     return [...selected, ...unselected];
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasSelection = widget.selectedOptions.isNotEmpty;
+    final hasSelection = widget.selectedOption != null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -153,17 +140,16 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
               spacing: 6,
               runSpacing: 6,
               children: _getOrderedOptions().map((option) {
-                final isSelected = widget.selectedOptions.contains(option);
-                return _buildTypeTag(
+                final isSelected = widget.selectedOption == option;
+                return _buildOptionChip(
                   label: option,
                   isSelected: isSelected,
-                  isCompact: false,
                   onTap: () => _toggleOption(option),
                 );
               }).toList(),
             ),
           ] else if (hasSelection) ...[
-            // Solo mostrar count cuando está colapsado y hay selección
+            // Mostrar la opción seleccionada cuando está colapsado
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -171,11 +157,11 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '${widget.selectedOptions.length} seleccionado${widget.selectedOptions.length > 1 ? 's' : ''}',
+                widget.selectedOption!,
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.blue.shade800,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -185,60 +171,38 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
     );
   }
 
-  Widget _buildTypeTag({
+  Widget _buildOptionChip({
     required String label,
     required bool isSelected,
-    required bool isCompact,
     VoidCallback? onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final typeColor = PokemonConstants.getTypeColor(label);
-    final typeIcon = PokemonConstants.getTypeIcon(label);
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: isSelected
-              ? typeColor
-              : colorScheme.onSurface.withAlpha(38),
-          borderRadius: BorderRadius.circular(20),
+              ? colorScheme.primary
+              : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16),
           border: isSelected
-              ? Border.all(
-                  color: typeColor.withAlpha(204),
-                  width: 1.5,
-                )
-              : null,
+              ? Border.all(color: colorScheme.primary.withAlpha(180), width: 1.5)
+              : Border.all(color: Colors.grey.shade300),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (typeIcon != null) ...[
-              SvgPicture.asset(
-                typeIcon,
-                width: 14,
-                height: 14,
-                colorFilter: ColorFilter.mode(
-                  isSelected ? Colors.white : colorScheme.onSurface,
-                  BlendMode.srcIn,
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Colors.white : colorScheme.onSurface,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 }
+
