@@ -20,6 +20,31 @@ class GraphQLQueryService {
     }
   ''';
 
+  // Query para obtener pokémon por IDs con nombres traducidos (para Quiz)
+  static const String byIdsWithTranslation = r'''
+    query getByIdsWithTranslation($ids: [Int!], $languageId: Int!) {
+      pokemon_v2_pokemon(where: {id: {_in: $ids}}) {
+        id
+        name
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonspecy { 
+          id 
+          is_legendary 
+          is_mythical 
+          evolution_chain_id 
+          generation_id
+          pokemon_v2_pokemonspeciesnames(where: {language_id: {_eq: $languageId}}, limit: 1) {
+            name
+          }
+          pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: $languageId}}, limit: 1) {
+            flavor_text
+          }
+        }
+      }
+    }
+  ''';
+
   // Query para detalles completos
   static const String detailsByIds = r'''
     query getDetailsByIds($ids: [Int!]) {

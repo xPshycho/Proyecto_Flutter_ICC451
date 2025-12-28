@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../core/constants/quiz_translations.dart';
 import '../../../data/models/quiz_mode.dart';
+import '../../../data/services/language_service.dart';
 
 /// Diálogo que se muestra al finalizar el quiz
 class QuizGameOverDialog extends StatelessWidget {
@@ -11,6 +13,7 @@ class QuizGameOverDialog extends StatelessWidget {
   final int correctAnswers;
   final int incorrectAnswers;
   final bool enteredTop5;
+  final LanguageService languageService;
   final Function(String) onSaveResult;
   final VoidCallback onClose;
 
@@ -23,9 +26,13 @@ class QuizGameOverDialog extends StatelessWidget {
     required this.correctAnswers,
     required this.incorrectAnswers,
     required this.enteredTop5,
+    required this.languageService,
     required this.onSaveResult,
     required this.onClose,
   });
+
+  // Traducciones
+  QuizTranslations get tr => QuizTranslations.forLanguage(languageService.currentLanguage);
 
   String get _formattedScore {
     return finalScore.toString().replaceAllMapped(
@@ -69,9 +76,9 @@ class QuizGameOverDialog extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Título
-                  const Text(
-                    '¡PARTIDA TERMINADA!',
-                    style: TextStyle(
+                  Text(
+                    tr.gameFinished,
+                    style: const TextStyle(
                       fontFamily: 'Pixelated',
                       fontSize: 22,
                       color: Color(0xFF4FC43C),
@@ -82,7 +89,7 @@ class QuizGameOverDialog extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    'Modo: ${mode.displayName}',
+                    '${tr.modeLabel}: ${tr.getModeDisplayName(mode.displayName)}',
                     style: const TextStyle(
                       fontFamily: 'Pixelated',
                       fontSize: 14,
@@ -111,9 +118,9 @@ class QuizGameOverDialog extends StatelessWidget {
                           size: 40,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'PUNTUACIÓN FINAL',
-                          style: TextStyle(
+                        Text(
+                          tr.finalScore,
+                          style: const TextStyle(
                             fontFamily: 'Pixelated',
                             fontSize: 14,
                             color: Colors.white70,
@@ -141,7 +148,7 @@ class QuizGameOverDialog extends StatelessWidget {
                       Expanded(
                         child: _buildStatCard(
                           icon: Icons.timer,
-                          label: 'TIEMPO',
+                          label: tr.time,
                           value: _formattedTime,
                           color: const Color(0xFF4FC43C),
                         ),
@@ -150,7 +157,7 @@ class QuizGameOverDialog extends StatelessWidget {
                       Expanded(
                         child: _buildStatCard(
                           icon: Icons.check_circle,
-                          label: 'PRECISIÓN',
+                          label: tr.accuracy,
                           value: '${_accuracy.toStringAsFixed(0)}%',
                           color: Colors.blue,
                         ),
@@ -165,7 +172,7 @@ class QuizGameOverDialog extends StatelessWidget {
                       Expanded(
                         child: _buildStatCard(
                           icon: Icons.quiz,
-                          label: 'PREGUNTAS',
+                          label: tr.questions,
                           value: '$totalQuestions',
                           color: Colors.orange,
                         ),
@@ -174,7 +181,7 @@ class QuizGameOverDialog extends StatelessWidget {
                       Expanded(
                         child: _buildStatCard(
                           icon: Icons.done_all,
-                          label: 'CORRECTAS',
+                          label: tr.correct,
                           value: '$correctAnswers',
                           color: Colors.green,
                         ),
@@ -204,9 +211,9 @@ class QuizGameOverDialog extends StatelessWidget {
                             size: 48,
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            '¡ENTRASTE AL TOP 5!',
-                            style: TextStyle(
+                          Text(
+                            tr.enteredTop5,
+                            style: const TextStyle(
                               fontFamily: 'Pixelated',
                               fontSize: 18,
                               color: Color(0xFFFFD700),
@@ -214,10 +221,10 @@ class QuizGameOverDialog extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Tu puntuación ha sido guardada',
+                          Text(
+                            tr.scoreSaved,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontFamily: 'Pixelated',
                               fontSize: 12,
                               color: Colors.white70,
@@ -242,9 +249,9 @@ class QuizGameOverDialog extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'CERRAR',
-                        style: TextStyle(
+                      child: Text(
+                        tr.close,
+                        style: const TextStyle(
                           fontFamily: 'Pixelated',
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -301,4 +308,3 @@ class QuizGameOverDialog extends StatelessWidget {
     );
   }
 }
-

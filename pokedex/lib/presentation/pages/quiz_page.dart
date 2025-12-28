@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/constants/quiz_translations.dart';
 import '../../data/models/quiz_mode.dart';
 import '../../data/services/audio_service.dart';
+import '../../data/services/language_service.dart';
 import '../bloc/quiz/quiz_bloc.dart';
 import '../bloc/quiz/quiz_event.dart';
 import '../bloc/quiz/quiz_state.dart';
@@ -14,10 +16,12 @@ import '../widgets/quiz_components/quiz_game_over_dialog.dart';
 /// Página principal del quiz de Pokémon
 class QuizPage extends StatefulWidget {
   final QuizMode mode;
+  final LanguageService languageService;
 
   const QuizPage({
     super.key,
     required this.mode,
+    required this.languageService,
   });
 
   @override
@@ -26,6 +30,9 @@ class QuizPage extends StatefulWidget {
 
 class _QuizPageState extends State<QuizPage> {
   final AudioService _audioService = AudioService();
+
+  // Traducciones
+  QuizTranslations get tr => QuizTranslations.forLanguage(widget.languageService.currentLanguage);
 
   @override
   void dispose() {
@@ -44,17 +51,17 @@ class _QuizPageState extends State<QuizPage> {
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: Color(0xFF4FC43C), width: 2),
           ),
-          title: const Text(
-            '¿Salir del Quiz?',
-            style: TextStyle(
+          title: Text(
+            tr.exitQuiz,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               color: Colors.white,
               fontSize: 18,
             ),
           ),
-          content: const Text(
-            'Perderás todo tu progreso',
-            style: TextStyle(
+          content: Text(
+            tr.loseProgress,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               color: Colors.white70,
               fontSize: 14,
@@ -63,9 +70,9 @@ class _QuizPageState extends State<QuizPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(
+              child: Text(
+                tr.cancel,
+                style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.white70,
                 ),
@@ -82,9 +89,9 @@ class _QuizPageState extends State<QuizPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Salir',
-                style: TextStyle(
+              child: Text(
+                tr.exit,
+                style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.black,
                 ),
@@ -135,7 +142,7 @@ class _QuizPageState extends State<QuizPage> {
     }
 
     if (state is QuizReadyToStart) {
-      return _buildLoadingScreen(message: 'Preparando el quiz...');
+      return _buildLoadingScreen(message: tr.preparingQuiz);
     }
 
     if (state is QuizError) {
@@ -232,7 +239,7 @@ class _QuizPageState extends State<QuizPage> {
           ),
           const SizedBox(height: 24),
           Text(
-            message ?? 'Cargando Pokémon...',
+            message ?? tr.loadingPokemon,
             style: const TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 16,
@@ -240,9 +247,9 @@ class _QuizPageState extends State<QuizPage> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Por favor espera',
-            style: TextStyle(
+          Text(
+            tr.pleaseWait,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 12,
               color: Colors.white54,
@@ -266,9 +273,9 @@ class _QuizPageState extends State<QuizPage> {
               color: Colors.red,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Error',
-              style: TextStyle(
+            Text(
+              tr.errorOccurred,
+              style: const TextStyle(
                 fontFamily: 'Pixelated',
                 fontSize: 24,
                 color: Colors.white,
@@ -290,9 +297,9 @@ class _QuizPageState extends State<QuizPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4FC43C),
               ),
-              child: const Text(
-                'Volver',
-                style: TextStyle(
+              child: Text(
+                tr.back,
+                style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.black,
                 ),
@@ -310,7 +317,7 @@ class _QuizPageState extends State<QuizPage> {
     // Guardar automáticamente el resultado ANTES de mostrar el diálogo
     context.read<QuizBloc>().add(SaveQuizResult(state.playerName));
 
-    WidgetsBinding.instance.addPostFrameCallback((_){
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -322,9 +329,9 @@ class _QuizPageState extends State<QuizPage> {
           correctAnswers: state.correctAnswers,
           incorrectAnswers: state.incorrectAnswers,
           enteredTop5: state.enteredTop5,
+          languageService: widget.languageService,
           onSaveResult: (playerName) {
             // Ya se guardó automáticamente, pero mantenemos por compatibilidad
-            // context.read<QuizBloc>().add(SaveQuizResult(playerName));
           },
           onClose: () {
             Navigator.pop(dialogContext);
@@ -335,3 +342,4 @@ class _QuizPageState extends State<QuizPage> {
     });
   }
 }
+

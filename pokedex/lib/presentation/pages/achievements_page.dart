@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/quiz_translations.dart';
 import '../../data/models/achievement.dart';
 import '../../data/services/achievement_service.dart';
+import '../../data/services/language_service.dart';
 
 /// Página de logros del quiz - Rediseñada con estética del quiz
 class AchievementsPage extends StatefulWidget {
-  const AchievementsPage({super.key});
+  final LanguageService languageService;
+
+  const AchievementsPage({super.key, required this.languageService});
 
   @override
   State<AchievementsPage> createState() => _AchievementsPageState();
@@ -15,6 +19,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
   List<Achievement> _achievements = [];
   bool _isLoading = true;
   AchievementDifficulty? _selectedDifficulty;
+
+  // Traducciones
+  QuizTranslations get tr => QuizTranslations.forLanguage(widget.languageService.currentLanguage);
 
   @override
   void initState() {
@@ -91,7 +98,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
           Expanded(
             child: Center(
               child: Text(
-                'Logros',
+                tr.achievementsTitle,
                 style: const TextStyle(
                   fontFamily: 'Pixelated',
                   fontSize: 20,
@@ -128,13 +135,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildDifficultyChip(null, 'Todos', isSelected: _selectedDifficulty == null),
+          _buildDifficultyChip(null, tr.all, isSelected: _selectedDifficulty == null),
           const SizedBox(width: 8),
-          _buildDifficultyChip(AchievementDifficulty.facil, 'Fácil'),
+          _buildDifficultyChip(AchievementDifficulty.facil, tr.bronze),
           const SizedBox(width: 8),
-          _buildDifficultyChip(AchievementDifficulty.intermedio, 'Intermedio'),
+          _buildDifficultyChip(AchievementDifficulty.intermedio, tr.silver),
           const SizedBox(width: 8),
-          _buildDifficultyChip(AchievementDifficulty.maestro, 'Maestro'),
+          _buildDifficultyChip(AchievementDifficulty.maestro, tr.gold),
           const SizedBox(width: 8),
           _buildDifficultyChip(AchievementDifficulty.arceus, 'Arceus'),
         ],

@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import '../models/pokemon.dart';
 import '../repositories/pokemon_repository.dart';
+import 'graphql_query_service.dart';
+import 'pokemon_mapper_service.dart';
 
 /// Servicio optimizado para cargar Pokémon en lotes para el quiz
+/// Soporta carga de nombres traducidos según el idioma seleccionado
 class QuizPokemonLoaderService {
   final PokemonRepository repository;
+  final int languageId;
 
   // Configuración de carga
   static const int batchSize = 10;
@@ -24,13 +29,13 @@ class QuizPokemonLoaderService {
   bool _isLoading = false;
   bool _isInitialized = false;
 
-  QuizPokemonLoaderService(this.repository);
+  QuizPokemonLoaderService(this.repository, {this.languageId = 7});
 
   /// Inicializa el servicio y prepara los IDs disponibles
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    debugPrint('QuizLoader: Initializing...');
+    debugPrint('QuizLoader: Initializing with languageId: $languageId...');
 
     // Crear set de IDs disponibles (1-1025)
     _availableIds.clear();

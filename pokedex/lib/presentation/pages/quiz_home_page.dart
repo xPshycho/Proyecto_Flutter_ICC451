@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/quiz_translations.dart';
 import '../../data/models/quiz_mode.dart';
 import '../../data/models/quiz_ranking.dart';
 import '../../data/services/quiz_ranking_service.dart';
 import '../../data/services/achievement_service.dart';
+import '../../data/services/language_service.dart';
 import '../../data/repositories/pokemon_repository.dart';
 import '../bloc/quiz/quiz_bloc.dart';
 import '../bloc/quiz/quiz_event.dart';
@@ -28,14 +30,26 @@ class _QuizHomePageState extends State<QuizHomePage> {
   final Color _darkBackground = const Color(0xFF222222);
   final QuizRankingService _rankingService = QuizRankingService();
   final AchievementService _achievementService = AchievementService();
+  final LanguageService _languageService = LanguageService();
   List<QuizRankingEntry> _rankings = [];
   bool _isLoadingRankings = true;
+
+  // Traducciones
+  QuizTranslations get tr => QuizTranslations.forLanguage(_languageService.currentLanguage);
 
   @override
   void initState() {
     super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    await _languageService.initialize();
+    // Actualizar el modo seleccionado al idioma actual
+    _selectedMode = tr.silhouette;
     _loadRankings();
     _achievementService.initialize();
+    setState(() {});
   }
 
   Future<void> _loadRankings() async {
@@ -55,6 +69,14 @@ class _QuizHomePageState extends State<QuizHomePage> {
 
   void _onPlayPressed() {
     _showPlayerNameDialog();
+  }
+
+  /// Cambia el idioma y recarga la página
+  Future<void> _onLanguageChanged() async {
+    await _languageService.toggleLanguage();
+    // Actualizar el modo seleccionado al nuevo idioma
+    _selectedMode = tr.silhouette;
+    setState(() {});
   }
 
   /// Muestra el modal para ingresar el nombre del jugador
@@ -87,9 +109,9 @@ class _QuizHomePageState extends State<QuizHomePage> {
                   size: 48,
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Ingresa tu nombre de entrenador',
-                  style: TextStyle(
+                Text(
+                  tr.enterTrainerName,
+                  style: const TextStyle(
                     fontFamily: 'Pixelated',
                     fontSize: 12,
                     color: Colors.white70,
@@ -160,9 +182,9 @@ class _QuizHomePageState extends State<QuizHomePage> {
                             ),
                           ),
                         ),
-                        child: const Text(
-                          'CANCELAR',
-                          style: TextStyle(
+                        child: Text(
+                          tr.cancel,
+                          style: const TextStyle(
                             fontFamily: 'Pixelated',
                             fontSize: 12,
                             color: Colors.white70,
@@ -188,9 +210,9 @@ class _QuizHomePageState extends State<QuizHomePage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'COMENZAR',
-                          style: TextStyle(
+                        child: Text(
+                          tr.start,
+                          style: const TextStyle(
                             fontFamily: 'Pixelated',
                             fontSize: 12,
                             color: Colors.black,
@@ -211,7 +233,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
 
   /// Inicia el quiz con el nombre del jugador
   void _startQuiz(String playerName) {
-    final mode = QuizMode.fromString(_selectedMode);
+    final mode = _getModeFromSelectedName(_selectedMode);
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -220,8 +242,9 @@ class _QuizHomePageState extends State<QuizHomePage> {
             repository: RepositoryProvider.of<PokemonRepository>(context),
             rankingService: _rankingService,
             achievementService: _achievementService,
+            languageId: _languageService.languageId,
           )..add(InitializeQuiz(mode: mode, playerName: playerName)),
-          child: QuizPage(mode: mode),
+          child: QuizPage(mode: mode, languageService: _languageService),
         ),
       ),
     ).then((_) {
@@ -229,6 +252,24 @@ class _QuizHomePageState extends State<QuizHomePage> {
       _loadRankings();
       setState(() {}); // Refresh para actualizar el contador de logros
     });
+  }
+
+  /// Convierte el nombre del modo seleccionado al enum QuizMode
+  QuizMode _getModeFromSelectedName(String modeName) {
+    // Comparar con traducciones en español e inglés
+    final lowerMode = modeName.toLowerCase();
+
+    if (lowerMode == 'silueta' || lowerMode == 'silhouette') {
+      return QuizMode.silhouette;
+    } else if (lowerMode == 'descripción' || lowerMode == 'descripcion' || lowerMode == 'description') {
+      return QuizMode.description;
+    } else if (lowerMode == 'número' || lowerMode == 'numero' || lowerMode == 'number') {
+      return QuizMode.number;
+    } else if (lowerMode == 'sonido' || lowerMode == 'sound') {
+      return QuizMode.sound;
+    }
+
+    return QuizMode.silhouette;
   }
 
   @override
@@ -250,7 +291,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
       top: -AppConstants.pikachuSize / 2 + 80,
       left: MediaQuery.of(context).size.width - AppConstants.pikachuSize / 2 - 50,
       child: Opacity(
-        opacity: 0.15, // Opacidad reducida para mayor simplicidad visual
+        opacity: 0.15,
         child: ColorFiltered(
           colorFilter: const ColorFilter.mode(
             Color(0xFF424242),
@@ -322,7 +363,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
                 color: _mainGreen,
               ),
               label: Text(
-                'Poke Quiz',
+                tr.quizTitle,
                 style: TextStyle(
                   fontSize: AppConstants.pokedexButtonFontSize,
                   color: _mainGreen,
@@ -334,27 +375,62 @@ class _QuizHomePageState extends State<QuizHomePage> {
             ),
           ),
         ),
-        const SizedBox(width: AppConstants.pokedexButtonIconSize),
+        // Botón de cambio de idioma
+        _buildLanguageButton(),
       ],
     );
   }
 
+  /// Botón para cambiar el idioma
+  Widget _buildLanguageButton() {
+    return InkWell(
+      onTap: _onLanguageChanged,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _darkBackground,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _mainGreen, width: 1.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _languageService.languageFlag,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _languageService.currentLanguage.toUpperCase(),
+              style: const TextStyle(
+                fontFamily: 'Pixelated',
+                fontSize: 12,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Construye el contenedor del Salón de la Fama
-  /// Simplificado: Eliminado el gradiente gris, ahora es fondo plano oscuro con borde sutil.
   Widget _buildHallOfFame() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: _darkBackground, // Fondo plano simple
-        border: Border.all(color: Color(0xFFA2A2A2), width: 2),
+        color: _darkBackground,
+        border: Border.all(color: const Color(0xFFA2A2A2), width: 2),
       ),
       child: Column(
         children: [
-          const Text(
-            "Salón de la Fama",
-            style: TextStyle(
+          Text(
+            tr.hallOfFame,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -371,12 +447,12 @@ class _QuizHomePageState extends State<QuizHomePage> {
               ),
             )
           else if (_rankings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(20.0),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
               child: Text(
-                'No hay registros aún.\n¡Sé el primero en jugar!',
+                tr.noRecordsYet,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Pixelated',
                   color: Colors.white70,
                   fontSize: 14,
@@ -406,7 +482,6 @@ class _QuizHomePageState extends State<QuizHomePage> {
     );
   }
 
-  /// WIDGET INTACTO - NO MODIFICADO
   Widget _buildRankRow({
     required int rank,
     required String name,
@@ -435,7 +510,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
         ],
         stops: const [0.0, 0.25],
       ),
-      border: Border.all(color: Color(0x33FFFFFF), width: 1),
+      border: Border.all(color: const Color(0x33FFFFFF), width: 1),
     );
 
     return Container(
@@ -451,13 +526,13 @@ class _QuizHomePageState extends State<QuizHomePage> {
               child: trophyAsset != null
                   ? Image.asset(trophyAsset, width: 22, height: 22)
                   : Text(
-                "$rank.",
-                style: const TextStyle(
-                  fontFamily: 'Pixelated',
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-              ),
+                      "$rank.",
+                      style: const TextStyle(
+                        fontFamily: 'Pixelated',
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
             const SizedBox(width: 8),
             SizedBox(
@@ -508,7 +583,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => const AchievementsPage(),
+            builder: (_) => AchievementsPage(languageService: _languageService),
           ),
         );
       },
@@ -523,21 +598,21 @@ class _QuizHomePageState extends State<QuizHomePage> {
         ),
         child: Stack(
           children: [
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.only(left: 16.0),
+                padding: const EdgeInsets.only(left: 16.0),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.emoji_events,
                       color: Color(0xFF4FC43C),
                       size: 24,
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Text(
-                      "Logros",
-                      style: TextStyle(
+                      tr.achievements,
+                      style: const TextStyle(
                         fontFamily: 'Pixelated',
                         fontSize: 20,
                         color: Colors.white,
@@ -568,32 +643,31 @@ class _QuizHomePageState extends State<QuizHomePage> {
   }
 
   /// Construye el panel de selección de modalidad
-  /// Simplificado: Eliminado gradiente morado y texto naranja. Todo unificado.
   Widget _buildModeSelection() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: _darkBackground, // Fondo plano
+        color: _darkBackground,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Modalidad",
+            tr.mode,
             style: TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 20,
-              color: _mainGreen, // Texto verde en lugar de naranja
+              color: _mainGreen,
               letterSpacing: 2.0,
             ),
           ),
           const SizedBox(height: 10),
-          _buildModeOption("Silueta", "x1.0", Icons.catching_pokemon),
-          _buildModeOption("Descripción", "x1.5", Icons.description),
-          _buildModeOption("Número", "x2.0", Icons.pin),
-          _buildModeOption("Sonido", "x3.0", Icons.volume_up),
+          _buildModeOption(tr.silhouette, "x1.0", Icons.catching_pokemon),
+          _buildModeOption(tr.description, "x1.5", Icons.description),
+          _buildModeOption(tr.number, "x2.0", Icons.pin),
+          _buildModeOption(tr.sound, "x3.0", Icons.volume_up),
         ],
       ),
     );
@@ -661,7 +735,6 @@ class _QuizHomePageState extends State<QuizHomePage> {
   }
 
   /// Construye el botón principal de jugar
-  /// Simplificado: Gradiente reducido para ser menos agresivo, mantiene el verde.
   Widget _buildPlayButton() {
     return SizedBox(
       width: double.infinity,
@@ -677,12 +750,12 @@ class _QuizHomePageState extends State<QuizHomePage> {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.play_arrow_rounded, size: 32, color: Colors.black),
-            SizedBox(width: 8),
+          children: [
+            const Icon(Icons.play_arrow_rounded, size: 32, color: Colors.black),
+            const SizedBox(width: 8),
             Text(
-              "JUGAR",
-              style: TextStyle(
+              tr.play,
+              style: const TextStyle(
                 fontFamily: 'Pixelated',
                 fontSize: 24,
                 color: Colors.black,
@@ -700,11 +773,14 @@ class _QuizHomePageState extends State<QuizHomePage> {
 /// Formateador para convertir el texto a mayúsculas automáticamente
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue,
-      TextEditingValue newValue,) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
     );
   }
 }
+

@@ -11,6 +11,16 @@ class PokemonMapperService {
     return data.map((item) => mapBasic(item)).toList();
   }
 
+  /// Mapea una lista de datos detallados de GraphQL
+  static List<Pokemon> mapDetailedList(List<dynamic> data) {
+    return data.map((item) => mapDetailed(item)).toList();
+  }
+
+  /// Mapea una lista de datos GraphQL a lista de Pokemon con traducciones
+  static List<Pokemon> mapListWithTranslation(List<dynamic> data) {
+    return data.map((item) => mapBasicWithTranslation(item)).toList();
+  }
+
   /// Mapea un Pokémon básico (id, name, sprite, types)
   static Pokemon mapBasic(Map<String, dynamic> item) {
     final id = item['id'] as int;
@@ -32,11 +42,6 @@ class PokemonMapperService {
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
     );
-  }
-
-  /// Mapea una lista de datos detallados de GraphQL
-  static List<Pokemon> mapDetailedList(List<dynamic> data) {
-    return data.map((item) => mapDetailed(item)).toList();
   }
 
   /// Mapea un Pokémon con detalles completos
@@ -73,6 +78,37 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+    );
+  }
+
+  /// Mapea un Pokémon básico con nombre traducido (para el Quiz)
+  static Pokemon mapBasicWithTranslation(Map<String, dynamic> item) {
+    final id = item['id'] as int;
+    final originalName = item['name'] as String;
+    final spriteUrl = _extractSpriteUrl(item['pokemon_v2_pokemonsprites']);
+    final shinySpriteUrl = _extractShinySpriteUrl(item['pokemon_v2_pokemonsprites']);
+    final types = _extractTypes(item['pokemon_v2_pokemontypes']);
+    final speciesData = _extractSpeciesData(item['pokemon_v2_pokemonspecy']);
+
+    // Extraer nombre traducido y descripción
+    final translatedName = _extractTranslatedName(item['pokemon_v2_pokemonspecy']);
+    final translatedDescription = _extractTranslatedDescription(item['pokemon_v2_pokemonspecy']);
+
+    // Usar nombre traducido si existe, sino usar el original
+    final name = translatedName ?? originalName;
+
+    return Pokemon(
+      id: id,
+      name: name,
+      spriteUrl: spriteUrl,
+      shinySpriteUrl: shinySpriteUrl,
+      cryUrl: _generateCryUrl(id),
+      types: types,
+      categories: speciesData['categories'],
+      isLegendary: speciesData['isLegendary'],
+      isMythical: speciesData['isMythical'],
+      generationId: speciesData['generationId'],
+      description: translatedDescription,
     );
   }
 
@@ -257,5 +293,43 @@ class PokemonMapperService {
 
     return [];
   }
-}
 
+  /// Extrae el nombre traducido del Pokémon desde los datos de especie
+  static String? _extractTranslatedName(dynamic speciesData) {
+    if (speciesData == null) return null;
+
+    try {
+      final names = speciesData['pokemon_v2_pokemonspeciesnames'] as List<dynamic>?;
+      if (names != null && names.isNotEmpty) {
+        final translatedName = names[0]['name'] as String?;
+        if (translatedName != null && translatedName.trim().isNotEmpty) {
+          return translatedName;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting translated name: $e');
+    }
+
+    return null;
+  }
+
+  /// Extrae la descripción traducida del Pokémon desde los datos de especie
+  static String? _extractTranslatedDescription(dynamic speciesData) {
+    if (speciesData == null) return null;
+
+    try {
+      final texts = speciesData['pokemon_v2_pokemonspeciesflavortexts'] as List<dynamic>?;
+      if (texts != null && texts.isNotEmpty) {
+        final flavorText = texts[0]['flavor_text'] as String?;
+        if (flavorText != null && flavorText.trim().isNotEmpty) {
+          // Limpiar el texto de caracteres especiales
+          return flavorText.replaceAll('\n', ' ').replaceAll('\f', ' ').trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting translated description: $e');
+    }
+
+    return null;
+  }
+}

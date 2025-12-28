@@ -5,6 +5,7 @@ import '../../../data/repositories/pokemon_repository.dart';
 import '../../../data/services/quiz_ranking_service.dart';
 import '../../../data/services/quiz_pokemon_loader_service.dart';
 import '../../../data/services/achievement_service.dart';
+import '../../../data/services/language_service.dart';
 import '../../../data/models/quiz_ranking.dart';
 import 'quiz_event.dart';
 import 'quiz_state.dart';
@@ -14,6 +15,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   final PokemonRepository repository;
   final QuizRankingService rankingService;
   final AchievementService achievementService;
+  final int languageId;
   late final QuizPokemonLoaderService _loaderService;
 
   Timer? _gameTimer;
@@ -35,8 +37,9 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     required this.repository,
     required this.rankingService,
     required this.achievementService,
+    this.languageId = LanguageService.spanishLanguageId,
   }) : super(const QuizInitial()) {
-    _loaderService = QuizPokemonLoaderService(repository);
+    _loaderService = QuizPokemonLoaderService(repository, languageId: languageId);
 
     on<InitializeQuiz>(_onInitializeQuiz);
     on<StartQuiz>(_onStartQuiz);
