@@ -17,8 +17,9 @@ class MapPage extends StatefulWidget {
   final String? initialRegion;
   final String? initialRouteIdentifier;
   final Map<String, String>? manualAreaIdMap;
+  final bool debugImmediateFocus; // flag para tests/diagnóstico
 
-  const MapPage({super.key, this.initialRegion, this.initialRouteIdentifier, this.manualAreaIdMap});
+  const MapPage({super.key, this.initialRegion, this.initialRouteIdentifier, this.manualAreaIdMap, this.debugImmediateFocus = false});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -104,6 +105,7 @@ class _MapPageState extends State<MapPage> {
               // Pasar al InteractiveMapWidget el identifier inicial si lo hubo
               initialAreaIdentifier: widget.initialRouteIdentifier,
               manualAreaIdMap: widget.manualAreaIdMap,
+              debugImmediateFocus: widget.debugImmediateFocus, // Pasar el flag a InteractiveMapWidget
               onAreaTap: (area) async {
                 if (_isOpeningModal) return;
                 _isOpeningModal = true;
