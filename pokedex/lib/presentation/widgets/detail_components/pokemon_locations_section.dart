@@ -70,11 +70,12 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
               'Ubicaciones',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
-            IconButton(
-              icon: const Icon(Icons.map),
-              onPressed: () => _navigateToMap(),
-              tooltip: 'Ver en mapa',
-            ),
+            if (_locations.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.map),
+                onPressed: () => _navigateToMap(),
+                tooltip: 'Ver en mapa',
+              ),
           ],
         ),
         const SizedBox(height: 16),
@@ -298,6 +299,14 @@ class _PokemonLocationsSectionState extends State<PokemonLocationsSection> {
   }
 
   void _openMapAtLocation(Location location) {
+    // Check if map is available for this region
+    if (location.region.toLowerCase() == 'alola' || location.region.toLowerCase() == 'galar') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mapa no disponible para esta región'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+
     // Construir identificador aproximado y manualMap con mejor candidato (manteniendo la API actual Map<String,String>)
     final key = _normalizeIdentifier(location.name);
     final manualMap = _buildManualAreaMap(location);

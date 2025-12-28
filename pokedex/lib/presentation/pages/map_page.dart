@@ -33,7 +33,7 @@ class _MapPageState extends State<MapPage> {
 
   // Lista canonical de regiones que coincide con los DropdownMenuItem.value
   static const List<String> _regions = [
-    'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Orre', 'Fiore', 'Almia', 'Oblivia', 'Unova (BW)'
+    'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Orre', 'Fiore', 'Almia', 'Oblivia', 'Unova (BW)'
   ];
 
   @override
@@ -77,8 +77,6 @@ class _MapPageState extends State<MapPage> {
                 DropdownMenuItem(value: 'Sinnoh', child: Text('Sinnoh')),
                 DropdownMenuItem(value: 'Unova', child: Text('Unova')),
                 DropdownMenuItem(value: 'Kalos', child: Text('Kalos')),
-                DropdownMenuItem(value: 'Alola', child: Text('Alola')),
-                DropdownMenuItem(value: 'Galar', child: Text('Galar')),
                 DropdownMenuItem(value: 'Orre', child: Text('Orre')),
                 DropdownMenuItem(value: 'Fiore', child: Text('Fiore')),
                 DropdownMenuItem(value: 'Almia', child: Text('Almia')),
