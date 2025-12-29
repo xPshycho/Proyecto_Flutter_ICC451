@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart' show Vector3, Matrix4;
+import 'dart:math' as math;
 
 /// Widget para mostrar un mapa interactivo con áreas clicables.
 class InteractiveMapWidget extends StatefulWidget {
@@ -17,6 +18,7 @@ class InteractiveMapWidget extends StatefulWidget {
 
   // Mapeo manual opcional: normalizado locationName -> areaIdentifier
   final Map<String, String>? manualAreaIdMap;
+  final bool debugImmediateFocus;
 
   const InteractiveMapWidget({
     super.key,
@@ -28,6 +30,7 @@ class InteractiveMapWidget extends StatefulWidget {
     this.initialAreaIdentifier,
     this.initialZoom,
     this.manualAreaIdMap,
+    this.debugImmediateFocus = false,
   });
 
   @override
@@ -74,8 +77,11 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
 
         // Si se pide enfocar una área, programar el cálculo pos-frame
         if (!_hasFocused && widget.initialAreaIdentifier != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _focusAreaIfRequested(constraints, scale, scaledWidth, scaledHeight);
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            // Esperar un poco para asegurar que InteractiveViewer esté completamente montado
+            await Future.delayed(const Duration(milliseconds: 80));
+            debugPrint('InteractiveMapWidget: requesting focus for identifier=${widget.initialAreaIdentifier}');
+            await _focusAreaIfRequested(constraints, scale, scaledWidth, scaledHeight);
           });
         }
 
@@ -83,8 +89,12 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
           transformationController: _transformationController,
           minScale: 0.5,
           maxScale: 5.0,
-          child: Center(
-            child: SizedBox(
+          panEnabled: true,
+          scaleEnabled: true,
+          boundaryMargin: const EdgeInsets.all(2000),
+          clipBehavior: Clip.none,
+          constrained: false,
+          child: SizedBox(
               width: scaledWidth,
               height: scaledHeight,
               child: Stack(
@@ -150,32 +160,49 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
                     ),
                 ],
               ),
-            ),
           ),
         );
       },
     );
   }
 
-  void _focusAreaIfRequested(BoxConstraints constraints, double scale, double scaledWidth, double scaledHeight) async {
+  Future<void> _focusAreaIfRequested(BoxConstraints constraints, double scale, double scaledWidth, double scaledHeight) async {
     if (_hasFocused) return;
     final id = widget.initialAreaIdentifier!.toLowerCase().trim();
 
     // First, if a manual map exists, try to map `id` -> explicit identifier
     String? manualTargetId;
     if (widget.manualAreaIdMap != null) {
-      final key = _normalizeKey(id);
-      manualTargetId = widget.manualAreaIdMap![key];
-      if (manualTargetId != null) manualTargetId = manualTargetId.toLowerCase().trim();
+      // Buscar la entrada manual más cercana comparando la clave con _looselyMatches
+      for (final entry in widget.manualAreaIdMap!.entries) {
+        final k = entry.key.toLowerCase().trim();
+        if (_looselyMatches(_normalizeKey(k), id) || _looselyMatches(k, id)) {
+          manualTargetId = entry.value.toLowerCase().trim();
+          debugPrint('InteractiveMapWidget: manualAreaIdMap hit -> key=${entry.key} value=${entry.value} for id=$id');
+          break;
+        }
+      }
+      if (manualTargetId == null) {
+        debugPrint('InteractiveMapWidget: manualAreaIdMap had no tolerant match for id=$id; keys=${widget.manualAreaIdMap!.keys.toList()}');
+      }
     }
 
-    // Buscar un área cuyo identificador candidato o nombre coincida
+    // Buscar un área cuyo identificador candidato o nombre coincida (heurística tolerante)
     MapArea? match;
 
     if (manualTargetId != null) {
       for (final area in widget.areas) {
+        // probar todos los candidateIdentifiers con comparación laxa
         final candidates = area.candidateIdentifiers.map((e) => e.toLowerCase().trim());
-        if (candidates.contains(manualTargetId) || (area.identifier?.toLowerCase().trim() == manualTargetId)) {
+        bool found = false;
+        for (final c in candidates) {
+          if (_looselyMatches(c, manualTargetId)) {
+            debugPrint('InteractiveMapWidget: manual match candidate $c matches manualTargetId=$manualTargetId for area=${area.name}');
+            found = true;
+            break;
+          }
+        }
+        if (found || (area.identifier != null && _looselyMatches(area.identifier!, manualTargetId)) || _looselyMatches(_normalizeKey(area.name), manualTargetId)) {
           match = area;
           break;
         }
@@ -186,7 +213,16 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
     if (match == null) {
       for (final area in widget.areas) {
         final candidates = area.candidateIdentifiers.map((e) => e.toLowerCase().trim()).toList();
-        if (candidates.contains(id) || area.name.toLowerCase().trim() == id) {
+        // intentar con la comparación laxa también
+        bool any = false;
+        for (final c in candidates) {
+          if (_looselyMatches(c, id)) {
+            debugPrint('InteractiveMapWidget: candidate $c matches id=$id for area=${area.name}');
+            any = true;
+            break;
+          }
+        }
+        if (any || _looselyMatches(_normalizeKey(area.name), id) || (area.identifier != null && _looselyMatches(area.identifier!, id))) {
           match = area;
           break;
         }
@@ -205,6 +241,7 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
     }
 
     if (match == null) {
+      debugPrint('InteractiveMapWidget: no match found for id=$id manualTarget=$manualTargetId');
       _hasFocused = true;
       return;
     }
@@ -217,78 +254,84 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
       match.rect.bottom * scale,
     );
 
+    // Determinar el zoom deseado para centrar el área.
+    // Por defecto, intentar que el área ocupe ~60% de la dimensión menor del viewport.
+    final areaMaxDim = math.max(scaledRect.width, scaledRect.height);
+    final viewportMinDim = math.min(constraints.maxWidth, constraints.maxHeight);
+    double computedScale = (viewportMinDim * 0.6) / (areaMaxDim == 0 ? 1.0 : areaMaxDim);
+    // Asegurar escala mínima igual al 'scale' base para no alejar más de lo que cabe la imagen
+    computedScale = math.max(computedScale, scale);
+    // Clamp al rango permitido por InteractiveViewer en este widget
+    final minScale = 0.5;
+    final maxScale = 5.0;
+    final double desiredScale = (widget.initialZoom != null)
+        ? widget.initialZoom!.clamp(minScale, maxScale)
+        : computedScale.clamp(minScale, maxScale);
+
     // Guardar el highlight (en coordenadas del widget) para dibujar overlay
     setState(() {
       _highlightRect = scaledRect;
       // Iniciar animación de pulso
       _pulseController.repeat(reverse: true);
     });
+    debugPrint('InteractiveMapWidget: match found -> ${match.name} identifier=${match.identifier} scaledRect=$scaledRect desiredScale=$desiredScale');
 
     // Centro del viewport
     final viewportCenter = Offset(constraints.maxWidth / 2, constraints.maxHeight / 2);
-    // Top-left del child (porque el child está centrado dentro del InteractiveViewer)
-    final childTopLeft = Offset((constraints.maxWidth - scaledWidth) / 2, (constraints.maxHeight - scaledHeight) / 2);
+    // scaledRect.center está en coordenadas del child (ya escaladas por `scale`)
+    // Usamos esas coordenadas directamente para calcular la traducción t tal que
+    // s * childPoint + t = viewportCenter => t = viewportCenter - s * childPoint
+
+    // Top-left del child: ahora el child está alineado al topleft dentro del InteractiveViewer
+    final childTopLeft = Offset.zero;
     // Centro del área en coordenadas del viewport
     final areaCenterInViewport = childTopLeft + Offset(scaledRect.center.dx, scaledRect.center.dy);
 
-    // Determinar zoom deseado. Si el usuario pidió un initialZoom, usarlo.
-    double desiredScale = widget.initialZoom ?? 2.0;
-    // Ajustar desiredScale para que el área ocupe una fracción razonable del viewport
-    final areaPortionWidth = scaledRect.width / constraints.maxWidth;
-    final areaPortionHeight = scaledRect.height / constraints.maxHeight;
-    // Si el área ya es grande, usar un zoom menor
-    final autoScaleCandidate = 1 / ((areaPortionWidth + areaPortionHeight) / 2 + 0.0001);
-    desiredScale = (widget.initialZoom ?? autoScaleCandidate).clamp(0.8, 4.0);
-
     // Calcular la traducción necesaria para que el centro del área quede en el centro del viewport
-    final tx = viewportCenter.dx - areaCenterInViewport.dx * desiredScale;
-    final ty = viewportCenter.dy - areaCenterInViewport.dy * desiredScale;
+    // t = viewportCenter - childTopLeft - s * childCenter
+    final tx = viewportCenter.dx - childTopLeft.dx - desiredScale * scaledRect.center.dx;
+    final ty = viewportCenter.dy - childTopLeft.dy - desiredScale * scaledRect.center.dy;
 
-    // Obtener transform actual
+    debugPrint('InteractiveMapWidget: tx=$tx ty=$ty desiredScale=$desiredScale areaCenterInViewport=$areaCenterInViewport scaledRect.center=${scaledRect.center}');
+
     final currentMatrix = _transformationController.value.clone();
-    final currentScale = currentMatrix.getMaxScaleOnAxis();
-    final currentTranslationVec = currentMatrix.getTranslation();
-    final startTx = currentTranslationVec.x;
-    final startTy = currentTranslationVec.y;
-    final startScale = currentScale;
-
-    final targetTx = tx;
-    final targetTy = ty;
-    final targetScale = desiredScale;
+    // Compose as Translate * Scale so that: M * childPoint = viewportCenter
+    final translateM = Matrix4.identity()..setTranslation(Vector3(tx, ty, 0));
+    final scaleM = Matrix4.identity()..scale(desiredScale, desiredScale, 1.0);
+    final targetMatrix = translateM * scaleM;
 
     // Si la diferencia es muy pequeña, aplicar directamente
     const epsilon = 0.01;
-    if ((startScale - targetScale).abs() < epsilon && (startTx - targetTx).abs() < 1.0 && (startTy - targetTy).abs() < 1.0) {
-      final matrix = Matrix4.identity();
-      matrix.translateByVector3(Vector3(targetTx, targetTy, 0));
-      matrix.scaleByVector3(Vector3(targetScale, targetScale, targetScale));
-      _transformationController.value = matrix;
+    final curScale = currentMatrix.getMaxScaleOnAxis();
+    final currentTranslation = currentMatrix.getTranslation();
+    if ((curScale - desiredScale).abs() < epsilon && (currentTranslation.x - tx).abs() < 1.0 && (currentTranslation.y - ty).abs() < 1.0) {
+      _transformationController.value = targetMatrix;
       _hasFocused = true;
       return;
     }
 
-    // Animar la transición entre transforms (interpolando scale y translate por separado)
+    // Si estamos en modo de diagnóstico/depuración, aplicar inmediatamente sin animación
+    if (widget.debugImmediateFocus) {
+      debugPrint('InteractiveMapWidget: debugImmediateFocus active — applying targetMatrix immediately');
+      _transformationController.value = targetMatrix;
+      _hasFocused = true;
+      return;
+    }
+
+    // Animar usando Matrix4Tween
     _animController.stop();
     _animController.reset();
     final curved = CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic);
+    final tween = Matrix4Tween(begin: currentMatrix, end: targetMatrix);
+    final animation = tween.animate(curved);
 
-    void listener() {
-      final t = curved.value;
-      final curScale = startScale + (targetScale - startScale) * t;
-      final curTx = startTx + (targetTx - startTx) * t;
-      final curTy = startTy + (targetTy - startTy) * t;
-
-      final matrix = Matrix4.identity();
-      matrix.translateByVector3(Vector3(curTx, curTy, 0));
-      matrix.scaleByVector3(Vector3(curScale, curScale, curScale));
-      _transformationController.value = matrix;
-
-      // Opcional: actualizar highlight si se quisiera moverlo (no necesario si highlight está en coordenadas child)
+    void animListener() {
+      _transformationController.value = animation.value;
     }
 
-    curved.addListener(listener);
+    animation.addListener(animListener);
     await _animController.forward();
-    curved.removeListener(listener);
+    animation.removeListener(animListener);
 
     // Mantener el highlight visible unos instantes, luego retirarlo
     await Future.delayed(const Duration(seconds: 2));
@@ -299,6 +342,24 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget> with Ticker
     });
 
     _hasFocused = true;
+  }
+
+  bool _looselyMatches(String candidate, String target) {
+    candidate = candidate.toLowerCase().trim();
+    target = target.toLowerCase().trim();
+    if (candidate == target) return true;
+    if (candidate.endsWith(target)) return true;
+    if (target.endsWith(candidate)) return true;
+    if (candidate.contains(target)) return true;
+    if (target.contains(candidate)) return true;
+    // compare last two segments (to ignore region prefix como 'kanto-')
+    String tail(String s) {
+      final parts = s.split('-');
+      if (parts.length >= 2) return '${parts[parts.length - 2]}-${parts.last}';
+      return s;
+    }
+    if (tail(candidate) == tail(target)) return true;
+    return false;
   }
 
   String _normalizeKey(String s) {

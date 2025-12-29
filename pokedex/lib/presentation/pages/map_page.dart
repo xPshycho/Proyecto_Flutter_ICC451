@@ -17,8 +17,9 @@ class MapPage extends StatefulWidget {
   final String? initialRegion;
   final String? initialRouteIdentifier;
   final Map<String, String>? manualAreaIdMap;
+  final bool debugImmediateFocus; // flag para tests/diagnóstico
 
-  const MapPage({super.key, this.initialRegion, this.initialRouteIdentifier, this.manualAreaIdMap});
+  const MapPage({super.key, this.initialRegion, this.initialRouteIdentifier, this.manualAreaIdMap, this.debugImmediateFocus = false});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -32,7 +33,7 @@ class _MapPageState extends State<MapPage> {
 
   // Lista canonical de regiones que coincide con los DropdownMenuItem.value
   static const List<String> _regions = [
-    'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Orre', 'Fiore', 'Almia', 'Oblivia', 'Unova (BW)'
+    'Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Orre', 'Fiore', 'Almia', 'Oblivia', 'Unova (BW)'
   ];
 
   @override
@@ -76,8 +77,6 @@ class _MapPageState extends State<MapPage> {
                 DropdownMenuItem(value: 'Sinnoh', child: Text('Sinnoh')),
                 DropdownMenuItem(value: 'Unova', child: Text('Unova')),
                 DropdownMenuItem(value: 'Kalos', child: Text('Kalos')),
-                DropdownMenuItem(value: 'Alola', child: Text('Alola')),
-                DropdownMenuItem(value: 'Galar', child: Text('Galar')),
                 DropdownMenuItem(value: 'Orre', child: Text('Orre')),
                 DropdownMenuItem(value: 'Fiore', child: Text('Fiore')),
                 DropdownMenuItem(value: 'Almia', child: Text('Almia')),
@@ -104,6 +103,7 @@ class _MapPageState extends State<MapPage> {
               // Pasar al InteractiveMapWidget el identifier inicial si lo hubo
               initialAreaIdentifier: widget.initialRouteIdentifier,
               manualAreaIdMap: widget.manualAreaIdMap,
+              debugImmediateFocus: widget.debugImmediateFocus, // Pasar el flag a InteractiveMapWidget
               onAreaTap: (area) async {
                 if (_isOpeningModal) return;
                 _isOpeningModal = true;
