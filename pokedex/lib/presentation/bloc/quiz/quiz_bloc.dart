@@ -39,7 +39,12 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     required this.achievementService,
     this.languageId = LanguageService.spanishLanguageId,
   }) : super(const QuizInitial()) {
-    _loaderService = QuizPokemonLoaderService(repository, languageId: languageId);
+    // IMPORTANTE: Usar el languageId del repositorio en lugar del parámetro
+    // para asegurar consistencia
+    _loaderService = QuizPokemonLoaderService(
+      repository,
+      languageId: repository.languageId,
+    );
 
     on<InitializeQuiz>(_onInitializeQuiz);
     on<StartQuiz>(_onStartQuiz);

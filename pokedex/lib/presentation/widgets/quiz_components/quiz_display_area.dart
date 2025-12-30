@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/quiz_translations.dart';
 import '../../../data/models/quiz_mode.dart';
 import '../../../data/models/pokemon.dart';
+import '../../../data/services/language_service.dart';
+import 'package:provider/provider.dart';
 
 /// Widget que muestra el atributo del Pokémon según la modalidad del quiz
 class QuizDisplayArea extends StatelessWidget {
@@ -31,21 +34,21 @@ class QuizDisplayArea extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(17),
-        child: _buildContent(),
+        child: _buildContent(context),
       ),
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     switch (mode) {
       case QuizMode.silhouette:
         return _buildSilhouette();
       case QuizMode.description:
-        return _buildDescription();
+        return _buildDescription(context);
       case QuizMode.number:
         return _buildNumber();
       case QuizMode.sound:
-        return _buildSound();
+        return _buildSound(context);
     }
   }
 
@@ -100,9 +103,11 @@ class QuizDisplayArea extends StatelessWidget {
   }
 
   /// Muestra la descripción del Pokémon
-  Widget _buildDescription() {
-    final description = pokemon.description ??
-        'Un misterioso Pokémon del que se sabe muy poco...';
+  Widget _buildDescription(BuildContext context) {
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+    final tr = QuizTranslations.forLanguage(languageService.currentLanguage);
+
+    final description = pokemon.description ?? tr.mysteriousPokemon;
 
     return Center(
       child: Padding(
@@ -166,14 +171,17 @@ class QuizDisplayArea extends StatelessWidget {
   }
 
   /// Muestra un botón de sonido para reproducir el cry
-  Widget _buildSound() {
+  Widget _buildSound(BuildContext context) {
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+    final tr = QuizTranslations.forLanguage(languageService.currentLanguage);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'Escucha el sonido',
-            style: TextStyle(
+          Text(
+            tr.listenToSound,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 18,
               color: Colors.white70,
@@ -201,9 +209,9 @@ class QuizDisplayArea extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Toca para reproducir',
-            style: TextStyle(
+          Text(
+            tr.tapToPlay,
+            style: const TextStyle(
               fontFamily: 'Pixelated',
               fontSize: 14,
               color: Colors.white54,

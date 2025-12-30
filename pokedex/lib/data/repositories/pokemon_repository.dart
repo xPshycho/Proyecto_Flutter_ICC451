@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 
 class PokemonRepository {
   final GraphQLClient client;
+  final int languageId;
   late final GraphQLExecutor _executor;
 
   // Cachés específicos por tipo de dato
@@ -23,7 +24,7 @@ class PokemonRepository {
   List<Pokemon>? _allCache;
   bool _testDone = false;
 
-  PokemonRepository(this.client) {
+  PokemonRepository(this.client, {this.languageId = 9}) {
     _executor = GraphQLExecutor(client);
   }
 
@@ -105,9 +106,11 @@ class PokemonRepository {
 
     try {
       final result = await _executor.executeQuery(
-        query: GraphQLQueryService.detail,
-        variables: {'id': id},
-        fetchPolicy: FetchPolicy.cacheAndNetwork,
+        query: GraphQLQueryService.detailWithLanguage,
+        variables: {
+          'id': id,
+          'languageId': this.languageId,
+        },
       );
 
       if (!result.hasException && result.data != null) {

@@ -161,6 +161,49 @@ class GraphQLQueryService {
     }
   ''';
 
+  // Query para detalle individual con idioma
+  static const String detailWithLanguage = r'''
+    query getPokemonWithLanguage($id: Int!, $languageId: Int!) {
+      pokemon_v2_pokemon_by_pk(id: $id) {
+        id
+        name
+        is_default
+        height
+        weight
+        pokemon_v2_pokemonsprites { sprites }
+        pokemon_v2_pokemontypes { pokemon_v2_type { name } }
+        pokemon_v2_pokemonabilities { 
+          is_hidden
+          pokemon_v2_ability { 
+            name 
+            pokemon_v2_abilitynames(where: {language_id: {_eq: $languageId}}, limit: 1) {
+              name
+            }
+            pokemon_v2_abilityflavortexts(where: {language_id: {_eq: $languageId}}, limit: 1) {
+              flavor_text
+            }
+          } 
+        }
+        pokemon_v2_pokemonstats { base_stat pokemon_v2_stat { name } }
+        pokemon_v2_pokemonspecy {
+          evolution_chain_id
+          generation_id
+          pokemon_v2_pokemonspeciesflavortexts(where: {language_id: {_eq: $languageId}}, limit: 1) {
+            flavor_text
+          }
+          pokemon_v2_pokemonegggroups {
+            pokemon_v2_egggroup {
+              name
+              pokemon_v2_egggroupnames(where: {language_id: {_eq: $languageId}}, limit: 1) {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  ''';
+
   // Query para detalle individual
   static const String detail = r'''
     query getPokemon($id: Int!) {

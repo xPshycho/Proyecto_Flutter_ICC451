@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/constants/quiz_translations.dart';
+import '../../../data/services/language_service.dart';
 
 /// Barra superior que muestra las estadísticas del juego
 class QuizStatsBar extends StatefulWidget {
@@ -108,6 +111,9 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+    final tr = QuizTranslations.forLanguage(languageService.currentLanguage);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -222,7 +228,7 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
               Expanded(
                 child: _buildStatBox(
                   icon: Icons.star,
-                  label: 'PUNTOS',
+                  label: tr.points.toUpperCase(),
                   value: _formattedScore,
                   color: const Color(0xFFFFD700),
                 ),
@@ -235,7 +241,7 @@ class _QuizStatsBarState extends State<QuizStatsBar> with SingleTickerProviderSt
                 child: _buildStatBox(
                   icon: Icons.trending_up,
                   label: 'x${widget.multiplier.toStringAsFixed(1)}',
-                  value: '${widget.consecutiveCorrect} racha',
+                  value: '${widget.consecutiveCorrect} ${tr.streak.toLowerCase()}',
                   color: const Color(0xFF4FC43C),
                 ),
               ),

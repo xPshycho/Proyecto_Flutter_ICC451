@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/quiz_translations.dart';
 import '../../data/models/quiz_mode.dart';
@@ -30,12 +31,11 @@ class _QuizHomePageState extends State<QuizHomePage> {
   final Color _darkBackground = const Color(0xFF222222);
   final QuizRankingService _rankingService = QuizRankingService();
   final AchievementService _achievementService = AchievementService();
-  final LanguageService _languageService = LanguageService();
   List<QuizRankingEntry> _rankings = [];
   bool _isLoadingRankings = true;
 
   // Traducciones
-  QuizTranslations get tr => QuizTranslations.forLanguage(_languageService.currentLanguage);
+  QuizTranslations get tr => QuizTranslations.forLanguage(Provider.of<LanguageService>(context, listen: false).currentLanguage);
 
   @override
   void initState() {
@@ -44,20 +44,29 @@ class _QuizHomePageState extends State<QuizHomePage> {
   }
 
   Future<void> _initializeServices() async {
-    await _languageService.initialize();
+    // Usar el LanguageService del Provider
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+
     // Actualizar el modo seleccionado al idioma actual
+    final tr = QuizTranslations.forLanguage(languageService.currentLanguage);
     _selectedMode = tr.silhouette;
+
     _loadRankings();
     _achievementService.initialize();
-    setState(() {});
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadRankings() async {
     final rankings = await _rankingService.getTop5();
-    setState(() {
-      _rankings = rankings;
-      _isLoadingRankings = false;
-    });
+    if (mounted) {
+      setState(() {
+        _rankings = rankings;
+        _isLoadingRankings = false;
+      });
+    }
   }
 
   void _onHomePressed() {
@@ -73,10 +82,17 @@ class _QuizHomePageState extends State<QuizHomePage> {
 
   /// Cambia el idioma y recarga la página
   Future<void> _onLanguageChanged() async {
-    await _languageService.toggleLanguage();
+    // Usar el LanguageService del Provider
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+    await languageService.toggleLanguage();
+
     // Actualizar el modo seleccionado al nuevo idioma
+    final tr = QuizTranslations.forLanguage(languageService.currentLanguage);
     _selectedMode = tr.silhouette;
-    setState(() {});
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   /// Muestra el modal para ingresar el nombre del jugador
@@ -242,9 +258,9 @@ class _QuizHomePageState extends State<QuizHomePage> {
             repository: RepositoryProvider.of<PokemonRepository>(context),
             rankingService: _rankingService,
             achievementService: _achievementService,
-            languageId: _languageService.languageId,
+            languageId: Provider.of<LanguageService>(context, listen: false).languageId,
           )..add(InitializeQuiz(mode: mode, playerName: playerName)),
-          child: QuizPage(mode: mode, languageService: _languageService),
+          child: QuizPage(mode: mode, languageService: Provider.of<LanguageService>(context, listen: false)),
         ),
       ),
     ).then((_) {
@@ -397,12 +413,12 @@ class _QuizHomePageState extends State<QuizHomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _languageService.languageFlag,
+              Provider.of<LanguageService>(context, listen: false).languageFlag,
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(width: 4),
             Text(
-              _languageService.currentLanguage.toUpperCase(),
+              Provider.of<LanguageService>(context, listen: false).currentLanguage.toUpperCase(),
               style: const TextStyle(
                 fontFamily: 'Pixelated',
                 fontSize: 12,
@@ -583,7 +599,7 @@ class _QuizHomePageState extends State<QuizHomePage> {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => AchievementsPage(languageService: _languageService),
+            builder: (_) => AchievementsPage(languageService: Provider.of<LanguageService>(context, listen: false)),
           ),
         );
       },
@@ -783,4 +799,3 @@ class UpperCaseTextFormatter extends TextInputFormatter {
     );
   }
 }
-
