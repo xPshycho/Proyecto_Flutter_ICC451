@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'dart:math';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/quiz_translations.dart';
 import '../../../data/models/quiz_mode.dart';
@@ -40,8 +39,6 @@ class QuizGameOverDialog extends StatefulWidget {
 }
 
 class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
-  bool _showLabels = false;
-  Timer? _toggleTimer;
   late String _randomTrainerImage;
 
   @override
@@ -51,21 +48,6 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
     final random = Random();
     final trainerNumber = random.nextInt(9) + 1;
     _randomTrainerImage = 'assets/images/trainers/$trainerNumber.png';
-
-    // Alternar entre valores y labels cada 5 segundos
-    _toggleTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (mounted) {
-        setState(() {
-          _showLabels = !_showLabels;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _toggleTimer?.cancel();
-    super.dispose();
   }
 
   // Traducciones
@@ -82,7 +64,7 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
     final hours = widget.totalTime.inHours;
     final minutes = widget.totalTime.inMinutes.remainder(60);
     final seconds = widget.totalTime.inSeconds.remainder(60);
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    return '${hours.toString().padLeft(1, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   double get _accuracy {
@@ -92,172 +74,171 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Colores que se adaptan al tema
+    final kTitleGreen = isDark ? const Color(0xFF65E868) : const Color(0xFF4CAF50);
+    final kBorderYellow = isDark ? const Color(0xFFFFD600) : const Color(0xFFFFC107);
+    final kCardBg = isDark ? const Color(0xFF252525) : const Color(0xFFF5F5F5);
+    final kButtonGreen = isDark ? const Color(0xFF2CAC39) : const Color(0xFF4CAF50);
+    final kModeTextColor = isDark ? Colors.grey : Colors.grey.shade700;
+    final kResultTextColor = isDark ? const Color(0xFFFFF5C4) : const Color(0xFF795548);
+
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
       child: Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F1F1F),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFF4FC43C),
-              width: 4,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4FC43C).withValues(alpha: 0.3),
-                blurRadius: 20,
-                spreadRadius: 0,
-              ),
-              // Inner shadow effect (simulado con otro contenedor)
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 32),
-
-              // Título y modo
-              _buildHeader(),
-
-              const SizedBox(height: 24),
-
-              // Card de Top 5 (solo si aplica)
-              if (widget.enteredTop5) ...[
-                _buildTop5Card(),
-                const SizedBox(height: 24),
-              ],
-
-              // Card de estadísticas sin Top 5 o con Top 5
-              if (!widget.enteredTop5) ...[
-                _buildStatsCardWithoutTop5(),
-                const SizedBox(height: 24),
-              ],
-
-              // Botón cerrar
-              _buildCloseButton(),
-
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Text(
-          tr.gameFinished,
-          style: const TextStyle(
-            fontFamily: 'Pixelated',
-            fontSize: 24,
-            color: Color(0xFFB2FC74),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '${tr.modeLabel}: ${tr.getModeDisplayName(widget.mode.displayName)}',
-          style: const TextStyle(
-            fontFamily: 'Pixelated',
-            fontSize: 18,
-            color: Colors.white70,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTop5Card() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF262626),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFFFD700),
-            width: 3,
-          ),
-        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Título Top 5
             Text(
-              tr.enteredTop5,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
+              tr.gameFinished,
+              style: TextStyle(
                 fontFamily: 'Pixelated',
                 fontSize: 20,
-                color: Color(0xFFFFD700),
+                color: kTitleGreen,
                 fontWeight: FontWeight.bold,
+                shadows: const [
+                  Shadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
 
-            // Contenedor con imagen y estadísticas
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Imagen del entrenador
-                Image.asset(
-                  _randomTrainerImage,
-                  width: 100,
-                  height: 120,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.person,
-                      size: 100,
-                      color: Colors.white54,
-                    );
-                  },
+            Text(
+              '${tr.modeLabel}: ${tr.getModeDisplayName(widget.mode.displayName)}',
+              style: TextStyle(
+                fontFamily: 'Pixelated',
+                fontSize: 16,
+                color: kModeTextColor,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Tarjeta Principal con Borde Amarillo
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(
+                color: kCardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: kBorderYellow,
+                  width: 3,
                 ),
-                const SizedBox(width: 16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Título dentro de la caja (Top 5 o Resultado)
+                  Text(
+                    widget.enteredTop5 ? tr.enteredTop5.toUpperCase() : tr.results.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: 'Pixelated',
+                      fontSize: 18,
+                      color: kResultTextColor,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                // Estadísticas en columna
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Fila con Avatar e Stats
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _buildStatRow(
-                        icon: Icons.star,
-                        color: const Color(0xFFFFD700),
-                        value: _formattedScore,
-                        label: tr.finalScore,
+                      // Lado Izquierdo: Avatar / Personaje
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 120,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(_randomTrainerImage),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildStatRow(
-                        icon: Icons.timer,
-                        color: const Color(0xFF4FC43C),
-                        value: _formattedTime,
-                        label: tr.time,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatRow(
-                        icon: Icons.check_circle,
-                        color: Colors.blue,
-                        value: '${_accuracy.toStringAsFixed(0)}%',
-                        label: tr.accuracy,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatRow(
-                        icon: Icons.local_fire_department,
-                        color: Colors.orange,
-                        value: '${widget.maxStreak}',
-                        label: tr.streak,
+
+                      const SizedBox(width: 10),
+
+                      // Lado Derecho: Lista de estadísticas
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildStatRow(
+                              icon: Icons.star,
+                              color: kBorderYellow,
+                              text: _formattedScore,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildStatRow(
+                              icon: Icons.timer_outlined,
+                              color: kTitleGreen,
+                              text: _formattedTime,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildStatRow(
+                              icon: Icons.check_circle_outline,
+                              color: isDark ? Colors.lightBlueAccent : Colors.blue,
+                              text: '${_accuracy.toStringAsFixed(0)}%',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildStatRow(
+                              icon: Icons.local_fire_department,
+                              color: isDark ? Colors.redAccent : Colors.red,
+                              text: widget.maxStreak.toString(),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4. Botón Cerrar
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: widget.onClose,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kButtonGreen,
+                  foregroundColor: Colors.black,
+                  elevation: 5,
+                  shadowColor: Colors.black54,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                 ),
-              ],
+                child: Text(
+                  tr.close.toUpperCase(),
+                  style: const TextStyle(
+                    fontFamily: 'Pixelated',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -265,120 +246,44 @@ class _QuizGameOverDialogState extends State<QuizGameOverDialog> {
     );
   }
 
-  Widget _buildStatsCardWithoutTop5() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF262626),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF4FC43C),
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            _buildStatRow(
-              icon: Icons.star,
-              color: const Color(0xFFFFD700),
-              value: _formattedScore,
-              label: tr.finalScore,
-            ),
-            const SizedBox(height: 16),
-            _buildStatRow(
-              icon: Icons.timer,
-              color: const Color(0xFF4FC43C),
-              value: _formattedTime,
-              label: tr.time,
-            ),
-            const SizedBox(height: 16),
-            _buildStatRow(
-              icon: Icons.check_circle,
-              color: Colors.blue,
-              value: '${_accuracy.toStringAsFixed(0)}%',
-              label: tr.accuracy,
-            ),
-            const SizedBox(height: 16),
-            _buildStatRow(
-              icon: Icons.local_fire_department,
-              color: Colors.orange,
-              value: '${widget.maxStreak}',
-              label: tr.streak,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // Widget helper para las filas de estadísticas
   Widget _buildStatRow({
     required IconData icon,
     required Color color,
-    required String value,
-    required String label,
+    required String text,
   }) {
+    const pixelShadow = [
+      Shadow(
+        color: Color(0xFF000000),
+        offset: Offset(2, 4),
+        blurRadius: 0,
+      ),
+    ];
+
     return Row(
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 24,
+        Text(
+          String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            fontSize: 24,
+            color: color,
+            shadows: pixelShadow,
+          ),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            child: Text(
-              _showLabels ? label : value,
-              key: ValueKey(_showLabels ? 'label' : 'value'),
-              style: TextStyle(
-                fontFamily: 'Pixelated',
-                fontSize: 12,
-                color: _showLabels ? color : Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+        Text(
+          text,
+          style: TextStyle(
+            fontFamily: 'Pixelated',
+            fontSize: 20,
+            color: color,
+            fontWeight: FontWeight.bold,
+            shadows: pixelShadow,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCloseButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: SizedBox(
-        width: double.infinity,
-        height: 64,
-        child: ElevatedButton(
-          onPressed: widget.onClose,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF25B435),
-            foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: 0,
-          ),
-          child: Text(
-            tr.close,
-            style: const TextStyle(
-              fontFamily: 'Pixelated',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

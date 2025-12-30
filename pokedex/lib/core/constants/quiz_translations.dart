@@ -62,6 +62,7 @@ class QuizTranslations {
 
   String get gameFinished => _isSpanish ? 'PARTIDA TERMINADA' : 'GAME FINISHED';
   String get modeLabel => _isSpanish ? 'Modo' : 'Mode';
+  String get results => _isSpanish ? 'RESULTADOS' : 'RESULTS';
   String get finalScore => _isSpanish ? 'PUNTUACIÓN' : 'SCORE';
   String get time => _isSpanish ? 'TIEMPO' : 'TIME';
   String get accuracy => _isSpanish ? 'PRECISIÓN' : 'ACCURACY';
