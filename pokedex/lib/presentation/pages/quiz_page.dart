@@ -328,6 +328,7 @@ class _QuizPageState extends State<QuizPage> {
           totalQuestions: state.totalQuestions,
           correctAnswers: state.correctAnswers,
           incorrectAnswers: state.incorrectAnswers,
+          maxStreak: state.maxStreak,
           enteredTop5: state.enteredTop5,
           languageService: widget.languageService,
           onSaveResult: (playerName) {
@@ -342,4 +343,3 @@ class _QuizPageState extends State<QuizPage> {
     });
   }
 }
-

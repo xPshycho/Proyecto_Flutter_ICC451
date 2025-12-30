@@ -30,9 +30,7 @@ class QuizTranslations {
   String get sound => _isSpanish ? 'Sonido' : 'Sound';
 
   // Modal de nombre
-  String get enterTrainerName => _isSpanish
-      ? 'Ingresa tu nombre de entrenador'
-      : 'Enter your trainer name';
+  String get enterTrainerName => _isSpanish ? 'Ingresa tu nombre de entrenador' : 'Enter your trainer name';
   String get cancel => _isSpanish ? 'CANCELAR' : 'CANCEL';
   String get start => _isSpanish ? 'COMENZAR' : 'START';
 
@@ -54,7 +52,7 @@ class QuizTranslations {
 
   // Stats bar
   String get points => _isSpanish ? 'PUNTOS' : 'POINTS';
-  String get streak => _isSpanish ? 'racha' : 'streak';
+  String get streak => _isSpanish ? 'Racha' : 'Streak';
 
   // Display area (Sound mode)
   String get listenToSound => _isSpanish ? 'Escucha el sonido' : 'Listen to the sound';
@@ -62,17 +60,15 @@ class QuizTranslations {
 
   // ============ Game Over Dialog ============
 
-  String get gameFinished => _isSpanish ? '¡PARTIDA TERMINADA!' : 'GAME FINISHED!';
+  String get gameFinished => _isSpanish ? 'PARTIDA TERMINADA' : 'GAME FINISHED';
   String get modeLabel => _isSpanish ? 'Modo' : 'Mode';
-  String get finalScore => _isSpanish ? 'PUNTUACIÓN FINAL' : 'FINAL SCORE';
+  String get finalScore => _isSpanish ? 'PUNTUACIÓN' : 'SCORE';
   String get time => _isSpanish ? 'TIEMPO' : 'TIME';
   String get accuracy => _isSpanish ? 'PRECISIÓN' : 'ACCURACY';
   String get questions => _isSpanish ? 'PREGUNTAS' : 'QUESTIONS';
   String get correct => _isSpanish ? 'CORRECTAS' : 'CORRECT';
-  String get enteredTop5 => _isSpanish ? '¡ENTRASTE AL TOP 5!' : 'YOU MADE THE TOP 5!';
-  String get scoreSaved => _isSpanish
-      ? 'Tu puntuación ha sido guardada'
-      : 'Your score has been saved';
+  String get enteredTop5 => _isSpanish ? 'ENTRASTE AL TOP 5' : 'YOU MADE THE TOP 5';
+  String get scoreSaved => _isSpanish ? 'Tu puntuación ha sido guardada' : 'Your score has been saved';
   String get close => _isSpanish ? 'CERRAR' : 'CLOSE';
 
   // ============ Achievements Page ============
@@ -141,4 +137,3 @@ class QuizTranslations {
 extension QuizTranslationsExtension on String {
   QuizTranslations get tr => QuizTranslations.forLanguage(this);
 }
-

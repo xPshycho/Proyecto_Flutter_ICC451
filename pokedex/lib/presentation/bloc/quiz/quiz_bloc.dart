@@ -281,6 +281,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       totalQuestions: currentState.totalQuestions,
       correctAnswers: currentState.correctAnswers,
       incorrectAnswers: currentState.incorrectAnswers,
+      maxStreak: _maxStreakThisGame,
       enteredTop5: enteredTop5,
     ));
   }

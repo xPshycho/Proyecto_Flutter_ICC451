@@ -145,6 +145,7 @@ class QuizFinished extends QuizState {
   final int totalQuestions;
   final int correctAnswers;
   final int incorrectAnswers;
+  final int maxStreak;
   final bool enteredTop5;
 
   const QuizFinished({
@@ -155,6 +156,7 @@ class QuizFinished extends QuizState {
     required this.totalQuestions,
     required this.correctAnswers,
     required this.incorrectAnswers,
+    required this.maxStreak,
     this.enteredTop5 = false,
   });
 
@@ -167,6 +169,7 @@ class QuizFinished extends QuizState {
         totalQuestions,
         correctAnswers,
         incorrectAnswers,
+        maxStreak,
         enteredTop5,
       ];
 }
