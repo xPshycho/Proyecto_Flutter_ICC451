@@ -33,6 +33,7 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+      evolutionChainId: speciesData['evolutionChainId'],
       isDefault: isDefault,
     );
   }
@@ -77,6 +78,7 @@ class PokemonMapperService {
       isLegendary: speciesData['isLegendary'],
       isMythical: speciesData['isMythical'],
       generationId: speciesData['generationId'],
+      evolutionChainId: speciesData['evolutionChainId'],
       eggGroups: speciesData['eggGroups'],
       isDefault: isDefault,
     );
@@ -158,7 +160,7 @@ class PokemonMapperService {
     return statsMap;
   }
 
-  /// Extrae datos de la especie (legendary, mythical, categories, generationId, eggGroups)
+  /// Extrae datos de la especie (legendary, mythical, categories, generationId, evolutionChainId, eggGroups)
   static Map<String, dynamic> _extractSpeciesData(dynamic speciesData) {
     if (speciesData == null) {
       return {
@@ -166,6 +168,7 @@ class PokemonMapperService {
         'isLegendary': null,
         'isMythical': null,
         'generationId': null,
+        'evolutionChainId': null,
         'eggGroups': null,
       };
     }
@@ -173,10 +176,11 @@ class PokemonMapperService {
     final isLegendary = speciesData['is_legendary'] as bool?;
     final isMythical = speciesData['is_mythical'] as bool?;
     final generationId = speciesData['generation_id'] as int?;
+    final evolutionChainId = speciesData['evolution_chain_id'] as int?;
 
     final categories = <String>[];
     if (isLegendary == true) categories.add('legendario');
-    if (isMythical == true) categories.add('mitico');
+    if (isMythical == true) categories.add('mítico');
 
     // Extraer grupos de huevo
     final eggGroups = _extractEggGroups(speciesData['pokemon_v2_pokemonegggroups']);
@@ -186,6 +190,7 @@ class PokemonMapperService {
       'isLegendary': isLegendary,
       'isMythical': isMythical,
       'generationId': generationId,
+      'evolutionChainId': evolutionChainId,
       'eggGroups': eggGroups,
     };
   }

@@ -215,8 +215,8 @@ class PokemonRepository {
   bool _requiresFullCache(List<String> categories) {
     if (categories.isEmpty) return false;
 
-    const heavyCategories = {'legendario', 'mítico', 'mitico', 'mega', 'gigantamax'};
-    return categories.any((c) => heavyCategories.contains(c.toLowerCase()));
+    const heavyCategories = {'legendario', 'mitico', 'mega', 'gigantamax'};
+    return categories.any((c) => heavyCategories.contains(_normalizeString(c)));
   }
 
   /// Verifica si un Pokémon tiene detalles completos
@@ -342,7 +342,13 @@ class PokemonRepository {
     }
 
     // Paginar
-    return PokemonFilterService.paginate(list, offset, limit);
+    final paginated = PokemonFilterService.paginate(list, offset, limit);
+
+    // Enriquecer SOLO la página actual con categorías de formas
+    debugPrint('Enriching ${paginated.length} pokemon in current page with form categories');
+    final enriched = await _enrichWithFormCategoriesProgressive(paginated);
+
+    return enriched;
   }
 
   /// Obtiene Pokémon de forma paginada
@@ -658,9 +664,9 @@ class PokemonRepository {
     debugPrint('Pokemon with category "legendario": $withCatLegendary');
     debugPrint('Pokemon with category "mitico": $withCatMythical');
 
-    // Enriquecer con categorías de formas (Mega, Gigantamax) para todos
-    debugPrint('Enriching all pokemon with form categories...');
-    _allCache = await _enrichWithFormCategories(_allCache ?? []);
+    // Enriquecer TODO el caché con Mega/Gigantamax usando UNA query batch masiva
+    debugPrint('Enriching all pokemon with form categories using single batch query...');
+    _allCache = await _enrichAllWithFormCategoriesBatch(_allCache ?? []);
 
     final afterMega = _allCache!.where((p) => p.categories?.contains('mega') == true).length;
     final afterGiga = _allCache!.where((p) => p.categories?.contains('gigantamax') == true).length;
@@ -983,48 +989,83 @@ class PokemonRepository {
   }
 
   /// Enriquece los pokémon con categorías basadas en sus formas
+  /// Usa _fetchFormsByEvolutionChainId como en el detalle
   Future<List<Pokemon>> _enrichWithFormCategories(List<Pokemon> list) async {
     if (list.isEmpty) return list;
 
-    debugPrint('Starting to enrich ${list.length} pokemon with form categories');
-
-    // Obtener formas para todos los pokémon en lotes
-    final ids = list.map((p) => p.id).toList();
-    final formsMap = await _fetchFormsByPokemonIds(ids);
+    debugPrint('Starting to enrich ${list.length} pokemon with form categories using evolution chains');
 
     int enrichedCount = 0;
+    int megaCount = 0;
+    int gigaCount = 0;
 
-    // Enriquecer cada pokémon con categorías derivadas de sus formas
+    // Agrupar por evolution_chain_id y cachear las formas por cadena
+    final chainMap = <int, List<Pokemon>>{};
+    for (final pokemon in list) {
+      final chainId = pokemon.evolutionChainId;
+      if (chainId != null) {
+        chainMap.putIfAbsent(chainId, () => []).add(pokemon);
+      }
+    }
+
+    debugPrint('Grouped ${list.length} pokemon into ${chainMap.length} evolution chains');
+
+    // Obtener formas para cada cadena (igual que en _processDetailedPokemon)
+    final chainFormsMap = <int, List<dynamic>>{};
+    for (final chainId in chainMap.keys) {
+      try {
+        final forms = await _fetchFormsByEvolutionChainId(chainId);
+        chainFormsMap[chainId] = forms;
+        if (forms.isNotEmpty) {
+          debugPrint('Chain $chainId: ${forms.length} forms found');
+        }
+      } catch (e) {
+        debugPrint('Error fetching forms for chain $chainId: $e');
+      }
+    }
+
+    // Enriquecer cada pokémon
     final result = list.map((pokemon) {
-      final forms = formsMap[pokemon.id] ?? [];
+      final chainId = pokemon.evolutionChainId;
+      final forms = chainId != null ? (chainFormsMap[chainId] ?? []) : [];
       final categories = List<String>.from(pokemon.categories ?? []);
 
-      // Detectar Mega
+      // Detectar Mega: is_mega=true o form_name contiene "mega"
       final hasMega = forms.any((f) {
         final isMega = f['is_mega'] as bool? ?? false;
+        if (isMega) return true;
+
         final name = (f['name'] as String? ?? '').toLowerCase();
-        return isMega || name.contains('mega');
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+
+        // Patrón: "-mega" en name o "mega" en form_name (evita "meganium")
+        return name.contains('-mega') || formName == 'mega' || formName.startsWith('mega-');
       });
 
       if (hasMega && !categories.contains('mega')) {
         categories.add('mega');
         enrichedCount++;
+        megaCount++;
+        debugPrint('  ✓ Mega: ${pokemon.name} (ID: ${pokemon.id})');
       }
 
-      // Detectar Gigantamax
+      // Detectar Gigantamax: form_name contiene "gmax"
       final hasGigantamax = forms.any((f) {
         final name = (f['name'] as String? ?? '').toLowerCase();
         final formName = (f['form_name'] as String? ?? '').toLowerCase();
-        return name.contains('gmax') || formName.contains('gmax') ||
-               name.contains('gigantamax') || formName.contains('gigantamax');
+
+        return name.contains('-gmax') || formName == 'gmax' ||
+               formName.contains('gigantamax') || name.contains('gigantamax');
       });
 
       if (hasGigantamax && !categories.contains('gigantamax')) {
         categories.add('gigantamax');
         enrichedCount++;
+        gigaCount++;
+        debugPrint('  ✓ Gigantamax: ${pokemon.name} (ID: ${pokemon.id})');
       }
 
-      // Si se agregaron categorías, crear nuevo pokémon
+      // Crear nuevo Pokemon si se agregaron categorías
       if (categories.length > (pokemon.categories?.length ?? 0)) {
         return Pokemon(
           id: pokemon.id,
@@ -1042,6 +1083,7 @@ class PokemonRepository {
           isLegendary: pokemon.isLegendary,
           isMythical: pokemon.isMythical,
           generationId: pokemon.generationId,
+          evolutionChainId: pokemon.evolutionChainId,
           forms: forms,
         );
       }
@@ -1050,6 +1092,8 @@ class PokemonRepository {
     }).toList();
 
     debugPrint('Enriched $enrichedCount pokemon with form categories');
+    debugPrint('  - Mega: $megaCount pokemon');
+    debugPrint('  - Gigantamax: $gigaCount pokemon');
     return result;
   }
 
@@ -1060,20 +1104,37 @@ class PokemonRepository {
   ) async {
     if (categories.isEmpty) return list;
 
-    final catSet = categories.map((c) => c.toLowerCase()).toSet();
-    debugPrint('Filtering by categories: $catSet');
+    final catSet = categories.map((c) => _normalizeString(c)).toSet();
+    debugPrint('Filtering by categories: $catSet (original: $categories)');
 
-    // Filtrar por categorías (ya enriquecidas previamente)
     final filtered = list.where((p) {
       if (p.categories != null && p.categories!.isNotEmpty) {
-        final pokemonCats = p.categories!.map((c) => c.toLowerCase()).toSet();
-        return pokemonCats.any((c) => catSet.contains(c));
+        final pokemonCats = p.categories!.map((c) => _normalizeString(c)).toSet();
+        final hasMatch = pokemonCats.any((c) => catSet.contains(c));
+
+        if (hasMatch) {
+          debugPrint('  ✓ ${p.name} (ID: ${p.id}) - categories: ${p.categories}');
+        }
+
+        return hasMatch;
       }
       return false;
     }).toList();
 
     debugPrint('Found ${filtered.length} pokemon with categories from ${list.length} total');
     return filtered;
+  }
+
+  /// Normaliza strings para comparación (minúsculas, sin acentos)
+  String _normalizeString(String str) {
+    return str
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .trim();
   }
 
   // ========== Métodos de testing ==========
@@ -1123,5 +1184,245 @@ class PokemonRepository {
     }
 
     return [];
+  }
+
+  /// Versión progresiva optimizada: enriquece solo un grupo pequeño de Pokémon
+  /// Hace UNA consulta batch para todas las cadenas del grupo
+  Future<List<Pokemon>> _enrichWithFormCategoriesProgressive(List<Pokemon> list) async {
+    if (list.isEmpty) return list;
+
+    // Obtener los chain IDs únicos del grupo
+    final chainIds = list
+        .where((p) => p.evolutionChainId != null)
+        .map((p) => p.evolutionChainId!)
+        .toSet()
+        .toList();
+
+    if (chainIds.isEmpty) return list;
+
+    debugPrint('Progressive enrichment: ${list.length} pokemon, ${chainIds.length} unique chains');
+
+    // UNA SOLA query batch para todas las cadenas del grupo
+    final allForms = await _fetchFormsByMultipleChains(chainIds);
+
+    // Agrupar formas por chain_id
+    final chainFormsMap = <int, List<dynamic>>{};
+    for (final form in allForms) {
+      if (form['pokemon_v2_pokemon'] != null) {
+        final pokemonData = form['pokemon_v2_pokemon'];
+        if (pokemonData['pokemon_v2_pokemonspecy'] != null) {
+          final chainId = pokemonData['pokemon_v2_pokemonspecy']['evolution_chain_id'] as int?;
+          if (chainId != null) {
+            chainFormsMap.putIfAbsent(chainId, () => []).add(form);
+          }
+        }
+      }
+    }
+
+    // Enriquecer cada pokémon
+    int megaCount = 0;
+    int gigaCount = 0;
+
+    final result = list.map((pokemon) {
+      final chainId = pokemon.evolutionChainId;
+      if (chainId == null) return pokemon;
+
+      final forms = chainFormsMap[chainId] ?? [];
+      if (forms.isEmpty) return pokemon;
+
+      final categories = List<String>.from(pokemon.categories ?? []);
+
+      // Detectar Mega
+      final hasMega = forms.any((f) {
+        final isMega = f['is_mega'] as bool? ?? false;
+        if (isMega) return true;
+
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+
+        return name.contains('-mega') || formName == 'mega' || formName.startsWith('mega-');
+      });
+
+      // Detectar Gigantamax
+      final hasGigantamax = forms.any((f) {
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+
+        return name.contains('-gmax') || formName == 'gmax' ||
+               formName.contains('gigantamax') || name.contains('gigantamax');
+      });
+
+      if (hasMega && !categories.contains('mega')) {
+        categories.add('mega');
+        megaCount++;
+      }
+
+      if (hasGigantamax && !categories.contains('gigantamax')) {
+        categories.add('gigantamax');
+        gigaCount++;
+      }
+
+      if (categories.length > (pokemon.categories?.length ?? 0)) {
+        return Pokemon(
+          id: pokemon.id,
+          name: pokemon.name,
+          spriteUrl: pokemon.spriteUrl,
+          types: pokemon.types,
+          height: pokemon.height,
+          weight: pokemon.weight,
+          description: pokemon.description,
+          evolutions: pokemon.evolutions,
+          isFavorite: pokemon.isFavorite,
+          abilities: pokemon.abilities,
+          stats: pokemon.stats,
+          categories: categories,
+          isLegendary: pokemon.isLegendary,
+          isMythical: pokemon.isMythical,
+          generationId: pokemon.generationId,
+          evolutionChainId: pokemon.evolutionChainId,
+          forms: forms,
+        );
+      }
+
+      return pokemon;
+    }).toList();
+
+    if (megaCount > 0 || gigaCount > 0) {
+      debugPrint('  ✓ Enriched: $megaCount Mega, $gigaCount Gigantamax');
+    }
+
+    return result;
+  }
+
+  /// Obtiene formas para múltiples cadenas evolutivas en UNA sola query batch
+  Future<List<dynamic>> _fetchFormsByMultipleChains(List<int> chainIds) async {
+    if (chainIds.isEmpty) return [];
+
+    try {
+      final result = await _executor.executeQuery(
+        query: GraphQLQueryService.formsByMultipleChains,
+        variables: {'chainIds': chainIds},
+      );
+
+      if (!result.hasException && result.data != null) {
+        final data = result.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
+        if (data != null) {
+          return data
+              .whereType<Map<String, dynamic>>()
+              .map(PokemonMapperService.createForm)
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching forms for multiple chains: $e');
+    }
+
+    return [];
+  }
+
+  /// Enriquece TODOS los Pokémon del caché con categorías Mega/Gigantamax
+  /// Usa UNA sola query batch masiva para todas las cadenas evolutivas
+  Future<List<Pokemon>> _enrichAllWithFormCategoriesBatch(List<Pokemon> list) async {
+    if (list.isEmpty) return list;
+
+    // Obtener TODOS los chain IDs únicos
+    final allChainIds = list
+        .where((p) => p.evolutionChainId != null)
+        .map((p) => p.evolutionChainId!)
+        .toSet()
+        .toList();
+
+    if (allChainIds.isEmpty) return list;
+
+    debugPrint('Batch enrichment: ${list.length} pokemon, ${allChainIds.length} unique chains');
+
+    // UNA SOLA query masiva para TODAS las cadenas
+    final allForms = await _fetchFormsByMultipleChains(allChainIds);
+    debugPrint('Fetched ${allForms.length} total forms');
+
+    // Agrupar formas por chain_id
+    final chainFormsMap = <int, List<dynamic>>{};
+    for (final form in allForms) {
+      if (form['pokemon_v2_pokemon'] != null) {
+        final pokemonData = form['pokemon_v2_pokemon'];
+        if (pokemonData['pokemon_v2_pokemonspecy'] != null) {
+          final chainId = pokemonData['pokemon_v2_pokemonspecy']['evolution_chain_id'] as int?;
+          if (chainId != null) {
+            chainFormsMap.putIfAbsent(chainId, () => []).add(form);
+          }
+        }
+      }
+    }
+
+    // Enriquecer todos los Pokémon
+    int megaCount = 0;
+    int gigaCount = 0;
+
+    final result = list.map((pokemon) {
+      final chainId = pokemon.evolutionChainId;
+      if (chainId == null) return pokemon;
+
+      final forms = chainFormsMap[chainId] ?? [];
+      if (forms.isEmpty) return pokemon;
+
+      final categories = List<String>.from(pokemon.categories ?? []);
+
+      // Detectar Mega
+      final hasMega = forms.any((f) {
+        final isMega = f['is_mega'] as bool? ?? false;
+        if (isMega) return true;
+
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+
+        return name.contains('-mega') || formName == 'mega' || formName.startsWith('mega-');
+      });
+
+      // Detectar Gigantamax
+      final hasGigantamax = forms.any((f) {
+        final name = (f['name'] as String? ?? '').toLowerCase();
+        final formName = (f['form_name'] as String? ?? '').toLowerCase();
+
+        return name.contains('-gmax') || formName == 'gmax' ||
+               formName.contains('gigantamax') || name.contains('gigantamax');
+      });
+
+      if (hasMega && !categories.contains('mega')) {
+        categories.add('mega');
+        megaCount++;
+      }
+
+      if (hasGigantamax && !categories.contains('gigantamax')) {
+        categories.add('gigantamax');
+        gigaCount++;
+      }
+
+      if (categories.length > (pokemon.categories?.length ?? 0)) {
+        return Pokemon(
+          id: pokemon.id,
+          name: pokemon.name,
+          spriteUrl: pokemon.spriteUrl,
+          types: pokemon.types,
+          height: pokemon.height,
+          weight: pokemon.weight,
+          description: pokemon.description,
+          evolutions: pokemon.evolutions,
+          isFavorite: pokemon.isFavorite,
+          abilities: pokemon.abilities,
+          stats: pokemon.stats,
+          categories: categories,
+          isLegendary: pokemon.isLegendary,
+          isMythical: pokemon.isMythical,
+          generationId: pokemon.generationId,
+          evolutionChainId: pokemon.evolutionChainId,
+          forms: forms,
+        );
+      }
+
+      return pokemon;
+    }).toList();
+
+    debugPrint('Batch enrichment complete: $megaCount Mega, $gigaCount Gigantamax');
+    return result;
   }
 }

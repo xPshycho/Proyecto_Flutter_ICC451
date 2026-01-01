@@ -85,6 +85,35 @@ class GraphQLQueryService {
     }
   ''';
 
+  /// Query para obtener formas de múltiples especies
+  static const String formsBySpeciesIds = r'''
+    query getFormsBySpeciesIds($speciesIds: [Int!]) {
+      pokemon_v2_pokemonform(
+        where: {
+          pokemon_v2_pokemon: {
+            pokemon_v2_pokemonspecy: {id: {_in: $speciesIds}}
+          }
+        }
+      ) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+        pokemon_v2_pokemon {
+          pokemon_v2_pokemonspecy {
+            id
+          }
+        }
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
+      }
+    }
+  ''';
+
   /// NUEVO: formas de toda una cadena evolutiva.
   ///
   /// Importante: muchas megas/variantes viven en otros `pokemon_id` dentro de la misma
@@ -106,6 +135,35 @@ class GraphQLQueryService {
         is_default
         is_battle_only
         is_mega
+        pokemon_v2_pokemonformsprites {
+          sprites
+        }
+      }
+    }
+  ''';
+
+  /// Query optimizada: formas para MÚLTIPLES cadenas evolutivas en una sola consulta
+  static const String formsByMultipleChains = r'''
+    query getFormsByMultipleChains($chainIds: [Int!]) {
+      pokemon_v2_pokemonform(
+        where: {
+          pokemon_v2_pokemon: {
+            pokemon_v2_pokemonspecy: {evolution_chain_id: {_in: $chainIds}}
+          }
+        }
+      ) {
+        id
+        pokemon_id
+        name
+        form_name
+        is_default
+        is_battle_only
+        is_mega
+        pokemon_v2_pokemon {
+          pokemon_v2_pokemonspecy {
+            evolution_chain_id
+          }
+        }
         pokemon_v2_pokemonformsprites {
           sprites
         }

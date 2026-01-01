@@ -32,6 +32,7 @@ class Pokemon {
   final bool? isLegendary;
   final bool? isMythical;
   final int? generationId;
+  final int? evolutionChainId; // ID de la cadena evolutiva
   final List<dynamic>? forms;
   /// NUEVO: formas agregadas de toda la cadena evolutiva (megas/variantes de las evoluciones)
   final List<dynamic>? formsChain;
@@ -59,6 +60,7 @@ class Pokemon {
     this.isLegendary,
     this.isMythical,
     this.generationId,
+    this.evolutionChainId,
     this.forms,
     this.formsChain,
     this.eggGroups,
@@ -78,6 +80,7 @@ class Pokemon {
     List<Pokemon>? evolutions,
     Map<int, EvolutionDetail>? evolutionDetails,
     int? generationId,
+    int? evolutionChainId,
     List<String>? eggGroups,
     bool? isDefault,
   }) {
@@ -99,6 +102,7 @@ class Pokemon {
       isLegendary: isLegendary,
       isMythical: isMythical,
       generationId: generationId ?? this.generationId,
+      evolutionChainId: evolutionChainId ?? this.evolutionChainId,
       forms: forms ?? this.forms,
       formsChain: formsChain ?? this.formsChain,
       description: description ?? this.description,
@@ -141,6 +145,7 @@ class Pokemon {
       isLegendary: json['isLegendary'] as bool?,
       isMythical: json['isMythical'] as bool?,
       generationId: json['generationId'] as int?,
+      evolutionChainId: json['evolutionChainId'] as int?,
       forms: json['forms'] as List<dynamic>?,
       formsChain: json['formsChain'] as List<dynamic>?,
       description: json['description'] as String?,
