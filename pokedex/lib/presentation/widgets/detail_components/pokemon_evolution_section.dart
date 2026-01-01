@@ -20,6 +20,14 @@ class PokemonEvolutionSection extends StatelessWidget {
     700, // Sylveon
   };
 
+  // IDs de la familia Deoxys
+  static const int _deoxysNormalId = 386;
+  static const Set<int> _deoxysFormIds = {
+    10001, // Deoxys-Attack
+    10002, // Deoxys-Defense
+    10003, // Deoxys-Speed
+  };
+
   const PokemonEvolutionSection({
     super.key,
     required this.pokemon,
@@ -76,9 +84,29 @@ class PokemonEvolutionSection extends StatelessWidget {
     return false;
   }
 
+  /// Verifica si es la familia de Deoxys
+  bool _isDeoxysFamily() {
+    if (pokemon.id == _deoxysNormalId) return true;
+    if (_deoxysFormIds.contains(pokemon.id)) return true;
+
+    // Verificar si alguna evolución es Deoxys o sus formas
+    if (pokemon.evolutions != null) {
+      for (final evo in pokemon.evolutions!) {
+        if (evo.id == _deoxysNormalId || _deoxysFormIds.contains(evo.id)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (pokemon.evolutions == null || pokemon.evolutions!.isEmpty) {
+      // Para Deoxys, mostrar sus formas aunque no tenga evoluciones tradicionales
+      if (_isDeoxysFamily()) {
+        return _buildDeoxysFormsSection();
+      }
       return const SizedBox.shrink();
     }
 
@@ -100,8 +128,250 @@ class PokemonEvolutionSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _isEeveeFamily() ? _buildEeveeEvolutionTree() : _buildEvolutionChain(),
+        _buildEvolutionDisplay(),
       ],
+    );
+  }
+
+  Widget _buildEvolutionDisplay() {
+    if (_isEeveeFamily()) {
+      return _buildEeveeEvolutionTree();
+    } else if (_isDeoxysFamily()) {
+      return _buildDeoxysFormsTree();
+    } else {
+      return _buildEvolutionChain();
+    }
+  }
+
+  /// Construye la sección de formas de Deoxys cuando no hay evoluciones
+  Widget _buildDeoxysFormsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.change_circle_outlined, size: 20, color: Colors.grey[700]),
+            const SizedBox(width: 8),
+            const Text(
+              'FORMAS DE DEOXYS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildDeoxysFormsTree(),
+      ],
+    );
+  }
+
+  /// Construye el árbol de formas de Deoxys
+  Widget _buildDeoxysFormsTree() {
+    // Crear lista de formas de Deoxys
+    final List<_DeoxysForm> deoxysFormsList = [
+      _DeoxysForm(id: _deoxysNormalId, name: 'Deoxys', formName: 'Normal'),
+      _DeoxysForm(id: 10001, name: 'Deoxys-Attack', formName: 'Ataque'),
+      _DeoxysForm(id: 10002, name: 'Deoxys-Defense', formName: 'Defensa'),
+      _DeoxysForm(id: 10003, name: 'Deoxys-Speed', formName: 'Velocidad'),
+    ];
+
+    // Forma normal es el origen
+    final normalForm = deoxysFormsList.first;
+    final otherForms = deoxysFormsList.skip(1).toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Deoxys Normal (origen)
+          _buildDeoxysFormItem(
+            formData: normalForm,
+            isCurrentPokemon: pokemon.id == normalForm.id,
+          ),
+          const SizedBox(width: 8),
+          // Conector y ramas
+          _buildDeoxysFormBranches(otherForms),
+        ],
+      ),
+    );
+  }
+
+  /// Construye las ramas de formas de Deoxys
+  Widget _buildDeoxysFormBranches(List<_DeoxysForm> forms) {
+    if (forms.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Línea horizontal hacia las ramas
+        Container(
+          width: 20,
+          height: 2,
+          color: Colors.grey[400],
+        ),
+        // Contenedor con línea vertical y ramas
+        CustomPaint(
+          painter: _BranchLinePainter(
+            itemCount: forms.length,
+            itemHeight: 95,
+            color: Colors.grey[400]!,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: forms.map((form) {
+              return _buildDeoxysFormRow(form);
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Construye una fila de forma de Deoxys
+  Widget _buildDeoxysFormRow(_DeoxysForm form) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Espacio para la línea vertical
+          const SizedBox(width: 2),
+          // Línea horizontal hacia el nodo
+          Container(
+            width: 20,
+            height: 2,
+            color: Colors.grey[400],
+          ),
+          // Flecha con etiqueta de forma
+          _buildDeoxysFormArrow(form.formName),
+          // Nodo de la forma
+          _buildDeoxysFormItem(
+            formData: form,
+            isCurrentPokemon: pokemon.id == form.id,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Flecha con etiqueta de forma para Deoxys
+  Widget _buildDeoxysFormArrow(String formName) {
+    return Container(
+      width: 75,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.swap_horiz,
+            size: 16,
+            color: Colors.purple[400],
+          ),
+          const SizedBox(height: 2),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              formName,
+              style: TextStyle(
+                fontSize: 7,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple[700],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Item de forma de Deoxys
+  Widget _buildDeoxysFormItem({
+    required _DeoxysForm formData,
+    required bool isCurrentPokemon,
+  }) {
+    final typeColor = PokemonConstants.getTypeColor('Psíquico');
+    final spriteUrl = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${formData.id}.png';
+
+    return GestureDetector(
+      onTap: () => onEvolutionTap?.call(formData.id),
+      child: Container(
+        width: 85,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isCurrentPokemon
+              ? typeColor.withAlpha(51)
+              : Colors.grey.withAlpha(25),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCurrentPokemon ? typeColor : Colors.grey.withAlpha(76),
+            width: isCurrentPokemon ? 2.5 : 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: typeColor.withAlpha(76),
+              ),
+              child: Image.network(
+                spriteUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.catching_pokemon,
+                    size: 30,
+                    color: typeColor,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              formData.formName,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: isCurrentPokemon ? FontWeight.bold : FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Nº${formData.id > 10000 ? formData.id.toString() : formData.id.toString().padLeft(3, '0')}',
+              style: TextStyle(
+                fontSize: 7,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: typeColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -473,6 +743,19 @@ class PokemonEvolutionSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Clase helper para datos de formas de Deoxys
+class _DeoxysForm {
+  final int id;
+  final String name;
+  final String formName;
+
+  const _DeoxysForm({
+    required this.id,
+    required this.name,
+    required this.formName,
+  });
 }
 
 /// Painter para dibujar la línea vertical de conexión de las ramas
