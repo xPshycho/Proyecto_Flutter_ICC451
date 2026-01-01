@@ -186,8 +186,9 @@ class PokemonFilterService {
     String? sortBy,
     bool ascending,
     String Function(T) nameExtractor,
-    int Function(T) idExtractor,
-  ) {
+    int Function(T) idExtractor, {
+    List<String> Function(T)? typeExtractor,
+  }) {
     if (sortBy == null) return items;
 
     final sorted = List<T>.from(items);
@@ -201,6 +202,23 @@ class PokemonFilterService {
       sorted.sort((a, b) {
         final comparison = idExtractor(a).compareTo(idExtractor(b));
         return ascending ? comparison : -comparison;
+      });
+    } else if (sortBy == 'type' && typeExtractor != null) {
+      sorted.sort((a, b) {
+        final typesA = typeExtractor(a);
+        final typesB = typeExtractor(b);
+        final typeA = typesA.isNotEmpty ? typesA.first.toLowerCase() : '';
+        final typeB = typesB.isNotEmpty ? typesB.first.toLowerCase() : '';
+
+        // Comparar por tipo principal
+        final typeComparison = typeA.compareTo(typeB);
+        if (typeComparison != 0) {
+          return ascending ? typeComparison : -typeComparison;
+        }
+
+        // Si tienen el mismo tipo, ordenar por ID como criterio secundario
+        final idComparison = idExtractor(a).compareTo(idExtractor(b));
+        return ascending ? idComparison : -idComparison;
       });
     }
 

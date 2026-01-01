@@ -33,6 +33,11 @@ class SearchPokemon extends PokemonEvent {
   List<Object?> get props => [query];
 }
 
+/// Evento para limpiar la búsqueda (mantiene filtros y ordenamiento)
+class ClearSearch extends PokemonEvent {
+  const ClearSearch();
+}
+
 /// Evento para aplicar filtros
 class ApplyFilters extends PokemonEvent {
   final List<String> types;

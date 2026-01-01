@@ -35,6 +35,7 @@ class PokemonBloc extends Bloc<PokemonEvent, PokemonState> {
     on<LoadPokemonList>(_onLoadPokemonList, transformer: restartable());
     on<LoadMorePokemons>(_onLoadMorePokemons);
     on<SearchPokemon>(_onSearchPokemon, transformer: restartable());
+    on<ClearSearch>(_onClearSearch, transformer: restartable());
     on<ApplyFilters>(_onApplyFilters, transformer: restartable());
     on<ApplySort>(_onApplySort, transformer: restartable());
     on<ClearFilters>(_onClearFilters);
@@ -143,6 +144,39 @@ class PokemonBloc extends Bloc<PokemonEvent, PokemonState> {
     } catch (e) {
       debugPrint('Error searching pokemon: $e');
       emit(PokemonError(message: 'Error en la búsqueda: $e'));
+    }
+  }
+
+  /// Maneja la limpieza de búsqueda (mantiene filtros y ordenamiento)
+  Future<void> _onClearSearch(
+    ClearSearch event,
+    Emitter<PokemonState> emit,
+  ) async {
+    try {
+      _currentQuery = '';
+      _offset = 0;
+
+      emit(const PokemonLoading());
+
+      final pokemons = await _fetchPokemons();
+
+      _offset = pokemons.length;
+
+      emit(PokemonLoaded(
+        pokemons: pokemons,
+        hasReachedMax: pokemons.length < AppConstants.defaultPageSize,
+        searchQuery: null,
+        activeTypes: _currentTypes,
+        activeRegions: _currentRegions,
+        activeCategories: _currentCategories,
+        showFavorites: _showFavorites,
+        showNoFavorites: _showNoFavorites,
+        sortBy: _sortBy,
+        ascending: _ascending,
+      ));
+    } catch (e) {
+      debugPrint('Error clearing search: $e');
+      emit(PokemonError(message: 'Error al limpiar búsqueda: $e'));
     }
   }
 

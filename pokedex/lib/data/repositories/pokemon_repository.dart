@@ -81,6 +81,19 @@ class PokemonRepository {
       );
     }
 
+    // Ordenar por tipo requiere caché completo (GraphQL no puede ordenar por tipo)
+    if (sortBy == 'type') {
+      return _fetchWithFullCache(
+        limit: limit,
+        offset: offset,
+        types: types,
+        regions: regions,
+        categories: normalizedCategories,
+        sortBy: sortBy,
+        ascending: ascending,
+      );
+    }
+
     // Flujo normal paginado
     return _fetchPaginated(
       limit: limit,
@@ -338,6 +351,7 @@ class PokemonRepository {
         ascending ?? true,
         (p) => p.name,
         (p) => p.id,
+        typeExtractor: (p) => p.types,
       );
     }
 
@@ -694,6 +708,7 @@ class PokemonRepository {
         ascending ?? true,
         (p) => p.name,
         (p) => p.id,
+        typeExtractor: (p) => p.types,
       );
     }
 
@@ -1027,11 +1042,20 @@ class PokemonRepository {
     // Enriquecer cada pokémon
     final result = list.map((pokemon) {
       final chainId = pokemon.evolutionChainId;
-      final forms = chainId != null ? (chainFormsMap[chainId] ?? []) : [];
+      final chainForms = chainId != null ? (chainFormsMap[chainId] ?? []) : [];
+
+      // Filtrar solo las formas que pertenecen a este Pokémon específico
+      final pokemonForms = chainForms.where((f) {
+        final pokemonId = f['pokemon_id'] as int?;
+        return pokemonId == pokemon.id;
+      }).toList();
+
+      if (pokemonForms.isEmpty) return pokemon;
+
       final categories = List<String>.from(pokemon.categories ?? []);
 
       // Detectar Mega: is_mega=true o form_name contiene "mega"
-      final hasMega = forms.any((f) {
+      final hasMega = pokemonForms.any((f) {
         final isMega = f['is_mega'] as bool? ?? false;
         if (isMega) return true;
 
@@ -1050,7 +1074,7 @@ class PokemonRepository {
       }
 
       // Detectar Gigantamax: form_name contiene "gmax"
-      final hasGigantamax = forms.any((f) {
+      final hasGigantamax = pokemonForms.any((f) {
         final name = (f['name'] as String? ?? '').toLowerCase();
         final formName = (f['form_name'] as String? ?? '').toLowerCase();
 
@@ -1084,7 +1108,7 @@ class PokemonRepository {
           isMythical: pokemon.isMythical,
           generationId: pokemon.generationId,
           evolutionChainId: pokemon.evolutionChainId,
-          forms: forms,
+          forms: pokemonForms,
         );
       }
 
@@ -1227,13 +1251,23 @@ class PokemonRepository {
       final chainId = pokemon.evolutionChainId;
       if (chainId == null) return pokemon;
 
-      final forms = chainFormsMap[chainId] ?? [];
-      if (forms.isEmpty) return pokemon;
+      final chainForms = chainFormsMap[chainId] ?? [];
+      if (chainForms.isEmpty) return pokemon;
+
+      // Filtrar solo las formas que pertenecen a este Pokémon específico
+      final pokemonForms = chainForms.where((f) {
+        final pokemonData = f['pokemon_v2_pokemon'];
+        if (pokemonData == null) return false;
+        final pokemonId = pokemonData['id'] as int?;
+        return pokemonId == pokemon.id;
+      }).toList();
+
+      if (pokemonForms.isEmpty) return pokemon;
 
       final categories = List<String>.from(pokemon.categories ?? []);
 
       // Detectar Mega
-      final hasMega = forms.any((f) {
+      final hasMega = pokemonForms.any((f) {
         final isMega = f['is_mega'] as bool? ?? false;
         if (isMega) return true;
 
@@ -1244,7 +1278,7 @@ class PokemonRepository {
       });
 
       // Detectar Gigantamax
-      final hasGigantamax = forms.any((f) {
+      final hasGigantamax = pokemonForms.any((f) {
         final name = (f['name'] as String? ?? '').toLowerCase();
         final formName = (f['form_name'] as String? ?? '').toLowerCase();
 
@@ -1280,7 +1314,7 @@ class PokemonRepository {
           isMythical: pokemon.isMythical,
           generationId: pokemon.generationId,
           evolutionChainId: pokemon.evolutionChainId,
-          forms: forms,
+          forms: pokemonForms,
         );
       }
 

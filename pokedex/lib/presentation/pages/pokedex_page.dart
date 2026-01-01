@@ -99,7 +99,7 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
     _searchDebounceTimer?.cancel();
 
     if (value.trim().isEmpty) {
-      context.read<PokemonBloc>().add(const LoadPokemonList(refresh: true));
+      context.read<PokemonBloc>().add(const ClearSearch());
       return;
     }
 
@@ -155,7 +155,7 @@ class _PokedexPageState extends State<PokedexPage> with SingleTickerProviderStat
       case SortOption.nombre:
         return 'name';
       case SortOption.tipo:
-        return 'name';
+        return 'type';
     }
   }
 
