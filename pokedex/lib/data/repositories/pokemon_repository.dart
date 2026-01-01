@@ -1295,6 +1295,7 @@ class PokemonRepository {
   }
 
   /// Obtiene formas para múltiples cadenas evolutivas en UNA sola query batch
+  /// Retorna datos RAW para preservar pokemon_v2_pokemon con evolution_chain_id
   Future<List<dynamic>> _fetchFormsByMultipleChains(List<int> chainIds) async {
     if (chainIds.isEmpty) return [];
 
@@ -1307,10 +1308,8 @@ class PokemonRepository {
       if (!result.hasException && result.data != null) {
         final data = result.data!['pokemon_v2_pokemonform'] as List<dynamic>?;
         if (data != null) {
-          return data
-              .whereType<Map<String, dynamic>>()
-              .map(PokemonMapperService.createForm)
-              .toList();
+          // Retornar datos RAW sin transformar para preservar pokemon_v2_pokemon
+          return data.whereType<Map<String, dynamic>>().toList();
         }
       }
     } catch (e) {
@@ -1320,12 +1319,10 @@ class PokemonRepository {
     return [];
   }
 
-  /// Enriquece TODOS los Pokémon del caché con categorías Mega/Gigantamax
-  /// Usa UNA sola query batch masiva para todas las cadenas evolutivas
+  /// Enriquece el caché con formas Mega/Gigantamax como Pokémon separados
   Future<List<Pokemon>> _enrichAllWithFormCategoriesBatch(List<Pokemon> list) async {
     if (list.isEmpty) return list;
 
-    // Obtener TODOS los chain IDs únicos
     final allChainIds = list
         .where((p) => p.evolutionChainId != null)
         .map((p) => p.evolutionChainId!)
@@ -1336,93 +1333,93 @@ class PokemonRepository {
 
     debugPrint('Batch enrichment: ${list.length} pokemon, ${allChainIds.length} unique chains');
 
-    // UNA SOLA query masiva para TODAS las cadenas
     final allForms = await _fetchFormsByMultipleChains(allChainIds);
     debugPrint('Fetched ${allForms.length} total forms');
 
-    // Agrupar formas por chain_id
-    final chainFormsMap = <int, List<dynamic>>{};
-    for (final form in allForms) {
-      if (form['pokemon_v2_pokemon'] != null) {
-        final pokemonData = form['pokemon_v2_pokemon'];
-        if (pokemonData['pokemon_v2_pokemonspecy'] != null) {
-          final chainId = pokemonData['pokemon_v2_pokemonspecy']['evolution_chain_id'] as int?;
-          if (chainId != null) {
-            chainFormsMap.putIfAbsent(chainId, () => []).add(form);
+    final specialFormPokemon = <Pokemon>[];
+    final processedFormIds = <int>{};
+
+    for (final rawForm in allForms) {
+      final formId = rawForm['id'] as int?;
+      final pokemonId = rawForm['pokemon_id'] as int?;
+      if (formId == null || pokemonId == null) continue;
+      if (processedFormIds.contains(formId)) continue;
+
+      // Usar DTO para procesar la forma
+      final form = PokemonMapperService.createForm(rawForm);
+      final name = (form['name'] as String? ?? '').toLowerCase();
+      final formName = (form['form_name'] as String? ?? '').toLowerCase();
+      final isMegaFlag = form['is_mega'] as bool? ?? false;
+
+      // Determinar categoría de forma EXCLUYENTE
+      String? category;
+      if (isMegaFlag || name.contains('-mega') || formName == 'mega' || formName.startsWith('mega-')) {
+        category = 'mega';
+      } else if (name.contains('-gmax') || formName == 'gmax' || formName.contains('gigantamax')) {
+        category = 'gigantamax';
+      }
+
+      if (category == null) continue;
+      processedFormIds.add(formId);
+
+      // Extraer tipos usando DTO
+      final pokemonData = rawForm['pokemon_v2_pokemon'];
+      List<String> types = PokemonMapperService.extractTypesFromPokemon(pokemonData);
+
+      // Fallback: buscar tipos del Pokémon base
+      if (types.isEmpty) {
+        int? speciesId;
+        if (pokemonData != null && pokemonData is Map) {
+          final specyData = pokemonData['pokemon_v2_pokemonspecy'];
+          if (specyData != null && specyData is Map) {
+            speciesId = specyData['id'] as int?;
           }
         }
+        if (speciesId != null) {
+          final basePokemon = list.where((p) => p.id == speciesId).firstOrNull;
+          types = basePokemon?.types ?? [];
+        }
       }
+
+      // Extraer evolution_chain_id
+      int? chainId;
+      if (pokemonData != null && pokemonData is Map) {
+        final specyData = pokemonData['pokemon_v2_pokemonspecy'];
+        if (specyData != null && specyData is Map) {
+          chainId = specyData['evolution_chain_id'] as int?;
+        }
+      }
+
+      // Usar sprite del DTO
+      final spriteUrl = form['sprite_url'] as String? ??
+          'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$pokemonId.png';
+
+      final formPokemon = Pokemon(
+        id: pokemonId,
+        name: form['name'] as String? ?? 'Unknown',
+        spriteUrl: spriteUrl,
+        types: types,
+        categories: [category],
+        evolutionChainId: chainId,
+      );
+
+      specialFormPokemon.add(formPokemon);
     }
 
-    // Enriquecer todos los Pokémon
-    int megaCount = 0;
-    int gigaCount = 0;
+    debugPrint('Created ${specialFormPokemon.length} special form pokemon entries');
+    debugPrint('  - Mega: ${specialFormPokemon.where((p) => p.categories?.contains('mega') == true).length}');
+    debugPrint('  - Gigantamax: ${specialFormPokemon.where((p) => p.categories?.contains('gigantamax') == true).length}');
 
-    final result = list.map((pokemon) {
-      final chainId = pokemon.evolutionChainId;
-      if (chainId == null) return pokemon;
+    final result = List<Pokemon>.from(list);
+    result.addAll(specialFormPokemon);
 
-      final forms = chainFormsMap[chainId] ?? [];
-      if (forms.isEmpty) return pokemon;
+    // Eliminar duplicados por ID
+    final uniqueById = <int, Pokemon>{};
+    for (final p in result) {
+      uniqueById[p.id] = p;
+    }
 
-      final categories = List<String>.from(pokemon.categories ?? []);
-
-      // Detectar Mega
-      final hasMega = forms.any((f) {
-        final isMega = f['is_mega'] as bool? ?? false;
-        if (isMega) return true;
-
-        final name = (f['name'] as String? ?? '').toLowerCase();
-        final formName = (f['form_name'] as String? ?? '').toLowerCase();
-
-        return name.contains('-mega') || formName == 'mega' || formName.startsWith('mega-');
-      });
-
-      // Detectar Gigantamax
-      final hasGigantamax = forms.any((f) {
-        final name = (f['name'] as String? ?? '').toLowerCase();
-        final formName = (f['form_name'] as String? ?? '').toLowerCase();
-
-        return name.contains('-gmax') || formName == 'gmax' ||
-               formName.contains('gigantamax') || name.contains('gigantamax');
-      });
-
-      if (hasMega && !categories.contains('mega')) {
-        categories.add('mega');
-        megaCount++;
-      }
-
-      if (hasGigantamax && !categories.contains('gigantamax')) {
-        categories.add('gigantamax');
-        gigaCount++;
-      }
-
-      if (categories.length > (pokemon.categories?.length ?? 0)) {
-        return Pokemon(
-          id: pokemon.id,
-          name: pokemon.name,
-          spriteUrl: pokemon.spriteUrl,
-          types: pokemon.types,
-          height: pokemon.height,
-          weight: pokemon.weight,
-          description: pokemon.description,
-          evolutions: pokemon.evolutions,
-          isFavorite: pokemon.isFavorite,
-          abilities: pokemon.abilities,
-          stats: pokemon.stats,
-          categories: categories,
-          isLegendary: pokemon.isLegendary,
-          isMythical: pokemon.isMythical,
-          generationId: pokemon.generationId,
-          evolutionChainId: pokemon.evolutionChainId,
-          forms: forms,
-        );
-      }
-
-      return pokemon;
-    }).toList();
-
-    debugPrint('Batch enrichment complete: $megaCount Mega, $gigaCount Gigantamax');
-    return result;
+    debugPrint('Total pokemon after enrichment: ${uniqueById.length}');
+    return uniqueById.values.toList()..sort((a, b) => a.id.compareTo(b.id));
   }
 }

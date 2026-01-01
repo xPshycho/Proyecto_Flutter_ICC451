@@ -161,7 +161,13 @@ class GraphQLQueryService {
         is_mega
         pokemon_v2_pokemon {
           pokemon_v2_pokemonspecy {
+            id
             evolution_chain_id
+          }
+          pokemon_v2_pokemontypes {
+            pokemon_v2_type {
+              name
+            }
           }
         }
         pokemon_v2_pokemonformsprites {

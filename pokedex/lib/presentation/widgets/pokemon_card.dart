@@ -68,29 +68,35 @@ class _PokemonCardState extends State<PokemonCard> with SingleTickerProviderStat
     super.dispose();
   }
 
-  // Extrae etiquetas simples a partir de `pokemon.forms`.
-  // Busca flags explícitos (`is_mega`) y keywords en `name`/`form_name`.
+  // Extrae etiquetas de categorías del Pokémon
   List<String> _extractFormLabels() {
     final labels = <String>{};
-    final forms = widget.pokemon.forms;
-    if (forms == null) return [];
-    for (final f in forms) {
-      try {
-        if (f is Map) {
-          final isMega = f['is_mega'] as bool?;
-          final name = (f['name'] ?? f['form_name'] ?? '') as String? ?? '';
-          final lower = name.toLowerCase();
-          if (isMega == true || lower.contains('mega')) labels.add('MEGA');
-          if (lower.contains('alola') || lower.contains('alolan')) labels.add('ALOLA');
-          if (lower.contains('galar')) labels.add('GALAR');
-          if (lower.contains('hisui') || lower.contains('hisuan')) labels.add('HISUI');
-          if (lower.contains('paldea') || lower.contains('paldean')) labels.add('PALDEA');
-          if (lower.contains('gmax') || lower.contains('gigantamax')) labels.add('GIGANTAMAX');
-          if (lower.contains('primal')) labels.add('PRIMAL');
-          if (lower.contains('lunar') || lower.contains('cosplay')) labels.add('SPECIAL');
-        }
-      } catch (_) {}
+
+    // Primero usar las categorías asignadas al Pokémon
+    final categories = widget.pokemon.categories;
+    if (categories != null) {
+      for (final cat in categories) {
+        final lower = cat.toLowerCase();
+        if (lower == 'mega') labels.add('MEGA');
+        if (lower == 'gigantamax') labels.add('GIGANTAMAX');
+        if (lower.contains('alola')) labels.add('ALOLA');
+        if (lower.contains('galar')) labels.add('GALAR');
+        if (lower.contains('hisui')) labels.add('HISUI');
+        if (lower.contains('paldea')) labels.add('PALDEA');
+      }
     }
+
+    // Si no hay categorías, extraer del nombre del Pokémon
+    if (labels.isEmpty) {
+      final name = widget.pokemon.name.toLowerCase();
+      if (name.contains('-mega')) labels.add('MEGA');
+      if (name.contains('-gmax')) labels.add('GIGANTAMAX');
+      if (name.contains('-alola')) labels.add('ALOLA');
+      if (name.contains('-galar')) labels.add('GALAR');
+      if (name.contains('-hisui')) labels.add('HISUI');
+      if (name.contains('-paldea')) labels.add('PALDEA');
+    }
+
     return labels.toList();
   }
 
@@ -179,16 +185,17 @@ class _PokemonCardState extends State<PokemonCard> with SingleTickerProviderStat
 
                               const SizedBox(width: 8),
 
-                              // Labels de forms (MEGA, Alola, etc.)
-                              Builder(builder: (context) {
-                                final labels = _extractFormLabels();
-                                if (labels.isEmpty) return const SizedBox.shrink();
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Wrap(
+                              // Labels de forms (MEGA, GMAX, etc.)
+                              Flexible(
+                                child: Builder(builder: (context) {
+                                  final labels = _extractFormLabels();
+                                  if (labels.isEmpty) return const SizedBox.shrink();
+                                  return Wrap(
                                     spacing: 4,
                                     runSpacing: 2,
-                                    children: labels.map((lbl) {
+                                    children: labels.take(1).map((lbl) {
+                                      // Acortar etiquetas largas
+                                      final displayLabel = lbl == 'GIGANTAMAX' ? 'GMAX' : lbl;
                                       final color = lbl == 'MEGA'
                                           ? Colors.orange
                                           : lbl == 'GIGANTAMAX'
@@ -201,14 +208,14 @@ class _PokemonCardState extends State<PokemonCard> with SingleTickerProviderStat
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          lbl,
+                                          displayLabel,
                                           style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
                                         ),
                                       );
                                     }).toList(),
-                                  ),
-                                );
-                              }),
+                                  );
+                                }),
+                              ),
                             ]
                           ),
 
