@@ -60,6 +60,40 @@ class PokemonConstants {
     9: 'Paldea',
   };
 
+  /// Configuración de efectividad de tipos para UI
+  static final Map<double, EffectivenessDisplayConfig> effectivenessConfig = {
+    4.0: EffectivenessDisplayConfig(
+      label: 'Súper Débil',
+      multiplierText: '×4',
+      color: Color(0xFFD32F2F),
+      backgroundColor: Color(0xFFFFEBEE),
+    ),
+    2.0: EffectivenessDisplayConfig(
+      label: 'Débil',
+      multiplierText: '×2',
+      color: Color(0xFFFF5722),
+      backgroundColor: Color(0xFFFFF3E0),
+    ),
+    0.5: EffectivenessDisplayConfig(
+      label: 'Resistente',
+      multiplierText: '×0.5',
+      color: Color(0xFF388E3C),
+      backgroundColor: Color(0xFFE8F5E8),
+    ),
+    0.25: EffectivenessDisplayConfig(
+      label: 'Muy Resistente',
+      multiplierText: '×0.25',
+      color: Color(0xFF2E7D32),
+      backgroundColor: Color(0xFFE0F2F1),
+    ),
+    0.0: EffectivenessDisplayConfig(
+      label: 'Inmune',
+      multiplierText: '×0',
+      color: Color(0xFF424242),
+      backgroundColor: Color(0xFFF5F5F5),
+    ),
+  };
+
   // Mantener para compatibilidad interna (deprecated)
   static const Map<String, String> regionToGeneration = {
     'Kanto': '1',
@@ -224,4 +258,24 @@ class PokemonConstants {
   static List<int> getGenerationRange(String generation) {
     return regionRanges[generation] ?? [0, 9999];
   }
+
+  /// Obtiene la configuración de display para un multiplicador de efectividad
+  static EffectivenessDisplayConfig? getEffectivenessConfig(double multiplier) {
+    return effectivenessConfig[multiplier];
+  }
+}
+
+/// Configuración de visualización para efectividad de tipos
+class EffectivenessDisplayConfig {
+  final String label;
+  final String multiplierText;
+  final Color color;
+  final Color backgroundColor;
+
+  const EffectivenessDisplayConfig({
+    required this.label,
+    required this.multiplierText,
+    required this.color,
+    required this.backgroundColor,
+  });
 }

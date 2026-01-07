@@ -59,59 +59,56 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
         children: [
           // Header con título, botón clear y flecha
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    if (hasSelection) ...[
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: _clearSelection,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withAlpha(25),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.withAlpha(76),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.close,
-                                size: 10,
-                                color: Colors.red[700],
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                'Clear',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.red[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (hasSelection) ...[
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: _clearSelection,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.red.withAlpha(76),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.close,
+                          size: 8,
+                          color: Colors.red[700],
+                        ),
+                        const SizedBox(width: 1),
+                        Text(
+                          'Clear',
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
               InkWell(
                 onTap: () => setState(() => _isExpanded = !_isExpanded),
                 borderRadius: BorderRadius.circular(20),
@@ -133,25 +130,7 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
 
           const SizedBox(height: 8),
 
-          // Preview de selección o N/A
-          if (!_isExpanded) ...[
-            if (hasSelection)
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: widget.selectedOptions.map((option) {
-                  return _buildTag(
-                    label: option,
-                    isSelected: true,
-                    isCompact: true,
-                  );
-                }).toList(),
-              )
-            else
-              _buildNATag(),
-          ],
-
-          // Lista expandida de opciones
+          // Solo mostrar cuando está expandido
           if (_isExpanded) ...[
             const SizedBox(height: 4),
             Wrap(
@@ -159,13 +138,29 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
               runSpacing: 6,
               children: _getOrderedOptions().map((option) {
                 final isSelected = widget.selectedOptions.contains(option);
-                return _buildTag(
+                return _buildOptionChip(
                   label: option,
                   isSelected: isSelected,
-                  isCompact: false,
                   onTap: () => _toggleOption(option),
                 );
               }).toList(),
+            ),
+          ] else if (hasSelection) ...[
+            // Solo mostrar count cuando está colapsado y hay selección
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${widget.selectedOptions.length} seleccionado${widget.selectedOptions.length > 1 ? 's' : ''}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         ],
@@ -173,59 +168,34 @@ class _ExpandableFilterBoxState extends State<ExpandableFilterBox> {
     );
   }
 
-  Widget _buildNATag() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4CAF50),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Text(
-        'N/A',
-        style: TextStyle(
-          fontSize: 10,
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTag({
+  Widget _buildOptionChip({
     required String label,
     required bool isSelected,
-    required bool isCompact,
     VoidCallback? onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 10 : 12,
-          vertical: isCompact ? 5 : 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF4CAF50)
-              : colorScheme.onSurface.withAlpha(38),
-          borderRadius: BorderRadius.circular(20),
+              ? colorScheme.primary
+              : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16),
           border: isSelected
-              ? Border.all(
-                  color: const Color(0xFF388E3C),
-                  width: 1.5,
-                )
-              : null,
+              ? Border.all(color: colorScheme.primary.withAlpha(180), width: 1.5)
+              : Border.all(color: Colors.grey.shade300),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: isCompact ? 9 : 10,
-            color: isSelected ? Colors.black : colorScheme.onSurface,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 9,
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
         ),
       ),

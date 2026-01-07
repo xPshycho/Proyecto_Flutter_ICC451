@@ -5,12 +5,14 @@ class BottomMenuColors {
   final Color pokedexButtonColor;
   final Color mapaButtonColor;
   final Color helpButtonColor;
+  final Color homeButtonColor;
   final Color buttonTextColor;
 
   const BottomMenuColors({
     this.pokedexButtonColor = const Color(0xFFBBBBBB),
     this.mapaButtonColor = const Color(0xFFBBBBBB),
     this.helpButtonColor = const Color(0xFFBBBBBB),
+    this.homeButtonColor = const Color(0xFFBBBBBB),
     this.buttonTextColor = Colors.black,
   });
 }
@@ -19,6 +21,7 @@ class BottomMenu extends StatelessWidget {
   final VoidCallback? onPokedexPressed;
   final VoidCallback? onMapaPressed;
   final VoidCallback? onHelpPressed;
+  final VoidCallback? onHomePressed;
   final BottomMenuColors colors;
 
   const BottomMenu({
@@ -26,6 +29,7 @@ class BottomMenu extends StatelessWidget {
     this.onPokedexPressed,
     this.onMapaPressed,
     this.onHelpPressed,
+    this.onHomePressed,
     this.colors = const BottomMenuColors(),
   });
 
@@ -54,7 +58,7 @@ class BottomMenu extends StatelessWidget {
             ),
           ),
 
-          // Título "Menú" con línea roja
+          // Título "Menú" con línea
           Column(
             children: [
               Text(
@@ -75,9 +79,9 @@ class BottomMenu extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // Botón Pokedex Nacional (ancho completo)
-          _buildMenuButton(
-            label: 'Pokedex Nacional',
+          // Botones
+          _buildFullWidthButton(
+            label: 'Pokedex',
             color: colors.pokedexButtonColor,
             textColor: colors.buttonTextColor,
             onPressed: onPokedexPressed,
@@ -85,31 +89,29 @@ class BottomMenu extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Fila con botones Mapa y ?
-          Row(
-            children: [
-              // Botón Mapa
-              Expanded(
-                child: _buildMenuButton(
-                  label: 'Mapa',
-                  color: colors.mapaButtonColor,
-                  textColor: colors.buttonTextColor,
-                  onPressed: onMapaPressed,
-                ),
-              ),
+          _buildFullWidthButton(
+            label: 'Mapa',
+            color: colors.mapaButtonColor,
+            textColor: colors.buttonTextColor,
+            onPressed: onMapaPressed,
+          ),
 
-              const SizedBox(width: 12),
+          const SizedBox(height: 12),
 
-              // Botón ?
-              Expanded(
-                child: _buildMenuButton(
-                  label: '?',
-                  color: colors.helpButtonColor,
-                  textColor: colors.buttonTextColor,
-                  onPressed: onHelpPressed,
-                ),
-              ),
-            ],
+          _buildFullWidthButton(
+            label: 'Adivina el pokemon',
+            color: colors.helpButtonColor,
+            textColor: colors.buttonTextColor,
+            onPressed: onHelpPressed,
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildFullWidthButton(
+            label: 'Home',
+            color: colors.homeButtonColor,
+            textColor: colors.buttonTextColor,
+            onPressed: onHomePressed,
           ),
 
           const SizedBox(height: 20),
@@ -118,7 +120,7 @@ class BottomMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuButton({
+  Widget _buildFullWidthButton({
     required String label,
     required Color color,
     required Color textColor,
@@ -131,7 +133,8 @@ class BottomMenu extends StatelessWidget {
         onTap: onPressed ?? () => debugPrint('$label pressed'),
         borderRadius: BorderRadius.circular(30),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
           ),
@@ -139,7 +142,7 @@ class BottomMenu extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: textColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -151,12 +154,13 @@ class BottomMenu extends StatelessWidget {
   }
 }
 
-// Función helper para mostrar el menú desde cualquier parte
+// Helper to show the bottom menu from anywhere
 Future<void> showBottomMenu(
   BuildContext context, {
   VoidCallback? onPokedexPressed,
   VoidCallback? onMapaPressed,
   VoidCallback? onHelpPressed,
+  VoidCallback? onHomePressed,
   BottomMenuColors? colors,
 }) {
   return showModalBottomSheet(
@@ -166,7 +170,9 @@ Future<void> showBottomMenu(
       onPokedexPressed: onPokedexPressed,
       onMapaPressed: onMapaPressed,
       onHelpPressed: onHelpPressed,
+      onHomePressed: onHomePressed,
       colors: colors ?? const BottomMenuColors(),
     ),
   );
 }
+

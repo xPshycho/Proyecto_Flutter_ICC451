@@ -22,13 +22,27 @@ class TypeFilterBox extends StatefulWidget {
 
 class _TypeFilterBoxState extends State<TypeFilterBox> {
   bool _isExpanded = false;
+  static const int maxTypeSelection = 2;
 
   void _toggleOption(String option) {
     final List<String> newSelection = List.from(widget.selectedOptions);
     if (newSelection.contains(option)) {
       newSelection.remove(option);
     } else {
-      newSelection.add(option);
+      // Solo agregar si no se ha alcanzado el máximo
+      if (newSelection.length < maxTypeSelection) {
+        newSelection.add(option);
+      } else {
+        // Mostrar mensaje de que solo se pueden seleccionar 2 tipos
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Solo puedes seleccionar máximo 2 tipos'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
     }
     widget.onSelectionChanged(newSelection);
   }
@@ -61,59 +75,56 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
         children: [
           // Header con título, botón clear y flecha
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    if (hasSelection) ...[
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: _clearSelection,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withAlpha(25),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.withAlpha(76),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.close,
-                                size: 10,
-                                color: Colors.red[700],
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                'Clear',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.red[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (hasSelection) ...[
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: _clearSelection,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.red.withAlpha(76),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.close,
+                          size: 8,
+                          color: Colors.red[700],
+                        ),
+                        const SizedBox(width: 1),
+                        Text(
+                          'Clear',
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
               InkWell(
                 onTap: () => setState(() => _isExpanded = !_isExpanded),
                 borderRadius: BorderRadius.circular(20),
@@ -135,25 +146,7 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
 
           const SizedBox(height: 8),
 
-          // Preview de selección o N/A
-          if (!_isExpanded) ...[
-            if (hasSelection)
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: widget.selectedOptions.map((option) {
-                  return _buildTypeTag(
-                    label: option,
-                    isSelected: true,
-                    isCompact: true,
-                  );
-                }).toList(),
-              )
-            else
-              _buildNATag(),
-          ],
-
-          // Lista expandida de opciones
+          // Solo mostrar cuando está expandido
           if (_isExpanded) ...[
             const SizedBox(height: 4),
             Wrap(
@@ -169,26 +162,25 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
                 );
               }).toList(),
             ),
+          ] else if (hasSelection) ...[
+            // Solo mostrar count cuando está colapsado y hay selección
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${widget.selectedOptions.length} seleccionado${widget.selectedOptions.length > 1 ? 's' : ''}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildNATag() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4CAF50),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Text(
-        'N/A',
-        style: TextStyle(
-          fontSize: 10,
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }
@@ -208,10 +200,7 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 8 : 10,
-          vertical: isCompact ? 5 : 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? typeColor
@@ -230,8 +219,8 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
             if (typeIcon != null) ...[
               SvgPicture.asset(
                 typeIcon,
-                width: isCompact ? 12 : 14,
-                height: isCompact ? 12 : 14,
+                width: 14,
+                height: 14,
                 colorFilter: ColorFilter.mode(
                   isSelected ? Colors.white : colorScheme.onSurface,
                   BlendMode.srcIn,
@@ -242,7 +231,7 @@ class _TypeFilterBoxState extends State<TypeFilterBox> {
             Text(
               label,
               style: TextStyle(
-                fontSize: isCompact ? 9 : 10,
+                fontSize: 10,
                 color: isSelected ? Colors.white : colorScheme.onSurface,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),

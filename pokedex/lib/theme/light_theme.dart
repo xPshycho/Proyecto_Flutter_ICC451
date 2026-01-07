@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-// Theme constants: modify these to change the light theme appearance.
-const Color kLightBackgroundColor = Color(0xFFFFFFFF); // Entire app background (single color)
-const Color kLightPrimaryColor = Color(0xFFCC0000); // Primary color (buttons, app bar)
-const Color kLightSurfaceColor = Color(0xFFFFFFFF); // Surface (cards, inputs)
-const Color kLightOnPrimaryColor = Colors.white; // Text/icons on primary
-const Color kLightOnSurfaceColor = Colors.black; // Text/icons on surface
+const Color kLightBackgroundColor = Color(0xFFFFFFFF);
+const Color kLightPrimaryColor = Color(0xFFCC0000);
+const Color kLightSurfaceColor = Color(0xFFFFFFFF);
+const Color kLightOnPrimaryColor = Colors.white;
+const Color kLightOnSurfaceColor = Colors.black;
 
-// Font: change this to your preferred font family (ensure it's declared in pubspec.yaml)
 const String kMainFontFamily = 'Pixelated';
 
 ThemeData lightTheme = ThemeData(
@@ -19,7 +17,6 @@ ThemeData lightTheme = ThemeData(
     onSecondary: kLightOnPrimaryColor,
     onSurface: kLightOnSurfaceColor,
   ),
-  // Entire background will be one solid color. Change kLightBackgroundColor to update it.
   scaffoldBackgroundColor: kLightBackgroundColor,
   appBarTheme: const AppBarTheme(
     backgroundColor: kLightPrimaryColor,

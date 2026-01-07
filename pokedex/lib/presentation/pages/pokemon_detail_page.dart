@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/pokemon.dart';
 import '../../data/repositories/pokemon_repository.dart';
-import '../../data/favorites_service.dart';
+import '../../data/services/audio_service.dart';
 import '../widgets/detail_components/pokemon_header.dart';
 import '../widgets/detail_components/pokemon_info_card.dart';
 import '../widgets/detail_components/pokemon_abilities_section.dart';
@@ -10,43 +10,140 @@ import '../widgets/detail_components/pokemon_stats_section.dart';
 import '../widgets/detail_components/pokemon_weaknesses_section.dart';
 import '../widgets/detail_components/pokemon_evolution_section.dart';
 import '../widgets/detail_components/pokemon_forms_section.dart';
+import '../widgets/detail_components/pokemon_chain_forms_section.dart';
 import '../widgets/detail_components/pokemon_moveset_section.dart';
+import '../widgets/detail_components/pokemon_locations_section.dart';
+import '../bloc/pokemon_detail/pokemon_detail_bloc.dart';
+import '../bloc/pokemon_detail/pokemon_detail_event.dart';
+import '../bloc/pokemon_detail/pokemon_detail_state.dart';
+import '../bloc/favorites/favorites_bloc.dart';
+import '../bloc/favorites/favorites_event.dart';
+import '../bloc/favorites/favorites_state.dart';
+import '../../data/services/pokemon_card_share_service.dart';
+import '../widgets/error_view.dart';
 
 class PokemonDetailPage extends StatefulWidget {
   final int id;
   final PokemonRepository repository;
-  const PokemonDetailPage({super.key, required this.id, required this.repository});
+  final bool initialShinyState;
+
+  const PokemonDetailPage({
+    super.key,
+    required this.id,
+    required this.repository,
+    this.initialShinyState = false,
+  });
 
   @override
   State<PokemonDetailPage> createState() => _PokemonDetailPageState();
 }
 
 class _PokemonDetailPageState extends State<PokemonDetailPage> {
-  late Future<Pokemon> _future;
+  late final AudioService _audioService;
+  late bool _isShiny;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.repository.fetchPokemonDetail(widget.id);
+    _audioService = AudioService();
+    _isShiny = widget.initialShinyState; // Inicializar con el estado recibido
   }
 
-  void _navigateToEvolution(int evolutionId) {
+  @override
+  void dispose() {
+    _audioService.stopCry();
+    super.dispose();
+  }
+
+  void _navigateToEvolution(BuildContext context, int evolutionId) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => PokemonDetailPage(
-          id: evolutionId,
-          repository: widget.repository,
+        builder: (_) => BlocProvider(
+          create: (_) => PokemonDetailBloc(repository: widget.repository)
+            ..add(LoadPokemonDetail(evolutionId)),
+          child: PokemonDetailPage(
+            id: evolutionId,
+            repository: widget.repository,
+            initialShinyState: _isShiny, // Mantener estado shiny
+          ),
         ),
       ),
     );
   }
 
-  void _handleFavoriteToggle(FavoritesService favService, Pokemon pokemon) {
-    favService.toggleFavorite(pokemon);
-    _showFavoriteSnackBar(favService.isFavorite(pokemon.id), pokemon.name);
+  void _handleFavoriteToggle(BuildContext context, Pokemon pokemon) {
+    context.read<FavoritesBloc>().add(ToggleFavorite(pokemon));
+    _showFavoriteSnackBar(
+      context,
+      context.read<FavoritesBloc>().state is FavoritesLoaded &&
+          (context.read<FavoritesBloc>().state as FavoritesLoaded).isFavorite(pokemon.id),
+      pokemon.name,
+    );
   }
 
-  void _showFavoriteSnackBar(bool isFavorite, String pokemonName) {
+  void _handleSoundTap(Pokemon pokemon) {
+    _audioService.playCry(pokemon.id);
+  }
+
+  void _handleShinyToggle(Pokemon pokemon) {
+    // Check if shiny sprite is available
+    if (pokemon.shinySpriteUrl == null && !_isShiny) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'No hay sprite shiny disponible para ${pokemon.name}',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange[700],
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isShiny = !_isShiny;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              _isShiny ? Icons.auto_awesome : Icons.catching_pokemon,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _isShiny ? 'Modo Shiny activado ✨' : 'Modo Normal activado',
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+        backgroundColor: _isShiny ? Colors.amber : Colors.grey[700],
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showFavoriteSnackBar(BuildContext context, bool isFavorite, String pokemonName) {
     final capitalizedName = '${pokemonName[0].toUpperCase()}${pokemonName.substring(1)}';
     final message = isFavorite
         ? '$capitalizedName agregado a favoritos'
@@ -77,35 +174,57 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<Pokemon>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+      body: BlocConsumer<PokemonDetailBloc, PokemonDetailState>(
+        listener: (context, state) {
+          // Reproducir cry automáticamente cuando se carga el Pokemon
+          if (state is PokemonDetailLoaded) {
+            _audioService.playCry(state.pokemon.id);
+          }
+        },
+        builder: (context, state) {
+          if (state is PokemonDetailLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return _buildErrorView(snapshot.error.toString());
+          if (state is PokemonDetailError) {
+            return _buildErrorView(context, state);
           }
 
-          final pokemon = snapshot.data!;
-          return _buildDetailView(pokemon);
+          if (state is PokemonDetailLoaded) {
+            return _buildDetailView(context, state.pokemon);
+          }
+
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
   }
 
-  Widget _buildDetailView(Pokemon pokemon) {
-    final favService = Provider.of<FavoritesService>(context, listen: true);
-
+  Widget _buildDetailView(BuildContext context, Pokemon pokemon) {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
-          child: PokemonHeader(
-            pokemon: pokemon,
-            onBack: () => Navigator.of(context).pop(),
-            onFavoriteToggle: () => _handleFavoriteToggle(favService, pokemon),
-            isFavorite: favService.isFavorite(pokemon.id),
+          child: BlocBuilder<FavoritesBloc, FavoritesState>(
+            builder: (context, favState) {
+              final isFavorite = favState is FavoritesLoaded &&
+                  favState.isFavorite(pokemon.id);
+
+              return PokemonHeader(
+                pokemon: pokemon,
+                onBack: () => Navigator.of(context).pop(),
+                onFavoriteToggle: () => _handleFavoriteToggle(context, pokemon),
+                isFavorite: isFavorite,
+                onSpriteTap: () => _audioService.playCry(pokemon.id),
+                onSoundTap: () => _handleSoundTap(pokemon),
+                onShinyToggle: () => _handleShinyToggle(pokemon),
+                isShiny: _isShiny,
+                onShareTap: () async {
+                  final shareService = PokemonCardShareService();
+                  await shareService.sharePokemonCard(context, pokemon);
+                },
+              );
+
+            },
           ),
         ),
         SliverToBoxAdapter(
@@ -115,7 +234,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
               children: [
                 PokemonInfoCard(
                   pokemon: pokemon,
-                  onEvolutionTap: _navigateToEvolution,
+                  onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
                 ),
                 _buildDetailSections(pokemon),
               ],
@@ -144,110 +263,44 @@ class _PokemonDetailPageState extends State<PokemonDetailPage> {
             repository: widget.repository,
           ),
           const SizedBox(height: 24),
-          PokemonFormsSection(pokemon: pokemon),
-          const SizedBox(height: 24),
+          // Línea evolutiva primero
           PokemonEvolutionSection(
             pokemon: pokemon,
-            onEvolutionTap: _navigateToEvolution,
+            onEvolutionTap: (evolutionId) => _navigateToEvolution(context, evolutionId),
+            isShiny: _isShiny,
           ),
+          const SizedBox(height: 24),
+          // Formas del Pokémon actual
+          PokemonFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
+          ),
+          const SizedBox(height: 24),
+          // Formas de la cadena (megas/variantes en evoluciones)
+          PokemonChainFormsSection(
+            pokemon: pokemon,
+            isShiny: _isShiny,
+            onFormTap: (pokemonId) => _navigateToEvolution(context, pokemonId),
+          ),
+          const SizedBox(height: 24),
+          // Ubicaciones donde aparece el Pokémon
+          PokemonLocationsSection(pokemon: pokemon),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildErrorView(String error) {
-    final isRegionalForm = widget.id > 10000;
-    final title = isRegionalForm
-        ? 'Error al cargar la forma regional'
-        : 'Error al cargar el Pokémon';
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Error'),
-        backgroundColor: Colors.redAccent,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.redAccent,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (isRegionalForm)
-                const Text(
-                  'Las formas regionales pueden tener problemas de caché.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.orange),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                error.length > 100 ? '${error.substring(0, 100)}...' : error,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              _buildErrorButtons(),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildErrorView(BuildContext context, PokemonDetailError state) {
+    return ErrorView(
+      onRetry: () {
+        context.read<PokemonDetailBloc>().add(
+          RetryLoadPokemonDetail(state.pokemonId),
+        );
+      },
+      onBack: () => Navigator.of(context).pop(),
     );
-  }
-
-  Widget _buildErrorButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back),
-          label: const Text('Regresar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey[600],
-            foregroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: _retryWithCacheClear,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Reintentar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _retryWithCacheClear() async {
-    try {
-      // Limpiar caché antes de reintentar
-      await widget.repository.clearGraphQLCache();
-
-      // Recrear el future
-      setState(() {
-        _future = widget.repository.fetchPokemonDetail(widget.id);
-      });
-    } catch (e) {
-      debugPrint('Error during retry: $e');
-    }
   }
 }
+

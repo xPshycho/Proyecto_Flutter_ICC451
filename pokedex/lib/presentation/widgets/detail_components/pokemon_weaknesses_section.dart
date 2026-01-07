@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../data/models/pokemon.dart';
 import '../../../core/constants/pokemon_constants.dart';
+import 'section_card.dart';
 
 class PokemonWeaknessesSection extends StatelessWidget {
   final Pokemon pokemon;
@@ -11,111 +12,159 @@ class PokemonWeaknessesSection extends StatelessWidget {
     required this.pokemon,
   });
 
-  List<String> _getWeaknesses() {
-    // Mapa simplificado de debilidades por tipo
-    final Map<String, List<String>> typeWeaknesses = {
-      'Fuego': ['Agua', 'Tierra', 'Roca'],
-      'Agua': ['Eléctrico', 'Planta'],
-      'Planta': ['Fuego', 'Hielo', 'Veneno', 'Volador', 'Bicho'],
-      'Eléctrico': ['Tierra'],
-      'Hielo': ['Fuego', 'Lucha', 'Roca', 'Acero'],
-      'Lucha': ['Volador', 'Psíquico', 'Hada'],
-      'Veneno': ['Tierra', 'Psíquico'],
-      'Tierra': ['Agua', 'Planta', 'Hielo'],
-      'Volador': ['Eléctrico', 'Hielo', 'Roca'],
-      'Psíquico': ['Bicho', 'Fantasma', 'Siniestro'],
-      'Bicho': ['Fuego', 'Volador', 'Roca'],
-      'Roca': ['Agua', 'Planta', 'Lucha', 'Tierra', 'Acero'],
-      'Fantasma': ['Fantasma', 'Siniestro'],
-      'Dragón': ['Hielo', 'Dragón', 'Hada'],
-      'Siniestro': ['Lucha', 'Bicho', 'Hada'],
-      'Acero': ['Fuego', 'Lucha', 'Tierra'],
-      'Hada': ['Veneno', 'Acero'],
-      'Normal': ['Lucha'],
-    };
-
-    final Set<String> weaknesses = {};
-
-    for (final type in pokemon.types) {
-      final spanishType = PokemonConstants.toSpanishType(type);
-      final typeWeaks = typeWeaknesses[spanishType] ?? [];
-      weaknesses.addAll(typeWeaks);
-    }
-
-    return weaknesses.toList()..sort();
-  }
+  static const _multipliers = [4.0, 2.0, 1.0, 0.5, 0.25, 0.0];
 
   @override
   Widget build(BuildContext context) {
-    final weaknesses = _getWeaknesses();
+    final effectiveness = pokemon.typeEffectiveness;
 
-    if (weaknesses.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.shield_outlined, size: 20, color: Colors.grey[700]),
-            const SizedBox(width: 8),
-            const Text(
-              'DEBILIDADES',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: weaknesses.map((weakness) {
-            final typeColor = PokemonConstants.getTypeColor(weakness);
-            final icon = PokemonConstants.getTypeIcon(weakness);
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: typeColor.withAlpha(51),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: typeColor.withAlpha(128),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    SvgPicture.asset(
-                      icon,
-                      width: 14,
-                      height: 14,
-                      colorFilter: ColorFilter.mode(
-                        typeColor,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    weakness,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: typeColor,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+    return SectionCard(
+      title: 'DAÑO',
+      icon: Icons.shield_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMultiplierBadges(),
+          const SizedBox(height: 16),
+          _buildTypeEffectivenessGrid(effectiveness),
+        ],
+      ),
     );
   }
-}
 
+  Widget _buildMultiplierBadges() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: _multipliers
+          .map((m) => _buildBadge(_getMultiplierLabel(m)))
+          .toList(),
+    );
+  }
+
+  Widget _buildBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[800],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: Colors.white70,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeEffectivenessGrid(dynamic effectiveness) {
+    final typeMultipliers = _collectTypeMultipliers(effectiveness);
+
+    if (typeMultipliers.isEmpty) return const SizedBox.shrink();
+
+    final sortedEntries = _sortByMultiplier(typeMultipliers);
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: sortedEntries
+          .map((e) => _buildTypeChip(e.key, e.value))
+          .toList(),
+    );
+  }
+
+  Map<String, double> _collectTypeMultipliers(dynamic effectiveness) {
+    return {
+      for (final type in effectiveness.superEffectiveTypes) type: 4.0,
+      for (final type in effectiveness.veryEffectiveTypes) type: 2.0,
+      for (final type in effectiveness.resistantTypes) type: 0.5,
+      for (final type in effectiveness.veryResistantTypes) type: 0.25,
+      for (final type in effectiveness.immuneTypes) type: 0.0,
+    };
+  }
+
+  List<MapEntry<String, double>> _sortByMultiplier(
+    Map<String, double> typeMultipliers,
+  ) {
+    return typeMultipliers.entries.toList()
+      ..sort((a, b) {
+        final compareMultiplier = b.value.compareTo(a.value);
+        return compareMultiplier != 0
+            ? compareMultiplier
+            : a.key.compareTo(b.key);
+      });
+  }
+
+  Widget _buildTypeChip(String type, double multiplier) {
+    final typeColor = PokemonConstants.getTypeColor(type);
+    final icon = PokemonConstants.getTypeIcon(type);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: typeColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            SvgPicture.asset(
+              icon,
+              width: 14,
+              height: 14,
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            type,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 6),
+          _buildMultiplierIndicator(_getMultiplierLabel(multiplier)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiplierIndicator(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  String _getMultiplierLabel(double multiplier) {
+    return switch (multiplier) {
+      4.0 => '×4',
+      2.0 => '×2',
+      1.0 => '×1',
+      0.5 => '×½',
+      0.25 => '×¼',
+      0.0 => '×0',
+      _ => '×1',
+    };
+  }
+}

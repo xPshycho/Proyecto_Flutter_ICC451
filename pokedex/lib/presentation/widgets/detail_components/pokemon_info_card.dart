@@ -26,8 +26,8 @@ class PokemonInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
       child: Column(
@@ -71,7 +71,7 @@ class PokemonInfoCard extends StatelessWidget {
           // if (pokemon.evolutions != null && pokemon.evolutions!.isNotEmpty)
           //   const SizedBox(height: 24),
 
-          // Peso y Altura
+          // Peso, Altura y Grupo de Huevo
           Row(
             children: [
               Expanded(child: _buildStatCard(
@@ -90,6 +90,15 @@ class PokemonInfoCard extends StatelessWidget {
                     : 'N/A',
               )),
             ],
+          ),
+          const SizedBox(height: 16),
+          // Grupo de Huevo
+          _buildStatCard(
+            icon: Icons.egg_outlined,
+            label: 'GRUPO DE HUEVO',
+            value: pokemon.eggGroups != null && pokemon.eggGroups!.isNotEmpty
+                ? pokemon.eggGroups!.join(', ')
+                : 'N/A',
           ),
         ],
       ),
@@ -223,95 +232,13 @@ class PokemonInfoCard extends StatelessWidget {
   //   );
   // }
 
-  /// Construye un elemento individual de la línea evolutiva
-  Widget _buildEvolutionLineItem({
-    required Pokemon evolution,
-    required bool isCurrentPokemon,
-  }) {
-    final primaryType = evolution.types.isNotEmpty
-        ? PokemonConstants.toSpanishType(evolution.types.first)
-        : 'Normal';
-    final typeColor = PokemonConstants.getTypeColor(primaryType);
-
-    return GestureDetector(
-      onTap: () => onEvolutionTap?.call(evolution.id),
-      child: Container(
-        width: 60,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isCurrentPokemon
-              ? typeColor.withAlpha(51)
-              : Colors.grey.withAlpha(25),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isCurrentPokemon
-                ? typeColor
-                : Colors.grey.withAlpha(76),
-            width: isCurrentPokemon ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            // Imagen
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: typeColor.withAlpha(76),
-              ),
-              child: evolution.spriteUrl != null
-                  ? Image.network(
-                      evolution.spriteUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.catching_pokemon,
-                          size: 24,
-                          color: typeColor,
-                        );
-                      },
-                    )
-                  : Icon(
-                      Icons.catching_pokemon,
-                      size: 24,
-                      color: typeColor,
-                    ),
-            ),
-            const SizedBox(height: 6),
-            // Nombre
-            Text(
-              _formatPokemonName(evolution.name),
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: isCurrentPokemon ? FontWeight.bold : FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            // ID
-            Text(
-              'Nº${evolution.id.toString().padLeft(3, '0')}',
-              style: TextStyle(
-                fontSize: 8,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatCard({
     required IconData icon,
     required String label,
     required String value,
   }) {
     return Container(
+      alignment: Alignment.center,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.withAlpha(25),
